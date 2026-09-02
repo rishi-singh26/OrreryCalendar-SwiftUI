@@ -30,9 +30,9 @@ struct MoonPhaseRow: View {
         let size: CGFloat = smallMoon ? 30 : 68
         return VStack(spacing: 6) {
             ZStack {
-                Circle().fill(theme.moonDark)
+                Circle().fill(ThemeColors.moonShadow)
                 MoonPhaseShape(fraction: fraction)
-                    .fill(theme.ink)
+                    .fill(ThemeColors.moonLit)
                     .scaleEffect(x: mirrored ? -1 : 1, y: 1)
             }
             .frame(width: size, height: size)

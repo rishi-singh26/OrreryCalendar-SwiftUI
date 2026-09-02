@@ -84,6 +84,13 @@ struct ThemeColors {
         Color(hex: 0xC9A24A),
         Color(hex: 0x8A6A2C),
     ])
+
+    /// The Moon disc's lit/shadowed surface colors. Fixed regardless of app appearance —
+    /// unlike UI tokens such as `ink`/`moonDark`, which intentionally invert between
+    /// light and dark mode, the Moon's illuminated fraction is a physical rendering and
+    /// must always read as bright-lit-side/dark-shadow-side, never the reverse.
+    static let moonLit = Color(hex: 0xEAE6DA)
+    static let moonShadow = Color(hex: 0x17171B)
 }
 
 extension Color {
