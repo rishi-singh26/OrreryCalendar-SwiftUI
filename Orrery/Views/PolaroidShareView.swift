@@ -10,6 +10,11 @@
 //
 
 import SwiftUI
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 
 struct PolaroidShareView: View {
     let snapshot: DaySnapshot
@@ -54,11 +59,18 @@ struct PolaroidShareButton: View {
     let colorScheme: ColorScheme
 
     @State private var renderedImage: Image?
+    @State private var shareURL: URL?
 
     var body: some View {
         Group {
-            if let renderedImage {
-                ShareLink(item: renderedImage, preview: SharePreview(captionText, image: renderedImage)) {
+            if let renderedImage, let shareURL {
+                // Share the full-resolution PNG file rather than the SwiftUI `Image` itself:
+                // ShareLink's Transferable conformance for `Image` re-renders at the view's
+                // display size and loses the extra pixel density from `renderer.scale`,
+                // producing a soft, low-quality export. A file URL preserves the exact
+                // pixels the renderer produced. `renderedImage` is kept only for the
+                // (small) SharePreview thumbnail.
+                ShareLink(item: shareURL, preview: SharePreview(captionText, image: renderedImage)) {
                     Label("Share", systemImage: "square.and.arrow.up")
                 }
             } else {
@@ -86,14 +98,28 @@ struct PolaroidShareButton: View {
         )
         let renderer = ImageRenderer(content: content)
         renderer.scale = 3
+        guard let cgImage = renderer.cgImage else { return }
+
+        let pngData: Data?
         #if os(macOS)
-        if let nsImage = renderer.nsImage {
-            renderedImage = Image(nsImage: nsImage)
-        }
+        let nsImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+        renderedImage = Image(nsImage: nsImage)
+        pngData = NSBitmapImageRep(cgImage: cgImage).representation(using: .png, properties: [:])
         #else
-        if let uiImage = renderer.uiImage {
-            renderedImage = Image(uiImage: uiImage)
-        }
+        let uiImage = UIImage(cgImage: cgImage, scale: renderer.scale, orientation: .up)
+        renderedImage = Image(uiImage: uiImage)
+        pngData = uiImage.pngData()
         #endif
+
+        guard let pngData else { return }
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("png")
+        do {
+            try pngData.write(to: url)
+            shareURL = url
+        } catch {
+            shareURL = nil
+        }
     }
 }
