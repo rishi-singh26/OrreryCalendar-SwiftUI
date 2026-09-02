@@ -4,8 +4,8 @@
 //
 //  Horizontal draggable date scroller (spec §5): tick marks with month/year labels, a
 //  brass center marker for the selected date, snapping to whole days. Major ticks fall
-//  on the 1st of each month; minor ticks mark the other days. Clamps to the cached
-//  range rather than requesting a day outside it.
+//  on the 1st of each month, mid ticks on the 15th, and minor ticks mark the other days.
+//  Clamps to the cached range rather than requesting a day outside it.
 //
 //  `selectedDate` is updated continuously as the drag/scroll gesture progresses (not
 //  just when it ends), so the chart tracks the timeline live.
@@ -66,6 +66,15 @@ struct ScrubTimelineView: View {
     /// `ScrollDayAccumulator` below for why this exists).
     @State private var scrollAccumulator = ScrollDayAccumulator()
 
+    /// Bumped when a drag or scroll in this view steps `selectedDate` across a major
+    /// (1st-of-month) or mid (15th) tick — not on every day, and not on changes made
+    /// elsewhere — `selectedDate` is a `Binding` also written by the toolbar's "today"
+    /// button and date picker, so triggering feedback off it directly would fire haptics
+    /// for those too. `.sensoryFeedback` degrades to a no-op on hardware without haptics
+    /// (e.g. a Mac with no Force Touch trackpad, visionOS), so this alone covers "all
+    /// platforms that support haptic feedback" without per-platform code.
+    @State private var hapticTick = 0
+
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
@@ -99,6 +108,7 @@ struct ScrubTimelineView: View {
             #endif
         }
         .frame(height: 64)
+        .sensoryFeedback(.impact(weight: .light, intensity: 0.5), trigger: hapticTick)
     }
 
     private func dayDelta(forPoints points: Double) -> Int {
@@ -109,7 +119,11 @@ struct ScrubTimelineView: View {
         guard dayDelta != 0, let candidate = UTCDay.calendar.date(byAdding: .day, value: dayDelta, to: anchor) else { return }
         let clamped = min(max(candidate, minDate), maxDate)
         if clamped != selectedDate {
+            let previous = selectedDate
             selectedDate = clamped
+            if crossesSignificantTick(from: previous, to: clamped) {
+                hapticTick += 1
+            }
         }
     }
 
@@ -127,7 +141,11 @@ struct ScrubTimelineView: View {
         let actualDays = (try? UTCDay.dayCount(from: selectedDate, to: clamped)) ?? wholeDays
 
         if clamped != selectedDate {
+            let previous = selectedDate
             selectedDate = clamped
+            if crossesSignificantTick(from: previous, to: clamped) {
+                hapticTick += 1
+            }
         }
 
         if actualDays != wholeDays {
@@ -139,6 +157,40 @@ struct ScrubTimelineView: View {
         }
     }
 
+    /// The three tick tiers drawn along the timeline, and the ones a drag/scroll step
+    /// should announce with haptic feedback (`.major` and `.mid` — see
+    /// `crossesSignificantTick`). Keeping this in one place means the visual ticks and
+    /// the haptic ticks can never drift apart.
+    private enum TickTier {
+        case major, mid, minor
+
+        var isSignificant: Bool { self != .minor }
+    }
+
+    private func tickTier(for date: Date) -> TickTier {
+        switch UTCDay.calendar.component(.day, from: date) {
+        case 1: return .major
+        case 15: return .mid
+        default: return .minor
+        }
+    }
+
+    /// Whether stepping from `previous` to `next` (in either direction) passes over a
+    /// major or mid tick's date, checked day by day since a single drag/scroll step can
+    /// span more than one day. `previous` itself is not checked — its tick, if any,
+    /// already triggered feedback when the timeline first landed on it.
+    private func crossesSignificantTick(from previous: Date, to next: Date) -> Bool {
+        guard let dayCount = try? UTCDay.dayCount(from: previous, to: next), dayCount != 0 else { return false }
+        let step = dayCount > 0 ? 1 : -1
+        var cursor = previous
+        for _ in 0..<abs(dayCount) {
+            guard let stepped = UTCDay.calendar.date(byAdding: .day, value: step, to: cursor) else { break }
+            cursor = stepped
+            if tickTier(for: cursor).isSignificant { return true }
+        }
+        return false
+    }
+
     private func drawTicks(context: GraphicsContext, size: CGSize, centerDate: Date) {
         let midX = size.width / 2
         let visibleDaysHalf = Int((size.width / 2 / pointsPerDay).rounded(.up)) + 2
@@ -148,19 +200,19 @@ struct ScrubTimelineView: View {
             guard date >= minDate, date <= maxDate else { continue }
 
             let x = midX + Double(offset) * pointsPerDay
-            let isMajor = UTCDay.calendar.component(.day, from: date) == 1
-            let tickHeight = size.height * (isMajor ? 0.5 : 0.25)
+            let tier = tickTier(for: date)
+            let tickHeight = size.height * (tier == .major ? 0.5 : tier == .mid ? 0.35 : 0.25)
 
             var path = Path()
             path.move(to: CGPoint(x: x, y: size.height))
             path.addLine(to: CGPoint(x: x, y: size.height - tickHeight))
             context.stroke(
                 path,
-                with: .color(isMajor ? theme.tickMajor : theme.tickMinor),
-                lineWidth: isMajor ? 1.5 : 1
+                with: .color(tier == .major ? theme.tickMajor : tier == .mid ? theme.tickMajor.opacity(0.7) : theme.tickMinor),
+                lineWidth: tier == .major ? 1.5 : tier == .mid ? 1.2 : 1
             )
 
-            if isMajor {
+            if tier == .major {
                 let label = Text(Self.monthYearFormatter.string(from: date))
                     .font(.system(size: 10, design: .rounded))
                     .foregroundStyle(theme.tickLabel)
