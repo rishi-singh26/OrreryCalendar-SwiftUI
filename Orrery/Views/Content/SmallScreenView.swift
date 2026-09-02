@@ -93,6 +93,8 @@ struct SmallScreenView: View {
                 Image(systemName: viewModel.todayCalendarSymbolName(dataController: dataController))
             }
             .disabled(!dataController.isReady || viewModel.isAlreadyOnToday(dataController: dataController))
+            .help("Jump to Today")
+            .accessibilityLabel("Today")
 
             DatePicker(
                 "Select Date",
@@ -112,6 +114,7 @@ struct SmallScreenView: View {
             }
             .presentationCompactAdaptation(.popover)
             .disabled(!dataController.isReady)
+            .help("Choose a Date")
 
             Spacer()
         }
@@ -126,12 +129,15 @@ struct SmallScreenView: View {
             } label: {
                 Image(systemName: "list.bullet")
             }
+            .help("Show Saved Views")
+            .accessibilityLabel("Saved Views")
 
             if dataController.isReady, let snapshot = dataController.snapshot(for: viewModel.selectedDate) {
                 PolaroidShareButton(
                     snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, smallMoon: smallMoon, colorScheme: colorScheme
                 )
                 .labelStyle(.iconOnly)
+                .help("Share This View")
             }
 
             Button {
@@ -142,6 +148,8 @@ struct SmallScreenView: View {
             } label: {
                 Image(systemName: "slider.horizontal.3")
             }
+            .help("Settings")
+            .accessibilityLabel("Settings")
         }
     }
 
@@ -153,6 +161,8 @@ struct SmallScreenView: View {
                 .foregroundStyle(viewModel.justSaved ? theme.brass : theme.ink)
         }
         .disabled(!dataController.isReady)
+        .help(viewModel.justSaved ? "Saved" : "Save This View")
+        .accessibilityLabel(viewModel.justSaved ? "Saved" : "Save")
     }
 }
 

@@ -93,6 +93,8 @@ struct LargeScreenView: View {
                     Image(systemName: viewModel.todayCalendarSymbolName(dataController: dataController))
                 }
                 .disabled(!dataController.isReady || viewModel.isAlreadyOnToday(dataController: dataController))
+                .help("Jump to Today")
+                .accessibilityLabel("Today")
                 
                 
                 Button {
@@ -101,6 +103,8 @@ struct LargeScreenView: View {
                     Image(systemName: "calendar")
                 }
                 .disabled(!dataController.isReady)
+                .help("Choose a Date")
+                .accessibilityLabel("Choose Date")
             }
             .popover(isPresented: $viewModel.showDatePicker) {
                 DatePicker(
@@ -123,12 +127,16 @@ struct LargeScreenView: View {
                         .foregroundStyle(viewModel.justSaved ? theme.brass : theme.ink)
                 }
                 .disabled(!dataController.isReady)
-                
+                .help(viewModel.justSaved ? "Saved" : "Save This View")
+                .accessibilityLabel(viewModel.justSaved ? "Saved" : "Save")
+
                 Button {
                     viewModel.showSavedList.toggle()
                 } label: {
                     Image(systemName: "list.bullet")
                 }
+                .help("Show Saved Views")
+                .accessibilityLabel("Saved Views")
             }
             
             if dataController.isReady, let snapshot = dataController.snapshot(for: viewModel.selectedDate) {
@@ -137,6 +145,7 @@ struct LargeScreenView: View {
                         snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, smallMoon: smallMoon, colorScheme: colorScheme
                     )
                     .labelStyle(.iconOnly)
+                    .help("Share This View")
                 }
             }
             
@@ -146,6 +155,8 @@ struct LargeScreenView: View {
                 } label: {
                     Image(systemName: "slider.horizontal.3")
                 }
+                .help("Settings")
+                .accessibilityLabel("Settings")
             }
             .popover(isPresented: $viewModel.showSettings) {
                 SettingsPanel()
