@@ -38,9 +38,15 @@ struct PlanetConfig {
 enum OrreryGeometry {
     static let referenceHalfSize = 220.0
     static let rMinFraction = 34.0 / referenceHalfSize
+    /// Radius fraction at `innerZoneMaxAU`, where the evenly-spaced inner zone hands off
+    /// to the sqrt-compressed outer zone.
+    static let rMidFraction = 72.0 / referenceHalfSize
     static let rMaxFraction = 186.0 / referenceHalfSize
     static let minAU = 0.0
     static let maxAU = 30.5
+    /// End of the inner (rocky-planet) zone: just past Mars' aphelion (~1.666 AU) so Mars
+    /// stays in the linear zone across its whole orbit, not just at its nominal distance.
+    static let innerZoneMaxAU = 1.7
 
     static func halfSize(for viewSize: CGSize) -> Double {
         min(viewSize.width, viewSize.height) / 2
@@ -52,13 +58,26 @@ enum OrreryGeometry {
         halfSize / referenceHalfSize
     }
 
-    /// Screen-space radius for a heliocentric distance, scaled to `halfSize`. `sqrt`
-    /// compresses the outer planets so the whole system fits the chart.
+    /// Screen-space radius for a heliocentric distance, scaled to `halfSize`.
+    ///
+    /// Below `innerZoneMaxAU` the mapping is linear in AU: a plain sqrt curve is steepest
+    /// right at the Sun, so Mercury alone eats most of the Sun-to-first-orbit gap and
+    /// leaves Mercury/Venus/Earth/Mars crowded together. Linear spacing there gives the
+    /// four rocky planets clearly separated orbits using that same gap, without pushing
+    /// `rMax` (and so the chart's overall size) out any further. Beyond that, `sqrt`
+    /// continues to compress the outer planets so the whole system fits the chart.
     static func radius(forDistanceAU au: Double, halfSize: Double) -> Double {
         let rMin = halfSize * rMinFraction
+        let rMid = halfSize * rMidFraction
         let rMax = halfSize * rMaxFraction
-        let t = min(max((au - minAU) / (maxAU - minAU), 0), 1)
-        return rMin + (rMax - rMin) * t.squareRoot()
+        let au = min(max(au, minAU), maxAU)
+        if au <= innerZoneMaxAU {
+            let t = (au - minAU) / (innerZoneMaxAU - minAU)
+            return rMin + (rMid - rMin) * t
+        } else {
+            let t = (au - innerZoneMaxAU) / (maxAU - innerZoneMaxAU)
+            return rMid + (rMax - rMid) * t.squareRoot()
+        }
     }
 
     /// Screen position for a body at `distanceAU`/`angleDeg` (ecliptic longitude),
