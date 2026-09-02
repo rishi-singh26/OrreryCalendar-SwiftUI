@@ -33,13 +33,6 @@ struct SmallScreenView: View {
                 .background(theme.background.ignoresSafeArea())
                 .toolbar { ToolbarContentBuilder(theme: theme, colorScheme: colorScheme) }
                 .orrerySettingsPresentation(isPresented: $viewModel.showSettings)
-                .sheet(isPresented: $viewModel.showDatePicker) {
-                    DatePickerSheet(
-                        selectedDate: viewModel.dateBinding(dataController: dataController),
-                        minDate: dataController.startDate,
-                        maxDate: dataController.endDate
-                    )
-                }
             }
         }
         .task {
@@ -54,7 +47,7 @@ struct SmallScreenView: View {
     private func MainContentBuilder(snapshot: DaySnapshot, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
         VStack(spacing: 20) {
             Text(viewModel.selectedDate.formatted(.dateTime.year().month(.wide).day()))
-                .font(.system(.title, design: .rounded))
+                .font(.system(.title, design: .serif))
                 .foregroundStyle(theme.ink)
 
             OrreryView(snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, theme: theme, aspectRatio: 1)
@@ -77,6 +70,7 @@ struct SmallScreenView: View {
                 maxDate: dataController.endDate,
                 theme: theme
             )
+            .clipShape(.rect(cornerRadius: 20))
             .withOSSurface(with: .regular.interactive(), in: .rect(cornerRadius: 20))
             .padding(.horizontal, 12)
             .padding(.bottom, 8)

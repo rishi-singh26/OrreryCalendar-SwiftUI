@@ -108,7 +108,7 @@ struct ScrubTimelineView: View {
             #endif
         }
         .frame(height: 64)
-        .sensoryFeedback(.impact(weight: .light, intensity: 0.5), trigger: hapticTick)
+        .sensoryFeedback(.impact(weight: .light, intensity: 1), trigger: hapticTick)
     }
 
     private func dayDelta(forPoints points: Double) -> Int {

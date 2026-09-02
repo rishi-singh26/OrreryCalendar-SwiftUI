@@ -35,7 +35,7 @@ struct PolaroidShareView: View {
             MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, smallMoon: smallMoon, theme: theme)
 
             Text(snapshot.date.formatted(.dateTime.year().month(.wide).day()))
-                .font(.system(.headline, design: .rounded))
+                .font(.system(.title, design: .serif))
                 .foregroundStyle(Color.black.opacity(0.75))
         }
         .padding(24)

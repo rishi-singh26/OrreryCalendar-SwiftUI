@@ -33,11 +33,10 @@ struct LargeScreenView: View {
                 .toolbar {
                     ToolbarBuilder(theme: theme, colorScheme: colorScheme)
                 }
-                .inspector(isPresented: $viewModel.showSavedList) {
+                .withInspectorOrOrnament(isPresented: $viewModel.showSavedList) {
                     SavedListView { date in
                         viewModel.selectedDate = dataController.clampedDate(date)
                     }
-                    .inspectorColumnWidth(min: 200, ideal: 250, max: 350)
                 }
             }
         }
@@ -53,7 +52,7 @@ struct LargeScreenView: View {
     private func MainContentBuilder(snapshot: DaySnapshot, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
         VStack(spacing: 20) {
             Text(viewModel.selectedDate.formatted(.dateTime.year().month(.wide).day()))
-                .font(.system(.title, design: .rounded))
+                .font(.system(.title, design: .serif))
                 .foregroundStyle(theme.ink)
                 .padding(.top)
 

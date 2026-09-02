@@ -8,6 +8,8 @@
 import SwiftUI
 
 extension View {
+    
+#if os(iOS) || os(macOS)
     /// A glass card/capsule background for popup and toast content. MapGIS's
     /// deployment floor (26.5) is already above the Liquid Glass availability
     /// floor on every platform it ships, so unlike DigipinManager's
@@ -35,63 +37,35 @@ extension View {
         }
 #endif
     }
-
+#endif
+    
+    
     /// Sheet on iPhone, popover on iPad/macOS, and a bottom ornament on visionOS —
     /// the same adaptive treatment as `orrerySettingsPresentation`, but displaying
     /// caller-supplied content instead of the fixed `SettingsPanel`. The `width`
     /// and `height` size the popover/ornament; the iPhone sheet lets its content
     /// determine its own height.
     @ViewBuilder
-    func orreryResponsivePresentation<Content: View>(
+    func withInspectorOrOrnament<Content: View>(
         isPresented: Binding<Bool>,
-        width: CGFloat = 360,
-        height: CGFloat = 420,
+        size: CGSize = .init(width: 360, height: 420),
         @ViewBuilder content: @escaping () -> Content
     ) -> some View {
-        #if os(macOS)
-        self.popover(isPresented: isPresented, arrowEdge: .bottom) {
-            content().frame(width: width, height: height)
+#if os(macOS)
+        self.inspector(isPresented: isPresented) {
+            content()
+                .inspectorColumnWidth(min: size.width, ideal: size.width, max: size.width)
         }
-        #elseif os(visionOS)
+#elseif os(visionOS)
         self.ornament(
             visibility: isPresented.wrappedValue ? .visible : .hidden,
             attachmentAnchor: .scene(.bottom)
         ) {
-            content().frame(width: width, height: height)
+            content().frame(width: size.width, height: size.height)
         }
-        #else
-        self.modifier(
-            AdaptiveResponsivePresentation(
-                isPresented: isPresented,
-                width: width,
-                height: height,
-                content: content
-            )
-        )
-        #endif
-    }
-}
-
-
-#if os(iOS)
-private struct AdaptiveResponsivePresentation<PresentedContent: View>: ViewModifier {
-    @Binding var isPresented: Bool
-    let width: CGFloat
-    let height: CGFloat
-    @ViewBuilder let content: () -> PresentedContent
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-
-    func body(content: Content) -> some View {
-        if horizontalSizeClass == .regular {
-            content.popover(isPresented: $isPresented) {
-                self.content().frame(width: width, height: height)
-            }
-        } else {
-            content.sheet(isPresented: $isPresented) {
-                self.content()
-            }
-        }
-    }
-}
+#else
+        self
 #endif
-
+    }
+    
+}
