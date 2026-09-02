@@ -34,9 +34,7 @@ struct PolaroidShareView: View {
 
             MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, smallMoon: smallMoon, theme: theme)
 
-            Text(snapshot.date.formatted(.dateTime.year().month(.wide).day()))
-                .font(.system(.title, design: .serif))
-                .foregroundStyle(Color.black.opacity(0.75))
+            SelectedDateTitleText(date: snapshot.date, color: .black.opacity(0.75))
         }
         .padding(24)
         .padding(.bottom, 8)
@@ -101,7 +99,7 @@ struct PolaroidShareButton: View {
     }
 
     private var captionText: String {
-        snapshot.date.formatted(.dateTime.year().month(.wide).day())
+        SelectedDateTitleText.string(from: snapshot.date)
     }
 
     @MainActor

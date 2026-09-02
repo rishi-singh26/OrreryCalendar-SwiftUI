@@ -55,9 +55,7 @@ struct LargeScreenView: View {
     @ViewBuilder
     private func MainContentBuilder(snapshot: DaySnapshot, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
         VStack(spacing: 20) {
-            Text(viewModel.selectedDate.formatted(.dateTime.year().month(.wide).day()))
-                .font(.system(.title, design: .serif))
-                .foregroundStyle(theme.ink)
+            SelectedDateTitleText(date: viewModel.selectedDate, color: theme.ink)
                 .padding(.top)
 
             OrreryView(snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, theme: theme)
