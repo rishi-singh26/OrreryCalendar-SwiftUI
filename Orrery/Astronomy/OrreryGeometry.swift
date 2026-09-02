@@ -81,11 +81,14 @@ enum OrreryGeometry {
     }
 
     /// Screen position for a body at `distanceAU`/`angleDeg` (ecliptic longitude),
-    /// centered on `center`.
+    /// centered on `center`. `angleDeg` increases counter-clockwise, the direction
+    /// planets actually orbit as seen from ecliptic north; the `y` term is negated to
+    /// counteract SwiftUI's downward-increasing y-axis, which would otherwise mirror
+    /// that into apparent clockwise motion on screen.
     static func position(distanceAU: Double, angleDeg: Double, center: CGPoint, halfSize: Double) -> CGPoint {
         let r = radius(forDistanceAU: distanceAU, halfSize: halfSize)
         let rad = angleDeg * .pi / 180
-        return CGPoint(x: center.x + r * cos(rad), y: center.y + r * sin(rad))
+        return CGPoint(x: center.x + r * cos(rad), y: center.y - r * sin(rad))
     }
 
     enum LabelAlignment {
@@ -101,14 +104,16 @@ enum OrreryGeometry {
     }
 
     /// Label anchor point: along the same radial line as the dot, just past it.
-    /// `dotSize` is the already-scaled on-screen dot radius.
+    /// `dotSize` is the already-scaled on-screen dot radius. `y` is negated for the same
+    /// reason as in `position(distanceAU:angleDeg:center:halfSize:)`, so the label lands
+    /// on the same ray as the dot it belongs to.
     static func labelAnchor(
         distanceAU: Double, angleDeg: Double, dotSize: Double, center: CGPoint, halfSize: Double
     ) -> CGPoint {
         let offset = dotSize + 13 * scale(halfSize: halfSize)
         let r = radius(forDistanceAU: distanceAU, halfSize: halfSize) + offset
         let rad = angleDeg * .pi / 180
-        return CGPoint(x: center.x + r * cos(rad), y: center.y + r * sin(rad))
+        return CGPoint(x: center.x + r * cos(rad), y: center.y - r * sin(rad))
     }
 
     /// Saturn's ring: a thin stroked ellipse layered on the dot, the one intentional
