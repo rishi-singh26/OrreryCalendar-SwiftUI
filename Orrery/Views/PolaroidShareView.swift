@@ -6,7 +6,7 @@
 //  rings (if enabled), and both Moon phase discs with labels — no buttons, no settings
 //  chrome, no scrub timeline. The polaroid frame itself (cream border, dark caption) is
 //  fixed regardless of app theme; the chart content inside follows the current
-//  orbit/small-moon toggle state and color scheme, per spec.
+//  orbit/label/small-moon toggle state and color scheme, per spec.
 //
 
 import SwiftUI
@@ -14,6 +14,7 @@ import SwiftUI
 struct PolaroidShareView: View {
     let snapshot: DaySnapshot
     let showOrbits: Bool
+    let showLabels: Bool
     let smallMoon: Bool
     let colorScheme: ColorScheme
 
@@ -21,7 +22,7 @@ struct PolaroidShareView: View {
 
     var body: some View {
         VStack(spacing: 18) {
-            OrreryView(snapshot: snapshot, showOrbits: showOrbits, theme: theme)
+            OrreryView(snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, theme: theme)
                 .frame(width: 320, height: 285)
                 .padding(12)
                 .background(theme.background)
@@ -48,6 +49,7 @@ struct PolaroidShareView: View {
 struct PolaroidShareButton: View {
     let snapshot: DaySnapshot
     let showOrbits: Bool
+    let showLabels: Bool
     let smallMoon: Bool
     let colorScheme: ColorScheme
 
@@ -70,7 +72,7 @@ struct PolaroidShareButton: View {
     }
 
     private var renderKey: String {
-        "\(snapshot.date.timeIntervalSince1970)-\(showOrbits)-\(smallMoon)-\(colorScheme == .dark)"
+        "\(snapshot.date.timeIntervalSince1970)-\(showOrbits)-\(showLabels)-\(smallMoon)-\(colorScheme == .dark)"
     }
 
     private var captionText: String {
@@ -80,7 +82,7 @@ struct PolaroidShareButton: View {
     @MainActor
     private func render() {
         let content = PolaroidShareView(
-            snapshot: snapshot, showOrbits: showOrbits, smallMoon: smallMoon, colorScheme: colorScheme
+            snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, smallMoon: smallMoon, colorScheme: colorScheme
         )
         let renderer = ImageRenderer(content: content)
         renderer.scale = 3

@@ -13,6 +13,7 @@ struct LargeScreenView: View {
     @Environment(\.modelContext) private var modelContext
 
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
+    @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
     @AppStorage(AppStorageKeys.smallMoon) private var smallMoon = false
     @AppStorage(AppStorageKeys.rangeYears) private var rangeYears = DataController.defaultRangeYears
 
@@ -56,7 +57,7 @@ struct LargeScreenView: View {
                 .foregroundStyle(theme.ink)
                 .padding(.top)
 
-            OrreryView(snapshot: snapshot, showOrbits: showOrbits, theme: theme)
+            OrreryView(snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, theme: theme)
                 .frame(minWidth: 600, minHeight: 600)
 
             Spacer(minLength: 0)
@@ -133,7 +134,7 @@ struct LargeScreenView: View {
             if dataController.isReady, let snapshot = dataController.snapshot(for: viewModel.selectedDate) {
                 ControlGroup {
                     PolaroidShareButton(
-                        snapshot: snapshot, showOrbits: showOrbits, smallMoon: smallMoon, colorScheme: colorScheme
+                        snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, smallMoon: smallMoon, colorScheme: colorScheme
                     )
                     .labelStyle(.iconOnly)
                 }

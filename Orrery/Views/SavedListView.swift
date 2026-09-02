@@ -16,6 +16,7 @@ struct SavedListView: View {
     @Query(sort: \SavedSnapshot.date, order: .reverse) private var savedSnapshots: [SavedSnapshot]
 
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
+    @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
     @AppStorage(AppStorageKeys.smallMoon) private var smallMoon = false
 
     /// Jumps the main timeline to `Date` and dismisses this list.
@@ -70,7 +71,7 @@ struct SavedListView: View {
         .buttonStyle(.plain)
         .contextMenu(menuItems: {
             PolaroidShareButton(
-                snapshot: entry.daySnapshot, showOrbits: showOrbits, smallMoon: smallMoon, colorScheme: colorScheme
+                snapshot: entry.daySnapshot, showOrbits: showOrbits, showLabels: showLabels, smallMoon: smallMoon, colorScheme: colorScheme
             )
             
             Divider()
@@ -91,7 +92,7 @@ struct SavedListView: View {
         }
         .swipeActions(edge: .leading) {
             PolaroidShareButton(
-                snapshot: entry.daySnapshot, showOrbits: showOrbits, smallMoon: smallMoon, colorScheme: colorScheme
+                snapshot: entry.daySnapshot, showOrbits: showOrbits, showLabels: showLabels, smallMoon: smallMoon, colorScheme: colorScheme
             )
             .labelStyle(.iconOnly)
             .tint(theme.brassDim)

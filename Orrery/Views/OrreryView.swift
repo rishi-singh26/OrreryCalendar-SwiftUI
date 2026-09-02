@@ -11,6 +11,7 @@ import SwiftUI
 struct OrreryView: View {
     let snapshot: DaySnapshot
     let showOrbits: Bool
+    let showLabels: Bool
     let theme: ThemeColors
 
     /// Sun dot radius at the reference canvas scale (halfSize 220) — not specified by
@@ -70,6 +71,8 @@ struct OrreryView: View {
 
         let dotRect = CGRect(x: position.x - dotSize, y: position.y - dotSize, width: dotSize * 2, height: dotSize * 2)
         context.fill(Path(ellipseIn: dotRect), with: .color(theme.ink))
+
+        guard showLabels else { return }
 
         let anchor = OrreryGeometry.labelAnchor(
             distanceAU: value.distanceAU, angleDeg: value.angleDeg, dotSize: dotSize, center: center, halfSize: halfSize
