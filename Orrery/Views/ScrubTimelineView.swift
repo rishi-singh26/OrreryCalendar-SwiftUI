@@ -90,20 +90,21 @@ struct ScrubTimelineView: View {
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 1)
-                    .onChanged { value in
-                        let anchor = dragAnchorDate ?? selectedDate
-                        if dragAnchorDate == nil { dragAnchorDate = anchor }
-                        applyDayDelta(dayDelta(forPoints: -value.translation.width), from: anchor)
-                    }
-                    .onEnded { _ in
-                        dragAnchorDate = nil
-                    }
+                    .onChanged { value in handleDragChanged(translationX: value.translation.width) }
+                    .onEnded { _ in handleDragEnded() }
             )
             #if os(macOS)
             .background(
                 ScrollWheelCapture { deltaX in
                     applyScrollDelta(deltaX)
                 }
+            )
+            #elseif os(iOS)
+            .overlay(
+                ScrollWheelCapture(
+                    onChanged: { translationX in handleDragChanged(translationX: translationX) },
+                    onEnded: { handleDragEnded() }
+                )
             )
             #endif
         }
@@ -113,6 +114,19 @@ struct ScrubTimelineView: View {
 
     private func dayDelta(forPoints points: Double) -> Int {
         Int((points / pointsPerDay).rounded())
+    }
+
+    /// Shared by the touch/pointer `DragGesture` and, on iOS, the mouse/trackpad scroll
+    /// capture below — both report a horizontal translation that's cumulative from
+    /// gesture start, so both can drive the same anchor-based day stepping.
+    private func handleDragChanged(translationX: CGFloat) {
+        let anchor = dragAnchorDate ?? selectedDate
+        if dragAnchorDate == nil { dragAnchorDate = anchor }
+        applyDayDelta(dayDelta(forPoints: -translationX), from: anchor)
+    }
+
+    private func handleDragEnded() {
+        dragAnchorDate = nil
     }
 
     private func applyDayDelta(_ dayDelta: Int, from anchor: Date) {
@@ -291,6 +305,93 @@ private struct ScrollWheelCapture: NSViewRepresentable {
                 NSEvent.removeMonitor(monitor)
             }
         }
+    }
+}
+#endif
+
+#if os(iOS)
+import UIKit
+
+/// Bluetooth/wired mouse and trackpad scroll-wheel support for the timeline on
+/// iOS/iPadOS (spec §5). UIKit exposes indirect scroll input (mouse wheel, trackpad)
+/// through `UIPanGestureRecognizer.allowedScrollTypesMask` (available since iOS 13.4) —
+/// the same gesture-recognizer machinery as touch panning, just fed from a different
+/// input source. Its `translation(in:)` is therefore cumulative from gesture start,
+/// exactly like SwiftUI's `DragGesture`, so it drives the same anchor-based day
+/// stepping (`handleDragChanged`/`handleDragEnded`) rather than needing an incremental
+/// accumulator the way macOS's per-event `NSEvent.scrollWheel` deltas do.
+///
+/// `allowedTouchTypes = []` keeps the gesture recognizer itself from ever trying to
+/// recognize a touch, so it only ever fires for indirect input. That alone isn't
+/// enough, though: this view sits in front of the timeline's content as an `.overlay`
+/// (see below for why), and a plain `UIView` claims every point in its bounds for
+/// *any* event during hit-testing — touches included — which would silently swallow
+/// the on-screen `DragGesture` this view is layered over. `ScrollOnlyHitTestView`
+/// overrides `hitTest(_:with:)` to claim a point only when the event is an indirect
+/// scroll (`UIEvent.EventType.scroll`, the type UIKit uses for mouse-wheel/trackpad
+/// input since iOS 13.4) and return `nil` — transparent — otherwise, so touches fall
+/// through to the content behind it untouched.
+private struct ScrollWheelCapture: UIViewRepresentable {
+    let onChanged: (CGFloat) -> Void
+    let onEnded: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onChanged: onChanged, onEnded: onEnded)
+    }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = ScrollOnlyHitTestView()
+        let recognizer = UIPanGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handlePan(_:))
+        )
+        recognizer.allowedScrollTypesMask = [.continuous, .discrete]
+        recognizer.allowedTouchTypes = []
+        view.addGestureRecognizer(recognizer)
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.onChanged = onChanged
+        context.coordinator.onEnded = onEnded
+    }
+
+    final class Coordinator: NSObject {
+        var onChanged: (CGFloat) -> Void
+        var onEnded: () -> Void
+
+        init(onChanged: @escaping (CGFloat) -> Void, onEnded: @escaping () -> Void) {
+            self.onChanged = onChanged
+            self.onEnded = onEnded
+        }
+
+        @objc func handlePan(_ recognizer: UIPanGestureRecognizer) {
+            guard let view = recognizer.view else { return }
+            switch recognizer.state {
+            case .changed:
+                onChanged(recognizer.translation(in: view).x)
+            case .ended, .cancelled, .failed:
+                onEnded()
+            default:
+                break
+            }
+        }
+    }
+}
+
+/// A `UIView` that hit-tests as empty for every event except an indirect scroll
+/// (mouse wheel/trackpad). Used to layer `ScrollWheelCapture` as a full-size
+/// `.overlay` over the timeline's touch-driven content without blocking those touches
+/// — see `ScrollWheelCapture`'s doc comment above for why an overlay (front, not
+/// `.background`) is needed at all.
+///
+/// On iPad this works out of the box with a paired mouse/trackpad. On iPhone it
+/// requires the user to pair the mouse via AssistiveTouch (Settings > Accessibility >
+/// Touch > AssistiveTouch > Devices) — the same API applies once paired.
+private final class ScrollOnlyHitTestView: UIView {
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        guard event?.type == .scroll else { return nil }
+        return super.hitTest(point, with: event)
     }
 }
 #endif
