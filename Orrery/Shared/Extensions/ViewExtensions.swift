@@ -48,13 +48,14 @@ extension View {
     @ViewBuilder
     func withInspectorOrOrnament<Content: View>(
         isPresented: Binding<Bool>,
-        size: CGSize = .init(width: 360, height: 420),
+        inspectorWidth: CGFloat = 250,
+        ornamentSize: CGSize = .init(width: 360, height: 420),
         @ViewBuilder content: @escaping () -> Content
     ) -> some View {
 #if os(macOS)
         self.inspector(isPresented: isPresented) {
             content()
-                .inspectorColumnWidth(min: size.width, ideal: size.width, max: size.width)
+                .inspectorColumnWidth(min: inspectorWidth, ideal: inspectorWidth, max: inspectorWidth)
         }
 #elseif os(visionOS)
         self.ornament(

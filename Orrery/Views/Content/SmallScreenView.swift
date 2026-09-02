@@ -36,7 +36,9 @@ struct SmallScreenView: View {
                 }
                 .background(theme.background.ignoresSafeArea())
                 .toolbar { ToolbarContentBuilder(snapshot: snapshot, theme: theme, colorScheme: colorScheme) }
-                .orrerySettingsPresentation(isPresented: $viewModel.showSettings)
+                .sheet(isPresented: $viewModel.showSettings) {
+                    SettingsSheet()
+                }
             }
         }
         .task {

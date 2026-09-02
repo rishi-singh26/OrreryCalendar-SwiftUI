@@ -61,7 +61,7 @@ struct LargeScreenView: View {
                 .padding(.top)
 
             OrreryView(snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, theme: theme)
-                .frame(minWidth: 600, minHeight: 600)
+                .frame(minWidth: DeviceType.isIpad ? 450 : 600, minHeight: DeviceType.isIpad ? 450 : 600)
 
             Spacer(minLength: 0)
 
@@ -108,17 +108,18 @@ struct LargeScreenView: View {
                 .disabled(!dataController.isReady)
                 .help("Choose a Date")
                 .accessibilityLabel("Choose Date")
-            }
-            .popover(isPresented: $viewModel.showDatePicker) {
-                DatePicker(
-                    "Date",
-                    selection: viewModel.dateBinding(dataController: dataController),
-                    in: dataController.startDate...dataController.endDate,
-                    displayedComponents: .date
-                )
-                .datePickerStyle(.graphical)
-                .labelsHidden()
-                .padding()
+                .popover(isPresented: $viewModel.showDatePicker) {
+                    DatePicker(
+                        "Date",
+                        selection: viewModel.dateBinding(dataController: dataController),
+                        in: dataController.startDate...dataController.endDate,
+                        displayedComponents: .date
+                    )
+                    .datePickerStyle(.graphical)
+                    .labelsHidden()
+                    .padding()
+                    .frame(minWidth: DeviceType.isIpad ? 320 : nil, minHeight: DeviceType.isIpad ? 320 : nil)
+                }
             }
             
             
@@ -133,34 +134,47 @@ struct LargeScreenView: View {
                 .help(viewModel.justSaved ? "Saved" : "Save This View")
                 .accessibilityLabel(viewModel.justSaved ? "Saved" : "Save")
 
-                Button {
-                    viewModel.showSavedList.toggle()
-                } label: {
-                    Image(systemName: "list.bullet")
+                if DeviceType.isIpad {
+                    Button {
+                        viewModel.showSavedList.toggle()
+                    } label: {
+                        Image(systemName: "list.bullet")
+                    }
+                    .help("Show Saved Views")
+                    .accessibilityLabel("Saved Views")
+                    .popover(isPresented: $viewModel.showSavedList) {
+                        SavedListView { date in
+                            viewModel.selectedDate = dataController.clampedDate(date)
+                        }
+                        .frame(minHeight: DeviceType.isIpad ? 450 : 360)
+                        .frame(minWidth: 320, idealWidth: 360)
+                    }
+                } else {
+                    Button {
+                        viewModel.showSavedList.toggle()
+                    } label: {
+                        Image(systemName: "list.bullet")
+                    }
+                    .help("Show Saved Views")
+                    .accessibilityLabel("Saved Views")
                 }
-                .help("Show Saved Views")
-                .accessibilityLabel("Saved Views")
             }
             
             if let snapshot {
-                ControlGroup {
-                    PolaroidShareButton(
-                        snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, smallMoon: smallMoon, colorScheme: colorScheme
-                    )
-                    .labelStyle(.iconOnly)
-                    .help("Share This View")
-                }
+                PolaroidShareButton(
+                    snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, smallMoon: smallMoon, colorScheme: colorScheme
+                )
+                .labelStyle(.iconOnly)
+                .help("Share This View")
             }
             
-            ControlGroup {
-                Button {
-                    viewModel.showSettings.toggle()
-                } label: {
-                    Image(systemName: "slider.horizontal.3")
-                }
-                .help("Settings")
-                .accessibilityLabel("Settings")
+            Button {
+                viewModel.showSettings.toggle()
+            } label: {
+                Image(systemName: "slider.horizontal.3")
             }
+            .help("Settings")
+            .accessibilityLabel("Settings")
             .popover(isPresented: $viewModel.showSettings) {
                 SettingsPanel()
             }

@@ -21,20 +21,33 @@ struct SettingsPanel: View {
 
     var body: some View {
         Form {
-            Section {
+            Section("General") {
                 Toggle("Show orbits", isOn: $showOrbits)
                 Toggle("Show labels", isOn: $showLabels)
                 Toggle("Small moon", isOn: $smallMoon)
             }
-
+            
             Section("Appearance") {
-                Picker("Appearance", selection: $appearanceMode) {
-                    ForEach(AppearanceMode.allCases) { mode in
-                        Text(mode.label).tag(mode)
+                Picker(selection: $appearanceMode) {
+                    Label("System", systemImage: "iphone.gen2").tag(AppearanceMode.system)
+                    Label("Light", systemImage: "sun.max").tag(AppearanceMode.light)
+                    Label("Dark", systemImage: "moon.stars").tag(AppearanceMode.dark)
+                } label: {
+                    Label {
+                        Text("Appearance")
+                    } icon: {
+                        ZStack {
+                            Image(systemName: "circle.lefthalf.filled")
+                                .scaleEffect(1.2)
+                            Image(systemName: "circle.lefthalf.filled")
+                                .foregroundStyle(.background)
+                                .scaleEffect(0.6)
+                            Image(systemName: "circle.righthalf.filled")
+                                .scaleEffect(0.6)
+                        }
                     }
+
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
             }
 
             Section("Date range") {
@@ -72,6 +85,7 @@ struct SettingsPanel: View {
             }
         }
         .formStyle(.grouped)
+        .frame(minHeight: DeviceType.isIpad ? 450 : 360)
         .frame(minWidth: 320, idealWidth: 360)
     }
 
@@ -93,49 +107,20 @@ struct SettingsPanel: View {
     }
 }
 
-// MARK: - Adaptive presentation
-
-extension View {
-    /// Sheet on iPhone, popover on iPad/macOS, matching the floating-panel treatment
-    /// from the web version. visionOS attaches it as a bottom ornament on the main
-    /// window, per spec's stated preference — the content is always present and only
-    /// `visibility` toggles, which is the standard visionOS pattern for an ornament
-    /// that shows/hides.
-    @ViewBuilder
-    func orrerySettingsPresentation(isPresented: Binding<Bool>) -> some View {
-        #if os(macOS)
-        self.popover(isPresented: isPresented, arrowEdge: .bottom) {
-            SettingsPanel().frame(width: 360, height: 420)
-        }
-        #elseif os(visionOS)
-        self.ornament(
-            visibility: isPresented.wrappedValue ? .visible : .hidden,
-            attachmentAnchor: .scene(.bottom)
-        ) {
+struct SettingsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationStack {
             SettingsPanel()
-                .frame(width: 360, height: 420)
-        }
-        #else
-        self.modifier(AdaptiveSettingsPresentation(isPresented: isPresented))
-        #endif
-    }
-}
-
-#if os(iOS)
-private struct AdaptiveSettingsPresentation: ViewModifier {
-    @Binding var isPresented: Bool
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-
-    func body(content: Content) -> some View {
-        if horizontalSizeClass == .regular {
-            content.popover(isPresented: $isPresented) {
-                SettingsPanel().frame(width: 360, height: 420)
-            }
-        } else {
-            content.sheet(isPresented: $isPresented) {
-                SettingsPanel()
-            }
+                .navigationTitle("Settings")
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done", systemImage: "checkmark") {
+                            dismiss()
+                        }
+                    }
+                }
         }
     }
 }
-#endif
