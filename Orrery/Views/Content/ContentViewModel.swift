@@ -54,6 +54,13 @@ final class ContentViewModel {
         UTCDay.midnight(of: selectedDate) == dataController.clampedDate(dataController.todayDate)
     }
 
+    /// SF Symbol name for the "jump to today" toolbar button, e.g. "2.calendar" on the
+    /// 2nd of the month — mirrors the day-of-month shown on the device's physical calendar.
+    func todayCalendarSymbolName(dataController: DataController) -> String {
+        let day = UTCDay.calendar.component(.day, from: dataController.todayDate)
+        return "\(day).calendar"
+    }
+
     /// Within 30 days of either edge of the cached range — a reasonable trigger to surface
     /// the "extend range" affordance rather than silently auto-extending (spec §5 allows
     /// either; this keeps compute triggers explicit/user-visible).

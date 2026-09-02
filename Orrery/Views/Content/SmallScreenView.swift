@@ -90,7 +90,7 @@ struct SmallScreenView: View {
             Button {
                 viewModel.selectToday(dataController: dataController)
             } label: {
-                Image(systemName: "2.calendar")
+                Image(systemName: viewModel.todayCalendarSymbolName(dataController: dataController))
             }
             .disabled(!dataController.isReady || viewModel.isAlreadyOnToday(dataController: dataController))
 
