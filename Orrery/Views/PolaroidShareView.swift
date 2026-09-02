@@ -79,6 +79,19 @@ struct PolaroidShareButton: View {
             }
         }
         .task(id: renderKey) {
+            // Debounce: `renderKey` embeds the selected date, which changes on every
+            // day the scrub timeline's drag/scroll gesture crosses (updated
+            // continuously, not just on release). Without this, each of those days
+            // would trigger a full off-screen render + PNG encode + disk write — all
+            // synchronous, uninterruptible main-thread work — competing with the
+            // gesture for every frame. Waiting here for the id to settle means only
+            // the final date (or a deliberate settings change) actually renders;
+            // `Task.sleep` is cancellable, so a superseded id never reaches `render()`.
+            do {
+                try await Task.sleep(for: .milliseconds(250))
+            } catch {
+                return
+            }
             render()
         }
     }
@@ -117,6 +130,14 @@ struct PolaroidShareButton: View {
             .appendingPathExtension("png")
         do {
             try pngData.write(to: url)
+            // Each render writes a fresh UUID-named file rather than overwriting the
+            // last one, so the previous render's file (if any) is now orphaned —
+            // remove it now that the new one has taken its place, otherwise every
+            // render (one per date/settings change) leaks a PNG into the temp
+            // directory for the rest of the session.
+            if let previousURL = shareURL, previousURL != url {
+                try? FileManager.default.removeItem(at: previousURL)
+            }
             shareURL = url
         } catch {
             shareURL = nil

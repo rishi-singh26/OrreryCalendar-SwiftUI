@@ -196,7 +196,14 @@ struct ScrubTimelineView: View {
         let visibleDaysHalf = Int((size.width / 2 / pointsPerDay).rounded(.up)) + 2
 
         for offset in -visibleDaysHalf...visibleDaysHalf {
-            guard let date = UTCDay.calendar.date(byAdding: .day, value: offset, to: centerDate) else { continue }
+            // `centerDate` is always UTC-midnight (see `UTCDay.midnight`), and `UTCDay.calendar`
+            // is fixed to the UTC time zone, which never observes DST — so every UTC calendar day
+            // is exactly 86,400 seconds long, and Foundation `Date` arithmetic doesn't model leap
+            // seconds either. Stepping by `offset` days is therefore exactly equivalent to
+            // `UTCDay.calendar.date(byAdding: .day, value: offset, to: centerDate)` here, without
+            // paying for a `Calendar` call on every one of the ~80-170 ticks this loop draws on
+            // every redraw (this Canvas redraws continuously while the drag/scroll gesture runs).
+            let date = centerDate.addingTimeInterval(Double(offset) * 86_400)
             guard date >= minDate, date <= maxDate else { continue }
 
             let x = midX + Double(offset) * pointsPerDay

@@ -21,17 +21,21 @@ struct SmallScreenView: View {
     @State private var viewModel = ContentViewModel()
 
     var body: some View {
+        // Looked up once per body evaluation and handed to both the main content and
+        // the toolbar below, rather than each independently calling
+        // `dataController.snapshot(for:)` (a `UTCDay` calendar-based lookup).
+        let snapshot = dataController.snapshot(for: viewModel.selectedDate)
         ThemeReader { theme, colorScheme in
             NavigationStack {
                 Group {
-                    if dataController.isReady, let snapshot = dataController.snapshot(for: viewModel.selectedDate) {
+                    if let snapshot {
                         MainContentBuilder(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
                     } else {
                         CalculatingPositionsView(theme: theme)
                     }
                 }
                 .background(theme.background.ignoresSafeArea())
-                .toolbar { ToolbarContentBuilder(theme: theme, colorScheme: colorScheme) }
+                .toolbar { ToolbarContentBuilder(snapshot: snapshot, theme: theme, colorScheme: colorScheme) }
                 .orrerySettingsPresentation(isPresented: $viewModel.showSettings)
             }
         }
@@ -79,7 +83,7 @@ struct SmallScreenView: View {
     }
 
     @ToolbarContentBuilder
-    private func ToolbarContentBuilder(theme: ThemeColors, colorScheme: ColorScheme) -> some ToolbarContent {
+    private func ToolbarContentBuilder(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme) -> some ToolbarContent {
         ToolbarItemGroup(placement: .bottomBar) {
             Button {
                 viewModel.selectToday(dataController: dataController)
@@ -126,7 +130,7 @@ struct SmallScreenView: View {
             .help("Show Saved Views")
             .accessibilityLabel("Saved Views")
 
-            if dataController.isReady, let snapshot = dataController.snapshot(for: viewModel.selectedDate) {
+            if let snapshot {
                 PolaroidShareButton(
                     snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, smallMoon: smallMoon, colorScheme: colorScheme
                 )

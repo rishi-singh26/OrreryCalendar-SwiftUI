@@ -37,19 +37,23 @@ nonisolated enum PlanetEngineClient {
             guard let day = UTCDay.calendar.date(byAdding: .day, value: offset, to: normalizedStart) else {
                 throw DataLayerError(message: "failed to advance date at day offset \(offset)")
             }
+            // Converted once per day and reused for all 17 queries below (8 bodies ×
+            // distance/angle + Moon phase), rather than re-running the UTC calendar
+            // conversion inside every individual query for the same instant.
+            let time = AstronomyEngine.time(for: day)
 
             for body in bodies {
                 // Defensive per spec: check each call's status and skip (zero-fill)
                 // rather than let one bad date wedge the whole batch. In practice this
                 // should never fire for the Sun, 8 planets, and Moon across any
                 // realistic calendar range.
-                let distanceAU = (try? AstronomyEngine.helioDistance(body: body, date: day)) ?? 0
-                let angleDeg = (try? AstronomyEngine.eclipticLongitude(body: body, date: day)) ?? 0
+                let distanceAU = (try? AstronomyEngine.helioDistance(body: body, time: time)) ?? 0
+                let angleDeg = (try? AstronomyEngine.eclipticLongitude(body: body, time: time)) ?? 0
                 data.appendUInt16LE(packedUInt16(distanceAU * distanceScale))
                 data.appendUInt16LE(packedUInt16(angleDeg * angleScale))
             }
 
-            let moonPhaseDeg = (try? AstronomyEngine.moonPhase(date: day)) ?? 0
+            let moonPhaseDeg = (try? AstronomyEngine.moonPhase(time: time)) ?? 0
             data.appendUInt16LE(packedUInt16(moonPhaseDeg * moonPhaseScale))
         }
         return data

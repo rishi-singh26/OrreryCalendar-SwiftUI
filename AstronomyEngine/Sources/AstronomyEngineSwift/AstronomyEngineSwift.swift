@@ -33,11 +33,20 @@ public enum AstronomyEngineError: Error, Sendable {
     case computationFailed(String)
 }
 
+/// A `Date` already converted to the engine's internal `astro_time_t`. Opaque to
+/// callers outside this module — obtain one via `AstronomyEngine.time(for:)` and reuse
+/// it across multiple queries for the same instant (e.g. several bodies' distance +
+/// angle, plus the Moon phase, all for one calendar day) instead of re-running the UTC
+/// calendar conversion on every single query.
+public struct AstronomyTime: Sendable {
+    let raw: astro_time_t
+}
+
 /// Thin, idiomatic wrapper over the vendored Astronomy Engine C library
 /// (cosinekitty/astronomy, pinned at tag v2.1.19 — see AstronomyEngine/LICENSE).
 ///
-/// Every entry point takes a `Date` and converts it to the engine's `astro_time_t`
-/// via the library's own `Astronomy_MakeTime` UTC-calendar constructor — never via
+/// Every entry point ultimately needs the engine's `astro_time_t`, produced via the
+/// library's own `Astronomy_MakeTime` UTC-calendar constructor — never via
 /// hand-derived Julian-date math — using the UTC calendar/time-zone explicitly, so
 /// results are independent of the caller's local time zone.
 public enum AstronomyEngine {
@@ -47,21 +56,31 @@ public enum AstronomyEngine {
         return calendar
     }()
 
-    private static func astroTime(for date: Date) -> astro_time_t {
+    /// Converts `date` to the engine's time representation once. Prefer this plus the
+    /// `time:`-taking overloads below when making several queries for the same instant
+    /// — each conversion involves a `Calendar.dateComponents` round-trip, so batching
+    /// avoids paying that cost once per query instead of once per instant.
+    public static func time(for date: Date) -> AstronomyTime {
         let c = utcCalendar.dateComponents(
             [.year, .month, .day, .hour, .minute, .second, .nanosecond],
             from: date
         )
         let second = Double(c.second ?? 0) + Double(c.nanosecond ?? 0) / 1_000_000_000
-        return Astronomy_MakeTime(
+        let raw = Astronomy_MakeTime(
             Int32(c.year ?? 0), Int32(c.month ?? 1), Int32(c.day ?? 1),
             Int32(c.hour ?? 0), Int32(c.minute ?? 0), second
         )
+        return AstronomyTime(raw: raw)
     }
 
     /// Heliocentric distance of `body` on `date`, in AU.
     public static func helioDistance(body: CelestialBody, date: Date) throws -> Double {
-        let result = Astronomy_HelioDistance(body.cBody, astroTime(for: date))
+        try helioDistance(body: body, time: time(for: date))
+    }
+
+    /// Heliocentric distance of `body` at `time`, in AU.
+    public static func helioDistance(body: CelestialBody, time: AstronomyTime) throws -> Double {
+        let result = Astronomy_HelioDistance(body.cBody, time.raw)
         guard result.status == ASTRO_SUCCESS else {
             throw AstronomyEngineError.computationFailed(
                 "Astronomy_HelioDistance(\(body)) failed with status \(result.status.rawValue)"
@@ -72,7 +91,12 @@ public enum AstronomyEngine {
 
     /// Ecliptic longitude of `body` on `date`, in degrees, 0..<360.
     public static func eclipticLongitude(body: CelestialBody, date: Date) throws -> Double {
-        let result = Astronomy_EclipticLongitude(body.cBody, astroTime(for: date))
+        try eclipticLongitude(body: body, time: time(for: date))
+    }
+
+    /// Ecliptic longitude of `body` at `time`, in degrees, 0..<360.
+    public static func eclipticLongitude(body: CelestialBody, time: AstronomyTime) throws -> Double {
+        let result = Astronomy_EclipticLongitude(body.cBody, time.raw)
         guard result.status == ASTRO_SUCCESS else {
             throw AstronomyEngineError.computationFailed(
                 "Astronomy_EclipticLongitude(\(body)) failed with status \(result.status.rawValue)"
@@ -83,7 +107,12 @@ public enum AstronomyEngine {
 
     /// Moon phase angle on `date`, in degrees: 0 = new moon, 180 = full moon.
     public static func moonPhase(date: Date) throws -> Double {
-        let result = Astronomy_MoonPhase(astroTime(for: date))
+        try moonPhase(time: time(for: date))
+    }
+
+    /// Moon phase angle at `time`, in degrees: 0 = new moon, 180 = full moon.
+    public static func moonPhase(time: AstronomyTime) throws -> Double {
+        let result = Astronomy_MoonPhase(time.raw)
         guard result.status == ASTRO_SUCCESS else {
             throw AstronomyEngineError.computationFailed(
                 "Astronomy_MoonPhase failed with status \(result.status.rawValue)"
