@@ -20,7 +20,7 @@ struct MoonPhaseRow: View {
     }
 
     var body: some View {
-        HStack(spacing: smallMoon ? 20 : 40) {
+        HStack(spacing: smallMoon ? 100 : 50) {
             disc(mirrored: false, label: smallMoon ? "N" : "Northern hemisphere")
             disc(mirrored: true, label: smallMoon ? "S" : "Southern hemisphere")
         }

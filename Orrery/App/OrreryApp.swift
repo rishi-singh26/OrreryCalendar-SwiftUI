@@ -32,5 +32,8 @@ struct OrreryApp: App {
                 .environment(dataController)
         }
         .modelContainer(modelContainer)
+        #if os (macOS)
+        .windowStyle(.hiddenTitleBar)
+        #endif
     }
 }

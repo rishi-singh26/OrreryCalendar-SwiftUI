@@ -35,15 +35,9 @@ struct SavedListView: View {
                     ForEach(savedSnapshots) { entry in
                         row(for: entry, theme: theme, colorScheme: colorScheme)
                     }
-                    .onDelete(perform: delete)
                 }
             }
-            .listStyle(.plain)
         }
-        .navigationTitle("Saved dates")
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
     }
 
     private func row(for entry: SavedSnapshot, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
@@ -59,7 +53,7 @@ struct SavedListView: View {
                 }
                 .frame(width: 32, height: 32)
                 .clipShape(Circle())
-
+                
                 VStack(alignment: .leading, spacing: 2) {
                     Text(entry.date.formatted(.dateTime.year().month(.wide).day()))
                         .foregroundStyle(theme.ink)
@@ -67,13 +61,27 @@ struct SavedListView: View {
                         .font(.footnote)
                         .foregroundStyle(theme.muted)
                 }
-
+                
                 Spacer()
             }
             .padding(.vertical, 4)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .contextMenu(menuItems: {
+            PolaroidShareButton(
+                snapshot: entry.daySnapshot, showOrbits: showOrbits, smallMoon: smallMoon, colorScheme: colorScheme
+            )
+            
+            Divider()
+            
+            Button(role: .destructive) {
+                modelContext.delete(entry)
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        })
+#if os(iOS)
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) {
                 modelContext.delete(entry)
@@ -88,11 +96,6 @@ struct SavedListView: View {
             .labelStyle(.iconOnly)
             .tint(theme.brassDim)
         }
-    }
-
-    private func delete(at offsets: IndexSet) {
-        for index in offsets {
-            modelContext.delete(savedSnapshots[index])
-        }
+#endif
     }
 }
