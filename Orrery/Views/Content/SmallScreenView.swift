@@ -57,7 +57,7 @@ struct SmallScreenView: View {
                 .font(.system(.title, design: .rounded))
                 .foregroundStyle(theme.ink)
 
-            OrreryView(snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, theme: theme)
+            OrreryView(snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, theme: theme, aspectRatio: 1)
 
             Spacer(minLength: 0)
 

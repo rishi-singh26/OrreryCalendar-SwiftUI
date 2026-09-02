@@ -13,6 +13,13 @@ struct OrreryView: View {
     let showOrbits: Bool
     let showLabels: Bool
     let theme: ThemeColors
+    /// Frame shape offered to the Canvas. Defaults to the reference web canvas's
+    /// 440×392 ratio; the drawing itself is fully radially symmetric (see
+    /// `OrreryGeometry.halfSize`, which sizes off `min(width, height)`), so a
+    /// container squarer than this default leaves no side unused, while non-square
+    /// containers leave a flat margin on whichever axis is longer. Callers that need
+    /// a fixed aspect ratio (e.g. the polaroid share card) can rely on the default.
+    var aspectRatio: CGFloat = 440.0 / 392.0
 
     /// Sun dot radius at the reference canvas scale (halfSize 220) — not specified by
     /// name in spec §2's per-planet SIZE table, sized visibly larger than any planet.
@@ -22,7 +29,7 @@ struct OrreryView: View {
         Canvas { context, size in
             draw(context: context, size: size)
         }
-        .aspectRatio(440.0 / 392.0, contentMode: .fit)
+        .aspectRatio(aspectRatio, contentMode: .fit)
         .accessibilityLabel("Orrery chart for \(snapshot.date.formatted(.dateTime.year().month().day()))")
     }
 
