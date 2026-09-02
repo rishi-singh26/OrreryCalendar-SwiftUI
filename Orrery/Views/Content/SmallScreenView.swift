@@ -77,7 +77,7 @@ struct SmallScreenView: View {
                 theme: theme
             )
             .clipShape(.rect(cornerRadius: 20))
-            .withOSSurface(with: .regular.interactive(), in: .rect(cornerRadius: 20))
+            .withOSSurface(with: .clear.interactive(), in: .rect(cornerRadius: 20))
             .padding(.horizontal, 12)
             .padding(.bottom, 8)
         }
@@ -96,25 +96,27 @@ struct SmallScreenView: View {
             .help("Jump to Today")
             .accessibilityLabel("Today")
 
-            DatePicker(
-                "Select Date",
-                selection: viewModel.dateBinding(dataController: dataController),
-                in: dataController.startDate...dataController.endDate,
-                displayedComponents: .date
-            )
-            .labelsHidden()
-            // Hide the selected-date chip while keeping the picker tappable,
-            .colorMultiply(.clear)
-            // then apply fixed width.
-            .frame(width: 25)
-            // then draw the calendar icon on top as the only visible affordance.
-            .overlay {
+            Button {
+                viewModel.showDatePicker = true
+            } label: {
                 Image(systemName: "calendar")
-                    .allowsHitTesting(false)
             }
-            .presentationCompactAdaptation(.popover)
             .disabled(!dataController.isReady)
             .help("Choose a Date")
+            .accessibilityLabel("Choose Date")
+            .popover(isPresented: $viewModel.showDatePicker) {
+                DatePicker(
+                    "Date",
+                    selection: viewModel.dateBinding(dataController: dataController),
+                    in: dataController.startDate...dataController.endDate,
+                    displayedComponents: .date
+                )
+                .datePickerStyle(.graphical)
+                .labelsHidden()
+                .padding()
+                .frame(minWidth: 320, minHeight: 320)
+                .presentationCompactAdaptation(.popover)
+            }
 
             Spacer()
         }

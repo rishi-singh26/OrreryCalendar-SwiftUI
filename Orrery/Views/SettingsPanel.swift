@@ -22,9 +22,9 @@ struct SettingsPanel: View {
     var body: some View {
         Form {
             Section("General") {
-                Toggle("Show orbits", isOn: $showOrbits)
-                Toggle("Show labels", isOn: $showLabels)
-                Toggle("Small moon", isOn: $smallMoon)
+                Toggle("Show Orbits", isOn: $showOrbits)
+                Toggle("Show Labels", isOn: $showLabels)
+                Toggle("Small Moon", isOn: $smallMoon)
             }
             
             Section("Appearance") {
