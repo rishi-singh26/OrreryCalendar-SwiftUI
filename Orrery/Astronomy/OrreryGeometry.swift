@@ -39,7 +39,7 @@ enum OrreryGeometry {
     static let referenceHalfSize = 220.0
     static let rMinFraction = 34.0 / referenceHalfSize
     static let rMaxFraction = 186.0 / referenceHalfSize
-    static let minAU = 0.3
+    static let minAU = 0.0
     static let maxAU = 30.5
 
     static func halfSize(for viewSize: CGSize) -> Double {
