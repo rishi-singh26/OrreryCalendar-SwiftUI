@@ -107,14 +107,24 @@ struct LargeScreenView: View {
                 .help("Choose a Date")
                 .accessibilityLabel("Choose Date")
                 .popover(isPresented: $viewModel.showDatePicker) {
-                    DatePicker(
-                        "Date",
-                        selection: viewModel.dateBinding(dataController: dataController),
-                        in: dataController.startDate...dataController.endDate,
-                        displayedComponents: .date
-                    )
-                    .datePickerStyle(.graphical)
-                    .labelsHidden()
+                    VStack(spacing: 8) {
+                        #if os (macOS)
+                        MonthYearSelector(
+                            selection: viewModel.dateBinding(dataController: dataController),
+                            minDate: dataController.startDate,
+                            maxDate: dataController.endDate
+                        )
+                        #endif
+
+                        DatePicker(
+                            "Date",
+                            selection: viewModel.dateBinding(dataController: dataController),
+                            in: dataController.startDate...dataController.endDate,
+                            displayedComponents: .date
+                        )
+                        .datePickerStyle(.graphical)
+                        .labelsHidden()
+                    }
                     .padding()
                     .frame(minWidth: DeviceType.isIpad ? 320 : nil, minHeight: DeviceType.isIpad ? 320 : nil)
                 }
