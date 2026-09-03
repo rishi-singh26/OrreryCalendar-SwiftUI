@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="Assets/Orbit%20and%20planet%20tint.png">
-    <img src="Assets/Orbit%20and%20planet%20light.png" width="140" alt="Orrery app icon">
+    <img src="Assets/Orbit%20and%20planet%20light.png" width="140" style="border-radius: 28px;" alt="Orrery app icon">
   </picture>
 </p>
 
