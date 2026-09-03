@@ -37,7 +37,7 @@ struct LargeScreenView: View {
                 .toolbar {
                     ToolbarBuilder(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
                 }
-                .withInspectorOrOrnament(isPresented: $viewModel.showSavedList) {
+                .withInspector(isPresented: $viewModel.showSavedList) {
                     SavedListView { date in
                         viewModel.selectedDate = dataController.clampedDate(date)
                     }
@@ -91,7 +91,7 @@ struct LargeScreenView: View {
                 Button {
                     viewModel.selectToday(dataController: dataController)
                 } label: {
-                    if #available(iOS 26.0, macOS 26.0, visionOS 26.0, *) {
+                    if #available(iOS 26.0, macOS 26.0, *) {
                         Image(systemName: viewModel.todayCalendarSymbolName(dataController: dataController))
                     } else {
                         Image(systemName: "calendar.badge.clock")

@@ -39,7 +39,7 @@ All positions are computed locally with a vendored copy of [Astronomy Engine](ht
 ## Requirements
 
 - Xcode 26 or later
-- iOS / iPadOS 18.6+, macOS 14.6+, or visionOS 1.3+
+- iOS / iPadOS 18.6+ or macOS 14.6+
 
 ## Getting started
 
