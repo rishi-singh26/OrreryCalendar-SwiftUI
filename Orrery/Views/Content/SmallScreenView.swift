@@ -157,9 +157,8 @@ struct SmallScreenView: View {
             }
 
             Button {
-                // Toggle (not just set true) so this button also dismisses on
-                // visionOS, where the settings ornament has no swipe/tap-outside
-                // dismissal the way the sheet/popover on other platforms do.
+                // Toggle (not just set true) so tapping this button again also
+                // dismisses the settings sheet.
                 viewModel.showSettings.toggle()
             } label: {
                 Image(systemName: "slider.horizontal.3")

@@ -23,16 +23,14 @@ extension View {
 #endif
     
     
-    /// Sheet on iPhone, popover on iPad/macOS, and a bottom ornament on visionOS —
-    /// the same adaptive treatment as `orrerySettingsPresentation`, but displaying
-    /// caller-supplied content instead of the fixed `SettingsPanel`. The `width`
-    /// and `height` size the popover/ornament; the iPhone sheet lets its content
-    /// determine its own height.
+    /// Shows `content` in a macOS inspector; a no-op on other platforms, where
+    /// callers are expected to present `content` some other way (e.g. a sheet)
+    /// when `isPresented` becomes true. The `inspectorWidth` sizes the
+    /// inspector column.
     @ViewBuilder
-    func withInspectorOrOrnament<Content: View>(
+    func withInspector<Content: View>(
         isPresented: Binding<Bool>,
         inspectorWidth: CGFloat = 250,
-        ornamentSize: CGSize = .init(width: 360, height: 420),
         @ViewBuilder content: @escaping () -> Content
     ) -> some View {
 #if os(macOS)
@@ -40,33 +38,16 @@ extension View {
             content()
                 .inspectorColumnWidth(min: inspectorWidth, ideal: inspectorWidth, max: inspectorWidth)
         }
-#elseif os(visionOS)
-        self.ornament(
-            visibility: isPresented.wrappedValue ? .visible : .hidden,
-            attachmentAnchor: .scene(.bottom)
-        ) {
-            content().frame(width: ornamentSize.width, height: ornamentSize.height)
-        }
 #else
         self
 #endif
     }
 
-    /// `.sensoryFeedback` itself degrades to a no-op on hardware without haptics (e.g. a
-    /// Mac with no Force Touch trackpad), but on visionOS the modifier is unavailable
-    /// entirely before visionOS 26 — this falls back to doing nothing on those OS
-    /// versions instead of failing to build.
+    /// `.sensoryFeedback` degrades to a no-op on hardware without haptics
+    /// (e.g. a Mac with no Force Touch trackpad).
     @ViewBuilder
     func hapticTick<T: Equatable>(_ trigger: T) -> some View {
-#if os(visionOS)
-        if #available(visionOS 26.0, *) {
-            self.sensoryFeedback(.impact(weight: .light, intensity: 1), trigger: trigger)
-        } else {
-            self
-        }
-#else
         self.sensoryFeedback(.impact(weight: .light, intensity: 1), trigger: trigger)
-#endif
     }
 
 }

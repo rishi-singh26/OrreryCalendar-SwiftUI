@@ -71,8 +71,7 @@ struct ScrubTimelineView: View {
     /// elsewhere — `selectedDate` is a `Binding` also written by the toolbar's "today"
     /// button and date picker, so triggering feedback off it directly would fire haptics
     /// for those too. Applied via `hapticTick(_:)`, which degrades to a no-op on hardware
-    /// without haptics (e.g. a Mac with no Force Touch trackpad) and on visionOS below 26,
-    /// where the underlying modifier doesn't exist at all.
+    /// without haptics (e.g. a Mac with no Force Touch trackpad).
     @State private var hapticTick = 0
 
     var body: some View {
