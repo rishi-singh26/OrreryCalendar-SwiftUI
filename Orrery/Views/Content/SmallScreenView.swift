@@ -68,16 +68,28 @@ struct SmallScreenView: View {
                 }
             }
 
-            ScrubTimelineView(
-                selectedDate: viewModel.dateBinding(dataController: dataController),
-                minDate: dataController.startDate,
-                maxDate: dataController.endDate,
-                theme: theme
-            )
-            .clipShape(.rect(cornerRadius: 20))
-            .withOSSurface(with: .clear.interactive(), in: .rect(cornerRadius: 20))
-            .padding(.horizontal, 12)
-            .padding(.bottom, 8)
+            if #available(iOS 26.0, *) {
+                ScrubTimelineView(
+                    selectedDate: viewModel.dateBinding(dataController: dataController),
+                    minDate: dataController.startDate,
+                    maxDate: dataController.endDate,
+                    theme: theme
+                )
+                .clipShape(.rect(cornerRadius: 20))
+                .glassEffect(.clear.interactive(), in: .rect(cornerRadius: 20))
+                .padding(.horizontal, 12)
+                .padding(.bottom, 8)
+            } else {
+                ScrubTimelineView(
+                    selectedDate: viewModel.dateBinding(dataController: dataController),
+                    minDate: dataController.startDate,
+                    maxDate: dataController.endDate,
+                    theme: theme
+                )
+                .withSurface(in: .rect(cornerRadius: 20))
+                .padding(.horizontal, 12)
+                .padding(.bottom, 8)
+            }
         }
         .padding(.top, 12)
     }
@@ -88,7 +100,11 @@ struct SmallScreenView: View {
             Button {
                 viewModel.selectToday(dataController: dataController)
             } label: {
-                Image(systemName: viewModel.todayCalendarSymbolName(dataController: dataController))
+                if #available(iOS 26.0, *) {
+                    Image(systemName: viewModel.todayCalendarSymbolName(dataController: dataController))
+                } else {
+                    Image(systemName: "calendar.badge.clock")
+                }
             }
             .disabled(!dataController.isReady || viewModel.isAlreadyOnToday(dataController: dataController))
             .help("Jump to Today")

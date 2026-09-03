@@ -70,9 +70,9 @@ struct ScrubTimelineView: View {
     /// (1st-of-month) or mid (15th) tick — not on every day, and not on changes made
     /// elsewhere — `selectedDate` is a `Binding` also written by the toolbar's "today"
     /// button and date picker, so triggering feedback off it directly would fire haptics
-    /// for those too. `.sensoryFeedback` degrades to a no-op on hardware without haptics
-    /// (e.g. a Mac with no Force Touch trackpad, visionOS), so this alone covers "all
-    /// platforms that support haptic feedback" without per-platform code.
+    /// for those too. Applied via `hapticTick(_:)`, which degrades to a no-op on hardware
+    /// without haptics (e.g. a Mac with no Force Touch trackpad) and on visionOS below 26,
+    /// where the underlying modifier doesn't exist at all.
     @State private var hapticTick = 0
 
     var body: some View {
@@ -109,7 +109,7 @@ struct ScrubTimelineView: View {
             #endif
         }
         .frame(height: 64)
-        .sensoryFeedback(.impact(weight: .light, intensity: 1), trigger: hapticTick)
+        .hapticTick(hapticTick)
     }
 
     private func dayDelta(forPoints points: Double) -> Int {

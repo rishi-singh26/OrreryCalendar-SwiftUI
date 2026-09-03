@@ -91,7 +91,11 @@ struct LargeScreenView: View {
                 Button {
                     viewModel.selectToday(dataController: dataController)
                 } label: {
-                    Image(systemName: viewModel.todayCalendarSymbolName(dataController: dataController))
+                    if #available(iOS 26.0, macOS 26.0, visionOS 26.0, *) {
+                        Image(systemName: viewModel.todayCalendarSymbolName(dataController: dataController))
+                    } else {
+                        Image(systemName: "calendar.badge.clock")
+                    }
                 }
                 .disabled(!dataController.isReady || viewModel.isAlreadyOnToday(dataController: dataController))
                 .help("Jump to Today")

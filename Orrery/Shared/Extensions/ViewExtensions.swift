@@ -10,32 +10,15 @@ import SwiftUI
 extension View {
     
 #if os(iOS) || os(macOS)
-    /// A glass card/capsule background for popup and toast content. MapGIS's
-    /// deployment floor (26.5) is already above the Liquid Glass availability
-    /// floor on every platform it ships, so unlike DigipinManager's
-    /// `withOSSurface` (which still supports an iOS 18 floor) this needs no
-    /// `#available`/`#if os` fallback branch.
+    
     @ViewBuilder
-    func withOSSurface<S: Shape>(with glass: Glass = .regular, in shape: S) -> some View {
-#if os(iOS)
-        if #available(iOS 26, *) {
-            self.glassEffect(glass, in: shape)
-        } else {
-            self.background {
-                shape
-                    .fill(.thinMaterial)
-                    .shadow(color: .black.opacity(0.06), radius: 3, x: -1, y: -3)
-                    .shadow(color: .black.opacity(0.06), radius: 2, x: 1, y: 3)
-            }
-        }
-#else
+    func withSurface<S: Shape>(with material: Material = .thinMaterial, in shape: S) -> some View {
         self.background {
             shape
-                .fill(.thinMaterial)
+                .fill(material)
                 .shadow(color: .black.opacity(0.06), radius: 3, x: -1, y: -3)
                 .shadow(color: .black.opacity(0.06), radius: 2, x: 1, y: 3)
         }
-#endif
     }
 #endif
     
@@ -62,11 +45,28 @@ extension View {
             visibility: isPresented.wrappedValue ? .visible : .hidden,
             attachmentAnchor: .scene(.bottom)
         ) {
-            content().frame(width: size.width, height: size.height)
+            content().frame(width: ornamentSize.width, height: ornamentSize.height)
         }
 #else
         self
 #endif
     }
-    
+
+    /// `.sensoryFeedback` itself degrades to a no-op on hardware without haptics (e.g. a
+    /// Mac with no Force Touch trackpad), but on visionOS the modifier is unavailable
+    /// entirely before visionOS 26 — this falls back to doing nothing on those OS
+    /// versions instead of failing to build.
+    @ViewBuilder
+    func hapticTick<T: Equatable>(_ trigger: T) -> some View {
+#if os(visionOS)
+        if #available(visionOS 26.0, *) {
+            self.sensoryFeedback(.impact(weight: .light, intensity: 1), trigger: trigger)
+        } else {
+            self
+        }
+#else
+        self.sensoryFeedback(.impact(weight: .light, intensity: 1), trigger: trigger)
+#endif
+    }
+
 }
