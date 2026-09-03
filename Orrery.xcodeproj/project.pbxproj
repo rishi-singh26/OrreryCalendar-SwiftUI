@@ -38,8 +38,8 @@
 		5B8ABB2D3047D8F500F2A0C2 /* Exceptions for "Orrery" folder in "Orrery" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				"Info-visionOS.plist",
 				Info.plist,
-				Info-visionOS.plist,
 			);
 			target = 5B8ABB093047D8F200F2A0C2 /* Orrery */;
 		};
@@ -300,7 +300,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Orrery/Orrery.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = HG5RR9BKZR;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -308,8 +308,8 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Orrery/Info.plist;
-				"INFOPLIST_FILE[sdk=xros*]" = Orrery/Info-visionOS.plist;
-				"INFOPLIST_FILE[sdk=xrsimulator*]" = Orrery/Info-visionOS.plist;
+				"INFOPLIST_FILE[sdk=xros*]" = "Orrery/Info-visionOS.plist";
+				"INFOPLIST_FILE[sdk=xrsimulator*]" = "Orrery/Info-visionOS.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Orrery Calendar";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -349,7 +349,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Orrery/Orrery.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = HG5RR9BKZR;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -357,8 +357,8 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Orrery/Info.plist;
-				"INFOPLIST_FILE[sdk=xros*]" = Orrery/Info-visionOS.plist;
-				"INFOPLIST_FILE[sdk=xrsimulator*]" = Orrery/Info-visionOS.plist;
+				"INFOPLIST_FILE[sdk=xros*]" = "Orrery/Info-visionOS.plist";
+				"INFOPLIST_FILE[sdk=xrsimulator*]" = "Orrery/Info-visionOS.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Orrery Calendar";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
