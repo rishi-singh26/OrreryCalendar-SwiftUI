@@ -29,7 +29,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		5B8ABB0A3047D8F200F2A0C2 /* Orrery.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Orrery.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5B8ABB0A3047D8F200F2A0C2 /* Orrery Calendar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Orrery Calendar.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5B8ABB1B3047D8F500F2A0C2 /* OrreryTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OrreryTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5B8ABB253047D8F500F2A0C2 /* OrreryUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OrreryUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -105,7 +105,7 @@
 		5B8ABB0B3047D8F200F2A0C2 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				5B8ABB0A3047D8F200F2A0C2 /* Orrery.app */,
+				5B8ABB0A3047D8F200F2A0C2 /* Orrery Calendar.app */,
 				5B8ABB1B3047D8F500F2A0C2 /* OrreryTests.xctest */,
 				5B8ABB253047D8F500F2A0C2 /* OrreryUITests.xctest */,
 			);
@@ -135,7 +135,7 @@
 				ACB39F9B89AB6817CC512DAE /* AstronomyEngineSwift */,
 			);
 			productName = Orrery;
-			productReference = 5B8ABB0A3047D8F200F2A0C2 /* Orrery.app */;
+			productReference = 5B8ABB0A3047D8F200F2A0C2 /* Orrery Calendar.app */;
 			productType = "com.apple.product-type.application";
 		};
 		5B8ABB1A3047D8F500F2A0C2 /* OrreryTests */ = {
@@ -299,7 +299,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Orrery/Orrery.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = HG5RR9BKZR;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -324,7 +324,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.6;
 				MARKETING_VERSION = 2026.1;
 				PRODUCT_BUNDLE_IDENTIFIER = in.rishisingh.Orrery;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "Orrery Calendar";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -346,7 +346,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Orrery/Orrery.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = HG5RR9BKZR;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -371,7 +371,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.6;
 				MARKETING_VERSION = 2026.1;
 				PRODUCT_BUNDLE_IDENTIFIER = in.rishisingh.Orrery;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "Orrery Calendar";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
