@@ -224,7 +224,7 @@ struct SmallScreenView: View {
             } label: {
                 Image(systemName: viewModel.justSaved ? "checkmark" : "bookmark")
                     .font(.title2)
-                    .foregroundStyle(viewModel.justSaved ? theme.brass : theme.ink)
+                    .foregroundStyle(viewModel.justSaved ? .accentColor : theme.ink)
             }
             .disabled(!dataController.isReady)
             .help(viewModel.justSaved ? "Saved" : "Save This View")

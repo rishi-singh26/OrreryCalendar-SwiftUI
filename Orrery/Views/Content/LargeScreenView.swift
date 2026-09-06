@@ -160,7 +160,7 @@ struct LargeScreenView: View {
                     viewModel.save(dataController: dataController, modelContext: modelContext)
                 } label: {
                     Image(systemName: viewModel.justSaved ? "checkmark" : "bookmark")
-                        .foregroundStyle(viewModel.justSaved ? theme.brass : theme.ink)
+                        .foregroundStyle(viewModel.justSaved ? .accentColor : theme.ink)
                 }
                 .disabled(!dataController.isReady)
                 .help(viewModel.justSaved ? "Saved" : "Save This View")
