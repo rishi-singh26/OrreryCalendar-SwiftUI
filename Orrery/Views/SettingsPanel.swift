@@ -77,7 +77,7 @@ struct SettingsPanel: View {
                             .font(.footnote)
                             .foregroundStyle(.red)
                         Button("Retry") {
-                            dataController.extendRange(toYears: rangeYears)
+                            dataController.setRange(toYears: rangeYears)
                         }
                         .disabled(dataController.isComputing)
                     }
@@ -94,7 +94,7 @@ struct SettingsPanel: View {
             get: { rangeYears },
             set: { newValue in
                 rangeYears = newValue
-                dataController.extendRange(toYears: newValue)
+                dataController.setRange(toYears: newValue)
             }
         )
     }

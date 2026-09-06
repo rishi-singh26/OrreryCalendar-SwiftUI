@@ -50,6 +50,12 @@ struct LargeScreenView: View {
         .onChange(of: dataController.isReady) { _, ready in
             viewModel.handleReadyChange(isReady: ready, dataController: dataController, rangeYears: rangeYears)
         }
+        .onChange(of: dataController.startDate) { _, _ in
+            viewModel.handleRangeChange(dataController: dataController)
+        }
+        .onChange(of: dataController.endDate) { _, _ in
+            viewModel.handleRangeChange(dataController: dataController)
+        }
     }
 
     @ViewBuilder

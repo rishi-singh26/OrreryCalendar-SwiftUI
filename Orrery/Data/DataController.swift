@@ -105,9 +105,17 @@ final class DataController {
 
     /// Extends the cached range to ±`years` around today. Computes only the new
     /// sub-range(s) not already covered and splices them onto the existing blob —
-    /// never recomputes what's already cached. Ignored while a computation is already
-    /// in flight; the Settings range control disables itself using `isComputing` so a
-    /// second one can't be launched from the UI, and this guard backstops that.
+    /// never recomputes what's already cached. Never shrinks the cache, even if `years`
+    /// is smaller than what's already covered — this exists solely for
+    /// `resumeRangeIfNeeded` to backfill a range that's under-covered (e.g. the app was
+    /// terminated mid-extension), not to enforce an exact match on every launch: the
+    /// cache legitimately drifts a little between the day it was computed and "today",
+    /// and that drift isn't a bug worth a background recompute every time the app opens.
+    /// For the Settings range control, which does need the cache to exactly match
+    /// whatever the user picks (growing or shrinking), use `setRange(toYears:)` instead.
+    /// Ignored while a computation is already in flight; the Settings range control
+    /// disables itself using `isComputing` so a second one can't be launched from the
+    /// UI, and this guard backstops that.
     func extendRange(toYears years: Int) {
         guard !isComputing else { return }
         let years = clampedYears(years)
@@ -127,6 +135,31 @@ final class DataController {
         guard newStart < startDate || newEnd > endDate else { return } // already fully covered
 
         computeTask = Task { await self.splice(newStart: newStart, newEnd: newEnd) }
+    }
+
+    /// Sets the cached range to exactly ±`years` around today — growing it (like
+    /// `extendRange`) or, unlike `extendRange`, shrinking it and trimming the surplus
+    /// out of the cache/SwiftData store when `years` is smaller than what's currently
+    /// covered. This is what the Settings range picker and its Retry button call, since
+    /// "currently cached" in Settings is meant to always reflect the selected preset.
+    /// Ignored while a computation is already in flight (see `extendRange`).
+    func setRange(toYears years: Int) {
+        guard !isComputing else { return }
+        let years = clampedYears(years)
+        let today = UTCDay.todayAsUTCMidnight()
+        guard
+            let requestedStart = UTCDay.calendar.date(byAdding: .year, value: -years, to: today),
+            let requestedEnd = UTCDay.calendar.date(byAdding: .year, value: years, to: today)
+        else { return }
+
+        guard isReady else {
+            computeTask = Task { await self.computeFullRange(start: requestedStart, end: requestedEnd) }
+            return
+        }
+
+        guard requestedStart != startDate || requestedEnd != endDate else { return } // already exactly this range
+
+        computeTask = Task { await self.reconcile(newStart: requestedStart, newEnd: requestedEnd) }
     }
 
     private func clampedYears(_ years: Int) -> Int {
@@ -194,6 +227,86 @@ final class DataController {
             var fullBlob = Data(capacity: beforeData.count + existingPacked.count + afterData.count)
             fullBlob.append(beforeData)
             fullBlob.append(existingPacked)
+            fullBlob.append(afterData)
+
+            let count = try UTCDay.dayCount(from: newStart, to: newEnd) + 1
+            try await io.replaceStore(startDate: newStart, endDate: newEnd, dayCount: count, packedData: fullBlob)
+            await apply(StoreSnapshot(
+                startDate: newStart, endDate: newEnd, dayCount: count,
+                bodies: PlanetEngineClient.bodyNames, bytesPerDay: PlanetEngineClient.bytesPerDay,
+                distanceScale: PlanetEngineClient.distanceScale, angleScale: PlanetEngineClient.angleScale,
+                moonPhaseScale: PlanetEngineClient.moonPhaseScale, packedData: fullBlob,
+                formatVersion: PlanetDataStore.currentFormatVersion
+            ))
+        } catch {
+            lastErrorMessage = error.localizedDescription
+        }
+        isComputing = false
+    }
+
+    /// Like `splice`, but for `setRange`: computes whatever prefix/suffix isn't already
+    /// cached, and — the difference from `splice` — keeps only the slice of the existing
+    /// blob that overlaps `newStart...newEnd`, dropping everything outside it. That
+    /// overlap slice is what makes this correct as a shrink as well as a grow: when
+    /// `newStart`/`newEnd` are inside the existing range, the "missing" prefix/suffix
+    /// are both empty and the kept slice is a strict sub-range of what's cached.
+    private func reconcile(newStart: Date, newEnd: Date) async {
+        isComputing = true
+        lastErrorMessage = nil
+        let existingStart = startDate
+        let existingEnd = endDate
+        let existingPacked = packedDataCache
+        let bytesPerDay = PlanetEngineClient.bytesPerDay
+
+        // The part of the existing blob still wanted: its overlap with `newStart...newEnd`.
+        // Normally non-empty, since both ranges are anchored on "today" — but if the app
+        // sat unused for longer than either range spans, "today" can move past the whole
+        // existing range, leaving no overlap at all. That case is handled separately below
+        // rather than falling through the prefix/suffix math, which assumes the missing
+        // piece borders the existing range and would otherwise pull in the gap between
+        // the two ranges as well as the target range itself.
+        let overlapStart = max(newStart, existingStart)
+        let overlapEnd = min(newEnd, existingEnd)
+        let hasOverlap = overlapStart <= overlapEnd
+
+        do {
+            var beforeData = Data()
+            var afterData = Data()
+            var keptData = Data()
+
+            if hasOverlap {
+                if newStart < existingStart {
+                    let beforeEnd = UTCDay.previousDay(before: existingStart)
+                    beforeData = try await Task.detached(priority: .userInitiated) {
+                        try PlanetEngineClient.computePackedData(fromUTCDay: newStart, throughUTCDay: beforeEnd)
+                    }.value
+                }
+
+                if newEnd > existingEnd {
+                    let afterStart = UTCDay.nextDay(after: existingEnd)
+                    afterData = try await Task.detached(priority: .userInitiated) {
+                        try PlanetEngineClient.computePackedData(fromUTCDay: afterStart, throughUTCDay: newEnd)
+                    }.value
+                }
+
+                let startOffset = try UTCDay.dayCount(from: existingStart, to: overlapStart)
+                let overlapDayCount = try UTCDay.dayCount(from: overlapStart, to: overlapEnd) + 1
+                let byteStart = existingPacked.startIndex + startOffset * bytesPerDay
+                let byteEnd = byteStart + overlapDayCount * bytesPerDay
+                if byteStart >= existingPacked.startIndex, byteEnd <= existingPacked.endIndex {
+                    keptData = existingPacked.subdata(in: byteStart..<byteEnd)
+                }
+            } else {
+                // No overlap with what's cached — nothing to reuse, so compute the
+                // whole new range fresh (same as a first-time `computeFullRange`).
+                afterData = try await Task.detached(priority: .userInitiated) {
+                    try PlanetEngineClient.computePackedData(fromUTCDay: newStart, throughUTCDay: newEnd)
+                }.value
+            }
+
+            var fullBlob = Data(capacity: beforeData.count + keptData.count + afterData.count)
+            fullBlob.append(beforeData)
+            fullBlob.append(keptData)
             fullBlob.append(afterData)
 
             let count = try UTCDay.dayCount(from: newStart, to: newEnd) + 1

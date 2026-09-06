@@ -62,6 +62,16 @@ final class ContentViewModel {
         dataController.resumeRangeIfNeeded(desiredYears: rangeYears)
     }
 
+    /// Call from `.onChange(of: dataController.startDate)` / `.onChange(of: dataController.endDate)`.
+    /// Re-clamps the selection whenever the cached range itself changes shape — needed
+    /// because `DataController.setRange` (unlike `extendRange`, which only ever grows)
+    /// can shrink the range out from under whatever's currently selected. Without this, a
+    /// user viewing a date the new, smaller range no longer covers would be stuck looking
+    /// at an uncomputed date forever, since nothing else re-triggers a computation for it.
+    func handleRangeChange(dataController: DataController) {
+        selectedDate = dataController.clampedDate(selectedDate)
+    }
+
     /// Binding that routes every write through `DataController.clampedDate`, so the scrub
     /// timeline and date pickers can never select a day outside the cached range.
     func dateBinding(dataController: DataController) -> Binding<Date> {
