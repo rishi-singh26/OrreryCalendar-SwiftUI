@@ -76,7 +76,7 @@ struct SmallScreenView: View {
                     theme: theme
                 )
                 .clipShape(.rect(cornerRadius: 20))
-                .glassEffect(.clear.interactive(), in: .rect(cornerRadius: 20))
+                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 20))
                 .padding(.horizontal, 12)
                 .padding(.bottom, 8)
             } else {

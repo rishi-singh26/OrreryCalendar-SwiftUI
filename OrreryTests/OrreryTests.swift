@@ -243,49 +243,4 @@ struct OrreryTests {
         #expect(centroidX < 0, "last quarter (waning) should light the left half, centroid x = \(centroidX)")
     }
 
-    // MARK: - ScrollDayAccumulator (scroll-wheel smoothness fix)
-
-    /// Many small deltas (well under one day each) must still add up to whole-day steps
-    /// — this is the exact bug that made scroll-wheel input feel dead: rounding each
-    /// event independently drops almost all of them.
-    @Test func scrollAccumulator_manySmallDeltasSumToWholeDays() {
-        var accumulator = ScrollDayAccumulator()
-        let pointsPerDay = 10.0
-        var totalDaysStepped = 0
-        // 50 events of 0.3pt each = 15pt total = 1.5 days worth of input.
-        for _ in 0..<50 {
-            totalDaysStepped += accumulator.consume(deltaPoints: 0.3, pointsPerDay: pointsPerDay)
-        }
-        #expect(totalDaysStepped == 1, "1.5 days of accumulated input should have stepped once so far")
-        #expect(abs(accumulator.remainder - 0.5) < 0.0001)
-    }
-
-    @Test func scrollAccumulator_singleTinyDeltaProducesNoStepButIsNotLost() {
-        var accumulator = ScrollDayAccumulator()
-        let stepped = accumulator.consume(deltaPoints: 0.3, pointsPerDay: 10.0)
-        #expect(stepped == 0, "a single small delta shouldn't cross a whole day on its own")
-        #expect(abs(accumulator.remainder - 0.03) < 0.0001, "but it must still be retained, not discarded")
-    }
-
-    @Test func scrollAccumulator_reversingDirectionCancelsPartialAccumulation() {
-        var accumulator = ScrollDayAccumulator()
-        _ = accumulator.consume(deltaPoints: 7, pointsPerDay: 10.0) // 0.7 days, no step yet
-        let stepped = accumulator.consume(deltaPoints: -3, pointsPerDay: 10.0) // back to 0.4, still no step
-        #expect(stepped == 0)
-        #expect(abs(accumulator.remainder - 0.4) < 0.0001)
-    }
-
-    @Test func scrollAccumulator_resetDropsRemainder() {
-        var accumulator = ScrollDayAccumulator()
-        _ = accumulator.consume(deltaPoints: 9, pointsPerDay: 10.0)
-        accumulator.reset()
-        #expect(accumulator.remainder == 0)
-    }
-
-    @Test func scrollAccumulator_largeFastDeltaStepsMultipleDaysAtOnce() {
-        var accumulator = ScrollDayAccumulator()
-        let stepped = accumulator.consume(deltaPoints: 47, pointsPerDay: 10.0)
-        #expect(stepped == 4)
-        #expect(abs(accumulator.remainder - 0.7) < 0.0001)
-    }
 }

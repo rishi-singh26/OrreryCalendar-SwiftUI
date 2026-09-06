@@ -2,50 +2,29 @@
 //  ScrubTimelineView.swift
 //  Orrery
 //
-//  Horizontal draggable date scroller (spec §5): tick marks with month/year labels, a
-//  brass center marker for the selected date, snapping to whole days. Major ticks fall
-//  on the 1st of each month, mid ticks on the 15th, and minor ticks mark the other days.
-//  Clamps to the cached range rather than requesting a day outside it.
+//  Horizontal date scroller (spec §5): a view-aligned, snap-to-day scroll row of tick
+//  marks, one per UTC calendar day between `minDate` and `maxDate`, plus a taller tick
+//  on the 1st of each month. The tick(s) nearest the centered selection grow tall and
+//  turn brass; the rest sit short and dim, month-start ticks a little taller/brighter
+//  than the plain days around them. This mirrors the ScrollView-based tick-picker
+//  pattern validated in
+//  TesterApp's `TickPicker` (see that file's comments for why each scroll/animation
+//  piece is shaped the way it is) — same `LazyHStack` + view-aligned `ScrollView` +
+//  `animationRange` fade, just keyed by `Date` instead of a raw `Int` selection.
 //
-//  `selectedDate` is updated continuously as the drag/scroll gesture progresses (not
-//  just when it ends), so the chart tracks the timeline live.
+//  Performance note: which ticks are month-starts is precomputed once into
+//  `monthStartIndices` (recomputed only when `minDate`/`maxDate` change), by walking
+//  month-by-month rather than day-by-day — a handful of `Calendar` calls regardless of
+//  how many days are in range. Per-tick rendering then does a plain `Set` lookup, no
+//  `Calendar` work, so it stays cheap for the dozens of ticks the `LazyHStack` actually
+//  renders on every scroll-driven redraw.
+//
+//  Scrolling is handled entirely by the native `ScrollView` (trackpad, mouse wheel, and
+//  touch all work out of the box on both platforms), so `selectedDate` is updated
+//  continuously as the scroll gesture progresses, not just when it ends.
 //
 
 import SwiftUI
-
-/// Turns a stream of small, continuous scroll deltas into whole-day steps without
-/// losing any input between events.
-///
-/// `DragGesture.translation` is cumulative from gesture start, so the drag handler can
-/// safely round-to-nearest-day on every single callback — it's always recomputing from
-/// the same fixed start point, so nothing is lost between calls. A `NSEvent.scrollWheel`
-/// stream has no such cumulative value: each event carries only its own small
-/// incremental delta (often a fraction of a point on precise-scrolling trackpads/mice,
-/// arriving dozens of times a second). Rounding each of those independently — as the
-/// drag handler does — discards almost every event, since most individual deltas round
-/// to zero days on their own; that's what made scrolling feel dead/unsmooth. This type
-/// instead keeps a running fractional-day remainder across events, so every bit of
-/// scroll input eventually contributes and the date advances at a rate that tracks
-/// scroll speed, rather than in occasional, arbitrary jumps.
-struct ScrollDayAccumulator {
-    private(set) var remainder: Double = 0
-
-    /// Adds `deltaPoints` (already sign-adjusted so positive means "move forward in
-    /// time") to the running remainder and returns however many whole days it now
-    /// covers, keeping the leftover fraction for the next call.
-    mutating func consume(deltaPoints: Double, pointsPerDay: Double) -> Int {
-        remainder += deltaPoints / pointsPerDay
-        let wholeDays = Int(remainder.rounded(.towardZero))
-        remainder -= Double(wholeDays)
-        return wholeDays
-    }
-
-    /// Drops any accumulated remainder — call after a step gets clamped at a range
-    /// boundary, so debt doesn't silently build up while scrolling stays pinned there.
-    mutating func reset() {
-        remainder = 0
-    }
-}
 
 struct ScrubTimelineView: View {
     @Binding var selectedDate: Date
@@ -53,344 +32,201 @@ struct ScrubTimelineView: View {
     let maxDate: Date
     let theme: ThemeColors
 
-    /// Horizontal spacing between adjacent days, in points.
-    private let pointsPerDay: Double = 10
+    private let tickWidth: CGFloat = 2
+    private let tickHeight: CGFloat = 30
+    private let tickHPadding: CGFloat = 3
+    private let minorHeightProgress: CGFloat = 0.55
+    private let majorHeightProgress: CGFloat = 0.85
+    private let interactionHeight: CGFloat = 64
+    private let animation: Animation = .interpolatingSpring(duration: 0.3, bounce: 0, initialVelocity: 0)
 
-    /// `selectedDate` at the moment the current drag gesture began. `DragGesture`'s
-    /// `translation` is cumulative from gesture start, so every `onChanged` computes the
-    /// new date from this fixed anchor rather than from the (now constantly moving)
-    /// `selectedDate` — otherwise each event would compound on top of the last.
-    @State private var dragAnchorDate: Date?
+    @State private var scrollIndex: Int = 0
+    @State private var scrollPosition: Int?
+    @State private var scrollPhase: ScrollPhase = .idle
+    @State private var animationRange: ClosedRange<Int> = 0...0
+    @State private var isInitialSetupDone = false
 
-    /// Fractional days of scroll input not yet applied to `selectedDate` (see
-    /// `ScrollDayAccumulator` below for why this exists).
-    @State private var scrollAccumulator = ScrollDayAccumulator()
+    /// Tick indices (day offsets from `minDate`) that fall on the 1st of a month —
+    /// precomputed once (see performance note above) rather than checked per-tick with
+    /// `Calendar`.
+    @State private var monthStartIndices: Set<Int> = []
 
-    /// Bumped when a drag or scroll in this view steps `selectedDate` across a major
-    /// (1st-of-month) or mid (15th) tick — not on every day, and not on changes made
-    /// elsewhere — `selectedDate` is a `Binding` also written by the toolbar's "today"
-    /// button and date picker, so triggering feedback off it directly would fire haptics
-    /// for those too. Applied via `hapticTick(_:)`, which degrades to a no-op on hardware
-    /// without haptics (e.g. a Mac with no Force Touch trackpad).
+    /// Bumped when scrolling steps `selectedDate` across the 1st of a month — not on
+    /// every day, and not on changes made elsewhere — `selectedDate` is a `Binding`
+    /// also written by the toolbar's "today" button and date picker, so triggering
+    /// feedback off it directly would fire haptics for those too. Applied via
+    /// `hapticTick(_:)`, which degrades to a no-op on hardware without haptics (e.g. a
+    /// Mac with no Force Touch trackpad).
     @State private var hapticTick = 0
+
+    /// Whole UTC days spanned by `minDate...maxDate`; the row holds `dayCount + 1`
+    /// ticks, one per day, inclusive of both ends.
+    private var dayCount: Int {
+        max((try? UTCDay.dayCount(from: minDate, to: maxDate)) ?? 0, 0)
+    }
+
+    /// Width one day occupies in the row: the tick itself plus padding on both sides.
+    private var tickSlotWidth: CGFloat {
+        tickWidth + tickHPadding * 2
+    }
 
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
-
-            ZStack {
-                Canvas { context, canvasSize in
-                    drawTicks(context: context, size: canvasSize, centerDate: selectedDate)
+            
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 0) {
+                    ForEach(0...dayCount, id: \.self) { index in
+                        tickView(index)
+                    }
                 }
-                Rectangle()
-                    .fill(theme.brass)
-                    .frame(width: 2, height: size.height * 0.42)
+                .frame(height: tickHeight)
+                .frame(maxHeight: .infinity)
+                .contentShape(.rect)
+                .scrollTargetLayout()
             }
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 1)
-                    .onChanged { value in handleDragChanged(translationX: value.translation.width) }
-                    .onEnded { _ in handleDragEnded() }
-            )
-            #if os(macOS)
-            .background(
-                ScrollWheelCapture { deltaX in
-                    applyScrollDelta(deltaX)
+            .scrollIndicators(.hidden)
+            .scrollTargetBehavior(.viewAligned(limitBehavior: .alwaysByOne))
+            .scrollPosition(id: $scrollPosition, anchor: .center)
+            // Centering the first/last tick under the selection point.
+            .safeAreaPadding(.horizontal, (size.width - tickSlotWidth) / 2)
+            .onScrollGeometryChange(for: CGFloat.self) {
+                $0.contentOffset.x + $0.contentInsets.leading
+            } action: { oldValue, newValue in
+                guard scrollPhase != .idle else { return }
+                let index = max(min(Int((newValue / tickSlotWidth).rounded()), dayCount), 0)
+                let previousScrollIndex = scrollIndex
+                scrollIndex = index
+                
+                let isGreater = scrollIndex > previousScrollIndex
+                let leadingBound = isGreater ? previousScrollIndex : scrollIndex
+                let trailingBound = !isGreater ? previousScrollIndex : scrollIndex
+                animationRange = leadingBound...trailingBound
+            }
+            .onScrollPhaseChange { oldPhase, newPhase in
+                scrollPhase = newPhase
+                animationRange = scrollIndex...scrollIndex
+                
+                // In some rare instances the view aligned target behaviour will not
+                // center the item; this works it out.
+                if newPhase == .idle && scrollPosition != scrollIndex {
+                    withAnimation(animation) {
+                        scrollPosition = scrollIndex
+                    }
                 }
-            )
-            #elseif os(iOS)
-            .overlay(
-                ScrollWheelCapture(
-                    onChanged: { translationX in handleDragChanged(translationX: translationX) },
-                    onEnded: { handleDragEnded() }
-                )
-            )
-            #endif
+            }
         }
-        .frame(height: 64)
+        .frame(height: interactionHeight)
+        .task {
+            guard !isInitialSetupDone else { return }
+            
+            // Setting up initial scroll position and month-tick lookup
+            monthStartIndices = computeMonthStartIndices()
+            updateScrollPosition(for: selectedDate)
+            // Optional
+            try? await Task.sleep(for: .seconds(0.05))
+            isInitialSetupDone = true
+        }
+        // Enabling interaction only after the initial setup is done
+        .allowsHitTesting(isInitialSetupDone)
+        .onChange(of: scrollIndex) { oldValue, newValue in
+            Task {
+                applySelection(forIndex: newValue)
+            }
+        }
+        .onChange(of: selectedDate) { oldValue, newValue in
+            let newIndex = index(for: newValue)
+            guard scrollIndex != newIndex else { return }
+            updateScrollPosition(for: newValue)
+        }
+        .onChange(of: minDate) { oldValue, newValue in
+            monthStartIndices = computeMonthStartIndices()
+        }
+        .onChange(of: maxDate) { oldValue, newValue in
+            monthStartIndices = computeMonthStartIndices()
+        }
         .hapticTick(hapticTick)
     }
 
-    private func dayDelta(forPoints points: Double) -> Int {
-        Int((points / pointsPerDay).rounded())
+    // Tick View
+    @ViewBuilder
+    private func tickView(_ index: Int) -> some View {
+        let isInside = animationRange.contains(index)
+        let isMonthStart = monthStartIndices.contains(index)
+        let fillColor = isInside ? theme.brass : theme.ink.opacity(isMonthStart ? 0.6 : 0.35)
+        let heightProgress: CGFloat = isInside ? 1 : (isMonthStart ? majorHeightProgress : minorHeightProgress)
+
+        Rectangle()
+            .fill(fillColor)
+            .frame(
+                width: tickWidth,
+                height: tickHeight * heightProgress
+            )
+            .frame(width: tickSlotWidth, height: tickHeight, alignment: .bottom)
+            .animation(isInside || !isInitialSetupDone ? .none : animation, value: isInside)
     }
 
-    /// Shared by the touch/pointer `DragGesture` and, on iOS, the mouse/trackpad scroll
-    /// capture below — both report a horizontal translation that's cumulative from
-    /// gesture start, so both can drive the same anchor-based day stepping.
-    private func handleDragChanged(translationX: CGFloat) {
-        let anchor = dragAnchorDate ?? selectedDate
-        if dragAnchorDate == nil { dragAnchorDate = anchor }
-        applyDayDelta(dayDelta(forPoints: -translationX), from: anchor)
+    private func updateScrollPosition(for date: Date) {
+        let safeIndex = index(for: date)
+        scrollPosition = safeIndex
+        scrollIndex = safeIndex
+        animationRange = safeIndex...safeIndex
     }
 
-    private func handleDragEnded() {
-        dragAnchorDate = nil
+    /// Applies a scroll-driven index change to `selectedDate`, clamped implicitly by
+    /// the row only ever containing `minDate...maxDate` (index 0...`dayCount`).
+    private func applySelection(forIndex newIndex: Int) {
+        let candidate = date(forIndex: newIndex)
+        guard candidate != selectedDate else { return }
+        let previous = selectedDate
+        selectedDate = candidate
+        if crossesMonthBoundary(from: previous, to: candidate) {
+            hapticTick += 1
+        }
     }
 
-    private func applyDayDelta(_ dayDelta: Int, from anchor: Date) {
-        guard dayDelta != 0, let candidate = UTCDay.calendar.date(byAdding: .day, value: dayDelta, to: anchor) else { return }
-        let clamped = min(max(candidate, minDate), maxDate)
-        if clamped != selectedDate {
-            let previous = selectedDate
-            selectedDate = clamped
-            if crossesSignificantTick(from: previous, to: clamped) {
-                hapticTick += 1
+    private func index(for date: Date) -> Int {
+        let days = (try? UTCDay.dayCount(from: minDate, to: date)) ?? 0
+        return max(min(days, dayCount), 0)
+    }
+
+    private func date(forIndex index: Int) -> Date {
+        UTCDay.calendar.date(byAdding: .day, value: index, to: minDate) ?? minDate
+    }
+
+    /// All tick indices (day offsets from `minDate`) that land on the 1st of a month,
+    /// found by stepping a cursor month-by-month across `minDate...maxDate` — a few
+    /// hundred `Calendar` calls at most, regardless of the day-count of the range —
+    /// rather than testing every single day.
+    private func computeMonthStartIndices() -> Set<Int> {
+        guard maxDate >= minDate else { return [] }
+        let calendar = UTCDay.calendar
+        var indices = Set<Int>()
+        var cursor = calendar.date(from: calendar.dateComponents([.year, .month], from: minDate)) ?? minDate
+
+        while cursor <= maxDate {
+            if cursor >= minDate, let idx = try? UTCDay.dayCount(from: minDate, to: cursor) {
+                indices.insert(idx)
             }
+            guard let next = calendar.date(byAdding: .month, value: 1, to: cursor) else { break }
+            cursor = next
         }
+        return indices
     }
 
-    /// Feeds one scroll event's delta through `scrollAccumulator` and steps
-    /// `selectedDate` by whatever whole days it now reports.
-    private func applyScrollDelta(_ deltaX: CGFloat) {
-        let wholeDays = scrollAccumulator.consume(deltaPoints: Double(-deltaX), pointsPerDay: pointsPerDay)
-        guard wholeDays != 0 else { return }
-
-        guard let candidate = UTCDay.calendar.date(byAdding: .day, value: wholeDays, to: selectedDate) else {
-            scrollAccumulator.reset()
-            return
-        }
-        let clamped = min(max(candidate, minDate), maxDate)
-        let actualDays = (try? UTCDay.dayCount(from: selectedDate, to: clamped)) ?? wholeDays
-
-        if clamped != selectedDate {
-            let previous = selectedDate
-            selectedDate = clamped
-            if crossesSignificantTick(from: previous, to: clamped) {
-                hapticTick += 1
-            }
-        }
-
-        if actualDays != wholeDays {
-            // Hit (or was already at) the range boundary: drop the rest of the
-            // accumulator rather than let "scroll debt" build up while pinned, which
-            // would otherwise require an equally long scroll the other way before
-            // anything moved again.
-            scrollAccumulator.reset()
-        }
-    }
-
-    /// The three tick tiers drawn along the timeline, and the ones a drag/scroll step
-    /// should announce with haptic feedback (`.major` and `.mid` — see
-    /// `crossesSignificantTick`). Keeping this in one place means the visual ticks and
-    /// the haptic ticks can never drift apart.
-    private enum TickTier {
-        case major, mid, minor
-
-        var isSignificant: Bool { self != .minor }
-    }
-
-    private func tickTier(for date: Date) -> TickTier {
-        switch UTCDay.calendar.component(.day, from: date) {
-        case 1: return .major
-        case 15: return .mid
-        default: return .minor
-        }
-    }
-
-    /// Whether stepping from `previous` to `next` (in either direction) passes over a
-    /// major or mid tick's date, checked day by day since a single drag/scroll step can
-    /// span more than one day. `previous` itself is not checked — its tick, if any,
-    /// already triggered feedback when the timeline first landed on it.
-    private func crossesSignificantTick(from previous: Date, to next: Date) -> Bool {
-        guard let dayCount = try? UTCDay.dayCount(from: previous, to: next), dayCount != 0 else { return false }
-        let step = dayCount > 0 ? 1 : -1
+    /// Whether stepping from `previous` to `next` (in either direction) passes over the
+    /// 1st of a month, checked day by day since a single scroll step can span more than
+    /// one day. `previous` itself is not checked — its tick, if any, already triggered
+    /// feedback when the timeline first landed on it.
+    private func crossesMonthBoundary(from previous: Date, to next: Date) -> Bool {
+        guard let spanDays = try? UTCDay.dayCount(from: previous, to: next), spanDays != 0 else { return false }
+        let step = spanDays > 0 ? 1 : -1
         var cursor = previous
-        for _ in 0..<abs(dayCount) {
+        for _ in 0..<abs(spanDays) {
             guard let stepped = UTCDay.calendar.date(byAdding: .day, value: step, to: cursor) else { break }
             cursor = stepped
-            if tickTier(for: cursor).isSignificant { return true }
+            if UTCDay.calendar.component(.day, from: cursor) == 1 { return true }
         }
         return false
     }
-
-    private func drawTicks(context: GraphicsContext, size: CGSize, centerDate: Date) {
-        let midX = size.width / 2
-        let visibleDaysHalf = Int((size.width / 2 / pointsPerDay).rounded(.up)) + 2
-
-        for offset in -visibleDaysHalf...visibleDaysHalf {
-            // `centerDate` is always UTC-midnight (see `UTCDay.midnight`), and `UTCDay.calendar`
-            // is fixed to the UTC time zone, which never observes DST — so every UTC calendar day
-            // is exactly 86,400 seconds long, and Foundation `Date` arithmetic doesn't model leap
-            // seconds either. Stepping by `offset` days is therefore exactly equivalent to
-            // `UTCDay.calendar.date(byAdding: .day, value: offset, to: centerDate)` here, without
-            // paying for a `Calendar` call on every one of the ~80-170 ticks this loop draws on
-            // every redraw (this Canvas redraws continuously while the drag/scroll gesture runs).
-            let date = centerDate.addingTimeInterval(Double(offset) * 86_400)
-            guard date >= minDate, date <= maxDate else { continue }
-
-            let x = midX + Double(offset) * pointsPerDay
-            let tier = tickTier(for: date)
-            let tickHeight = size.height * (tier == .major ? 0.5 : tier == .mid ? 0.35 : 0.25)
-
-            var path = Path()
-            path.move(to: CGPoint(x: x, y: size.height))
-            path.addLine(to: CGPoint(x: x, y: size.height - tickHeight))
-            context.stroke(
-                path,
-                with: .color(tier == .major ? theme.tickMajor : tier == .mid ? theme.tickMajor.opacity(0.7) : theme.tickMinor),
-                lineWidth: tier == .major ? 1.5 : tier == .mid ? 1.2 : 1
-            )
-
-            if tier == .major {
-                let label = Text(Self.monthYearFormatter.string(from: date))
-                    .font(.system(size: 10, design: .rounded))
-                    .foregroundStyle(theme.tickLabel)
-                context.draw(label, at: CGPoint(x: x, y: size.height - tickHeight - 6), anchor: .bottom)
-            }
-        }
-    }
-
-    private static let monthYearFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM yyyy"
-        formatter.timeZone = TimeZone(identifier: "UTC")
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter
-    }()
 }
-
-#if os(macOS)
-import AppKit
-
-/// Trackpad/scroll-wheel support for the timeline on macOS (spec §5: "drag gesture +
-/// optional scroll wheel/trackpad support"). Uses a local `NSEvent` monitor rather than
-/// overriding `scrollWheel(with:)` on a plain `NSView` — a bare `NSViewRepresentable`
-/// layered under SwiftUI content is not reliably part of the hit-tested responder
-/// chain for scroll events, so overriding `scrollWheel` alone silently does nothing in
-/// that configuration. The monitor instead checks the cursor position against this
-/// view's bounds on every scroll event in the app, independent of hit-testing/z-order.
-private struct ScrollWheelCapture: NSViewRepresentable {
-    let onScroll: (CGFloat) -> Void
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onScroll: onScroll)
-    }
-
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        context.coordinator.attach(to: view)
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        context.coordinator.onScroll = onScroll
-    }
-
-    final class Coordinator {
-        var onScroll: (CGFloat) -> Void
-        private weak var view: NSView?
-        private var monitor: Any?
-
-        init(onScroll: @escaping (CGFloat) -> Void) {
-            self.onScroll = onScroll
-        }
-
-        func attach(to view: NSView) {
-            self.view = view
-            monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
-                guard let self, let view = self.view, let window = view.window, window.isKeyWindow else {
-                    return event
-                }
-                let locationInView = view.convert(event.locationInWindow, from: nil)
-                guard view.bounds.contains(locationInView) else { return event }
-                self.onScroll(event.scrollingDeltaX)
-                return nil // consume: don't also let it scroll some ancestor
-            }
-        }
-
-        deinit {
-            if let monitor {
-                NSEvent.removeMonitor(monitor)
-            }
-        }
-    }
-}
-#endif
-
-#if os(iOS)
-import UIKit
-
-/// Bluetooth/wired mouse and trackpad scroll-wheel support for the timeline on
-/// iOS/iPadOS (spec §5). UIKit exposes indirect scroll input (mouse wheel, trackpad)
-/// through `UIPanGestureRecognizer.allowedScrollTypesMask` (available since iOS 13.4) —
-/// the same gesture-recognizer machinery as touch panning, just fed from a different
-/// input source. Its `translation(in:)` is therefore cumulative from gesture start,
-/// exactly like SwiftUI's `DragGesture`, so it drives the same anchor-based day
-/// stepping (`handleDragChanged`/`handleDragEnded`) rather than needing an incremental
-/// accumulator the way macOS's per-event `NSEvent.scrollWheel` deltas do.
-///
-/// `allowedTouchTypes = []` keeps the gesture recognizer itself from ever trying to
-/// recognize a touch, so it only ever fires for indirect input. That alone isn't
-/// enough, though: this view sits in front of the timeline's content as an `.overlay`
-/// (see below for why), and a plain `UIView` claims every point in its bounds for
-/// *any* event during hit-testing — touches included — which would silently swallow
-/// the on-screen `DragGesture` this view is layered over. `ScrollOnlyHitTestView`
-/// overrides `hitTest(_:with:)` to claim a point only when the event is an indirect
-/// scroll (`UIEvent.EventType.scroll`, the type UIKit uses for mouse-wheel/trackpad
-/// input since iOS 13.4) and return `nil` — transparent — otherwise, so touches fall
-/// through to the content behind it untouched.
-private struct ScrollWheelCapture: UIViewRepresentable {
-    let onChanged: (CGFloat) -> Void
-    let onEnded: () -> Void
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onChanged: onChanged, onEnded: onEnded)
-    }
-
-    func makeUIView(context: Context) -> UIView {
-        let view = ScrollOnlyHitTestView()
-        let recognizer = UIPanGestureRecognizer(
-            target: context.coordinator,
-            action: #selector(Coordinator.handlePan(_:))
-        )
-        recognizer.allowedScrollTypesMask = [.continuous, .discrete]
-        recognizer.allowedTouchTypes = []
-        view.addGestureRecognizer(recognizer)
-        return view
-    }
-
-    func updateUIView(_ uiView: UIView, context: Context) {
-        context.coordinator.onChanged = onChanged
-        context.coordinator.onEnded = onEnded
-    }
-
-    final class Coordinator: NSObject {
-        var onChanged: (CGFloat) -> Void
-        var onEnded: () -> Void
-
-        init(onChanged: @escaping (CGFloat) -> Void, onEnded: @escaping () -> Void) {
-            self.onChanged = onChanged
-            self.onEnded = onEnded
-        }
-
-        @objc func handlePan(_ recognizer: UIPanGestureRecognizer) {
-            guard let view = recognizer.view else { return }
-            switch recognizer.state {
-            case .changed:
-                onChanged(recognizer.translation(in: view).x)
-            case .ended, .cancelled, .failed:
-                onEnded()
-            default:
-                break
-            }
-        }
-    }
-}
-
-/// A `UIView` that hit-tests as empty for every event except an indirect scroll
-/// (mouse wheel/trackpad). Used to layer `ScrollWheelCapture` as a full-size
-/// `.overlay` over the timeline's touch-driven content without blocking those touches
-/// — see `ScrollWheelCapture`'s doc comment above for why an overlay (front, not
-/// `.background`) is needed at all.
-///
-/// On iPad this works out of the box with a paired mouse/trackpad. On iPhone it
-/// requires the user to pair the mouse via AssistiveTouch (Settings > Accessibility >
-/// Touch > AssistiveTouch > Devices) — the same API applies once paired.
-private final class ScrollOnlyHitTestView: UIView {
-    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        guard event?.type == .scroll else { return nil }
-        return super.hitTest(point, with: event)
-    }
-}
-#endif
