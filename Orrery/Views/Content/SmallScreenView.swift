@@ -19,7 +19,7 @@ struct SmallScreenView: View {
     @AppStorage(AppStorageKeys.rangeYears) private var rangeYears = DataController.defaultRangeYears
 
     @State private var viewModel = ContentViewModel()
-    let animation: Animation = .bouncy(duration: 0.3)
+    let animation: Animation = .spring(duration: 0.3)
 
     var body: some View {
         // Looked up once per body evaluation and handed to both the main content and
@@ -73,8 +73,8 @@ struct SmallScreenView: View {
             
             if #available(iOS 26.0, *) {
                 BuildControllsBar(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
-                    .clipShape(.rect(cornerRadius: 35))
                     .padding(.bottom)
+                    .clipShape(.rect(cornerRadius: 35))
                     .glassEffect(.regular, in: .rect(cornerRadius: 35))
                     .padding(.horizontal, 10)
                     .padding(.bottom, 10)
@@ -134,69 +134,27 @@ struct SmallScreenView: View {
             }
             
             HStack {
-                GlassButton(circular: true) {
-                    viewModel.selectToday(dataController: dataController)
-                } label: {
-                    Group {
-                        if #available(iOS 26.0, *) {
-                            Image(systemName: viewModel.todayCalendarSymbolName(dataController: dataController))
-                        } else {
-                            Image(systemName: "calendar.badge.clock")
-                        }
-                    }
-                    .font(.title2)
+                if #available(iOS 26.0, *) {
+                    BuildCalendarCapsule()
+                        .clipShape(.capsule)
+                        .glassEffect(.regular.interactive(), in: .capsule)
+                } else {
+                    BuildCalendarCapsule()
+                        .withSurface(in: .capsule)
                 }
-                .disabled(!dataController.isReady || viewModel.isAlreadyOnToday(dataController: dataController))
-                .help("Jump to Today")
-                .accessibilityLabel("Today")
-
-                GlassButton(systemName: "calendar") {
-                    withAnimation(animation) {
-                        viewModel.toggleControlPresentation(.datePicker)
-                    }
-                }
-                .disabled(!dataController.isReady)
-                .help("Choose a Date")
-                .accessibilityLabel("Choose Date")
 
                 Spacer()
                 
-                GlassButton(circular: true) {
-                    viewModel.save(dataController: dataController, modelContext: modelContext)
-                } label: {
-                    Image(systemName: viewModel.justSaved ? "checkmark" : "bookmark")
-                        .font(.title2)
-                        .foregroundStyle(viewModel.justSaved ? theme.brass : theme.ink)
+                if #available(iOS 26.0, *) {
+                    BuildButtonsCapsule(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
+                        .clipShape(.capsule)
+                        .glassEffect(.regular.interactive(), in: .capsule)
+                } else {
+                    BuildButtonsCapsule(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
+                        .withSurface(in: .capsule)
                 }
-                .disabled(!dataController.isReady)
-                .help(viewModel.justSaved ? "Saved" : "Save This View")
-                .accessibilityLabel(viewModel.justSaved ? "Saved" : "Save")
-                
-                GlassButton(systemName: "list.bullet") {
-                    withAnimation(animation) {
-                        viewModel.toggleControlPresentation(.savedItems)
-                    }
-                }
-                .help("Show Saved Views")
-                .accessibilityLabel("Saved Views")
-
-                if let snapshot {
-                    PolaroidShareButton(
-                        snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, smallMoon: smallMoon, colorScheme: colorScheme
-                    )
-                    .labelStyle(.iconOnly)
-                    .help("Share This View")
-                }
-
-                GlassButton(systemName: "slider.horizontal.3") {
-                    withAnimation(animation) {
-                        viewModel.toggleControlPresentation(.settings)
-                    }
-                }
-                .help("Settings")
-                .accessibilityLabel("Settings")
             }
-            .padding(20)
+            .padding()
             
             // `ScrubTimelineView`'s animated tick fade gets visibly laggy once the
             // cached range spans more than ±10 years — the no-animation variant trades
@@ -218,6 +176,99 @@ struct SmallScreenView: View {
                 )
             }
         }
+    }
+    
+    @ViewBuilder
+    private func BuildCalendarCapsule() -> some View {
+        let isTodayButtonDisabled = !dataController.isReady || viewModel.isAlreadyOnToday(dataController: dataController)
+        HStack(spacing: 20) {
+            Button {
+                viewModel.selectToday(dataController: dataController)
+            } label: {
+                Group {
+                    if #available(iOS 26.0, *) {
+                        Image(systemName: viewModel.todayCalendarSymbolName(dataController: dataController))
+                    } else {
+                        Image(systemName: "calendar.badge.clock")
+                    }
+                }
+                .font(.title2)
+            }
+            .disabled(isTodayButtonDisabled)
+            .help("Jump to Today")
+            .accessibilityLabel("Today")
+            .foregroundStyle(isTodayButtonDisabled ? .tertiary : .primary)
+            
+            Button {
+                withAnimation(animation) {
+                    viewModel.toggleControlPresentation(.datePicker)
+                }
+            } label: {
+                Image(systemName: "calendar")
+                    .font(.title2)
+            }
+            .disabled(!dataController.isReady)
+            .help("Choose a Date")
+            .accessibilityLabel("Choose Date")
+            .foregroundStyle(.primary)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 12)
+    }
+    
+    @ViewBuilder
+    private func BuildButtonsCapsule(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
+        HStack(spacing: 20) {
+            Button {
+                viewModel.save(dataController: dataController, modelContext: modelContext)
+            } label: {
+                Image(systemName: viewModel.justSaved ? "checkmark" : "bookmark")
+                    .font(.title2)
+                    .foregroundStyle(viewModel.justSaved ? theme.brass : theme.ink)
+            }
+            .disabled(!dataController.isReady)
+            .help(viewModel.justSaved ? "Saved" : "Save This View")
+            .accessibilityLabel(viewModel.justSaved ? "Saved" : "Save")
+            .foregroundStyle(.primary)
+            
+            Button {
+                withAnimation(animation) {
+                    viewModel.toggleControlPresentation(.savedItems)
+                }
+            } label: {
+                Image(systemName: "list.bullet")
+                    .font(.title2)
+            }
+            .help("Show Saved Views")
+            .accessibilityLabel("Saved Views")
+            .foregroundStyle(.primary)
+            
+            Divider()
+                .frame(height: 25)
+            
+            if let snapshot {
+                PolaroidShareButton(
+                    snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, smallMoon: smallMoon, colorScheme: colorScheme
+                )
+                .labelStyle(.iconOnly)
+                .help("Share This View")
+                .foregroundStyle(.primary)
+            }
+
+            Button {
+                withAnimation(animation) {
+                    viewModel.toggleControlPresentation(.settings)
+                }
+            } label: {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.title2)
+            }
+            .help("Settings")
+            .accessibilityLabel("Settings")
+            .foregroundStyle(.primary)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 11)
     }
 }
 
