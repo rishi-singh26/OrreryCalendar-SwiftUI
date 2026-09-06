@@ -1,15 +1,18 @@
 //
-//  ScrubTimelineMacView.swift
+//  ScrubTimelineNoAnimationView.swift
 //  Orrery
 //
-//  macOS's take on the scrub timeline (see `ScrubTimelineView` for the iOS/iPadOS
-//  version, which this mirrors structurally). A trackpad/mouse delivers scroll input
-//  far more densely and precisely than a touch drag, so rather than the iOS view's
-//  animated, range-based fade between tick states, ticks here just snap straight to
-//  whatever height/color the current scroll position calls for — no `Animation` is
-//  ever applied. That also means there's no need for the iOS view's `animationRange`
-//  (the span of ticks a fade animates across): only the exact tick under the current
-//  selection needs to look different from the rest.
+//  A no-animation take on the scrub timeline (see `ScrubTimelineView`, which this
+//  mirrors structurally). `ScrubTimelineView`'s animated, range-based fade between tick
+//  states gets visibly laggy once the cached range spans more than ±10 years (tens of
+//  thousands of ticks scrolling past) — ticks here just snap straight to whatever
+//  height/color the current scroll position calls for, no `Animation` ever applied, so
+//  there's no per-tick fade to fall behind on. That also means there's no need for the
+//  animated view's `animationRange` (the span of ticks a fade animates across): only the
+//  exact tick under the current selection needs to look different from the rest.
+//  `LargeScreenView`/`SmallScreenView` pick between the two based on the selected range,
+//  not the platform — a large range scrolled from a trackpad or touch is equally likely
+//  to lag with the animated version.
 //
 //  Performance note: exactly like `ScrubTimelineView`, month-start tick indices are
 //  precomputed once into `monthStartIndices` (recomputed only when `minDate`/`maxDate`
@@ -22,8 +25,7 @@
 
 import SwiftUI
 
-#if os(macOS)
-struct ScrubTimelineMacView: View {
+struct ScrubTimelineNoAnimationView: View {
     @Binding var selectedDate: Date
     let minDate: Date
     let maxDate: Date
@@ -48,7 +50,8 @@ struct ScrubTimelineMacView: View {
 
     /// Bumped when scrolling steps `selectedDate` across the 1st of a month — see
     /// `ScrubTimelineView`'s identical property for the full rationale. Applied via
-    /// `hapticTick(_:)`, which is a no-op on Macs without a Force Touch trackpad.
+    /// `hapticTick(_:)`, which degrades to a no-op on hardware without haptics (e.g. a
+    /// Mac with no Force Touch trackpad).
     @State private var hapticTick = 0
 
     /// Whole UTC days spanned by `minDate...maxDate`; the row holds `dayCount + 1`
@@ -208,4 +211,3 @@ struct ScrubTimelineMacView: View {
         return false
     }
 }
-#endif

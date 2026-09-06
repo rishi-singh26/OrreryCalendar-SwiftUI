@@ -79,23 +79,27 @@ struct LargeScreenView: View {
                 }
             }
 
-            #if os(macOS)
-            ScrubTimelineMacView(
-                selectedDate: viewModel.dateBinding(dataController: dataController),
-                minDate: dataController.startDate,
-                maxDate: dataController.endDate,
-                theme: theme
-            )
-            .padding(.bottom)
-            #else
-            ScrubTimelineView(
-                selectedDate: viewModel.dateBinding(dataController: dataController),
-                minDate: dataController.startDate,
-                maxDate: dataController.endDate,
-                theme: theme
-            )
-            .padding(.bottom)
-            #endif
+            // `ScrubTimelineView`'s animated tick fade gets visibly laggy once the
+            // cached range spans more than ±10 years, regardless of platform — the
+            // no-animation variant trades that fade for scrolling that stays smooth
+            // at any range size (see `ScrubTimelineNoAnimationView`).
+            if rangeYears > viewModel.rangeYearsForAnimatedScrubber {
+                ScrubTimelineNoAnimationView(
+                    selectedDate: viewModel.dateBinding(dataController: dataController),
+                    minDate: dataController.startDate,
+                    maxDate: dataController.endDate,
+                    theme: theme
+                )
+                .padding(.bottom)
+            } else {
+                ScrubTimelineView(
+                    selectedDate: viewModel.dateBinding(dataController: dataController),
+                    minDate: dataController.startDate,
+                    maxDate: dataController.endDate,
+                    theme: theme
+                )
+                .padding(.bottom)
+            }
         }
         .padding(.top, 12)
     }
