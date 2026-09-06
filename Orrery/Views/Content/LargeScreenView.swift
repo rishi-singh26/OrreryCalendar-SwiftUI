@@ -73,6 +73,15 @@ struct LargeScreenView: View {
                 }
             }
 
+            #if os(macOS)
+            ScrubTimelineMacView(
+                selectedDate: viewModel.dateBinding(dataController: dataController),
+                minDate: dataController.startDate,
+                maxDate: dataController.endDate,
+                theme: theme
+            )
+            .padding(.bottom)
+            #else
             ScrubTimelineView(
                 selectedDate: viewModel.dateBinding(dataController: dataController),
                 minDate: dataController.startDate,
@@ -80,6 +89,7 @@ struct LargeScreenView: View {
                 theme: theme
             )
             .padding(.bottom)
+            #endif
         }
         .padding(.top, 12)
     }
