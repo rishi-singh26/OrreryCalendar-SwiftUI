@@ -19,6 +19,7 @@ struct SmallScreenView: View {
     @AppStorage(AppStorageKeys.rangeYears) private var rangeYears = DataController.defaultRangeYears
 
     @State private var viewModel = ContentViewModel()
+    let animation: Animation = .bouncy(duration: 0.3)
 
     var body: some View {
         // Looked up once per body evaluation and handed to both the main content and
@@ -35,10 +36,6 @@ struct SmallScreenView: View {
                     }
                 }
                 .background(theme.background.ignoresSafeArea())
-                .toolbar { ToolbarContentBuilder(snapshot: snapshot, theme: theme, colorScheme: colorScheme) }
-                .sheet(isPresented: $viewModel.showSettings) {
-                    SettingsSheet()
-                }
             }
         }
         .task {
@@ -51,133 +48,157 @@ struct SmallScreenView: View {
 
     @ViewBuilder
     private func MainContentBuilder(snapshot: DaySnapshot, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
-        VStack(spacing: 20) {
-            SelectedDateTitleText(date: viewModel.selectedDate, color: theme.ink)
-
-            OrreryView(snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, theme: theme, aspectRatio: 1)
-
-            Spacer(minLength: 0)
-
-            MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, smallMoon: smallMoon, theme: theme)
-
-            Spacer(minLength: 0)
-
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 20) {
+                SelectedDateTitleText(date: viewModel.selectedDate, color: theme.ink)
+                
+                OrreryView(snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, theme: theme, aspectRatio: 1)
+                                
+                MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, smallMoon: smallMoon, theme: theme)
+                
+                Spacer(minLength: 0)
+            }
+            .padding(.top, 12)
+            .onTapGesture {
+                withAnimation(animation) {
+                    viewModel.controlPresentationState = .none
+                }
+            }
+            
+            if #available(iOS 26.0, *) {
+                BuildControllsBar(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
+                    .clipShape(.rect(cornerRadius: 35))
+                    .padding(.bottom)
+                    .glassEffect(.regular, in: .rect(cornerRadius: 35))
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 10)
+            } else {
+                BuildControllsBar(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
+                    .padding(.bottom)
+                    .withSurface(in: .rect(cornerRadius: 35))
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 10)
+            }
+        }
+        .ignoresSafeArea(.all, edges: .bottom)
+    }
+    
+    @ViewBuilder
+    private func BuildControllsBar(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
+        VStack(spacing: 0) {
+            ZStack {
+                switch viewModel.controlPresentationState {
+                case .datePicker:
+                    DatePicker(
+                        "Date",
+                        selection: viewModel.dateBinding(dataController: dataController),
+                        in: dataController.startDate...dataController.endDate,
+                        displayedComponents: .date
+                    )
+                    .datePickerStyle(.wheel)
+                    .labelsVisibility(.hidden)
+                    .padding()
+                    .frame(height: 280)
+                    .transition(.blurReplace)
+                case .savedItems:
+                    SavedListView { date in
+                        viewModel.selectedDate = dataController.clampedDate(date)
+                        withAnimation(animation) {
+                            viewModel.controlPresentationState = .none
+                        }
+                    }
+                    .frame(height: 450)
+                    .transition(.blurReplace)
+                case .settings:
+                    SettingsPanel()
+                        .frame(height: 550)
+                        .transition(.blurReplace)
+                case .none:
+                    EmptyView()
+                }
+            }
+            .compositingGroup()
+            
             if viewModel.isNearRangeEdge(dataController: dataController) {
                 ExtendRangeButton(theme: theme) {
-                    viewModel.showSettings = true
+                    withAnimation(animation) {
+                        viewModel.controlPresentationState = .settings
+                    }
                 }
             }
-
-            if #available(iOS 26.0, *) {
-                ScrubTimelineView(
-                    selectedDate: viewModel.dateBinding(dataController: dataController),
-                    minDate: dataController.startDate,
-                    maxDate: dataController.endDate,
-                    theme: theme
-                )
-                .clipShape(.rect(cornerRadius: 20))
-                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 20))
-                .padding(.horizontal, 12)
-                .padding(.bottom, 8)
-            } else {
-                ScrubTimelineView(
-                    selectedDate: viewModel.dateBinding(dataController: dataController),
-                    minDate: dataController.startDate,
-                    maxDate: dataController.endDate,
-                    theme: theme
-                )
-                .withSurface(in: .rect(cornerRadius: 20))
-                .padding(.horizontal, 12)
-                .padding(.bottom, 8)
-            }
-        }
-        .padding(.top, 12)
-    }
-
-    @ToolbarContentBuilder
-    private func ToolbarContentBuilder(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme) -> some ToolbarContent {
-        ToolbarItemGroup(placement: .bottomBar) {
-            Button {
-                viewModel.selectToday(dataController: dataController)
-            } label: {
-                if #available(iOS 26.0, *) {
-                    Image(systemName: viewModel.todayCalendarSymbolName(dataController: dataController))
-                } else {
-                    Image(systemName: "calendar.badge.clock")
+            
+            HStack {
+                GlassButton(circular: true) {
+                    viewModel.selectToday(dataController: dataController)
+                } label: {
+                    Group {
+                        if #available(iOS 26.0, *) {
+                            Image(systemName: viewModel.todayCalendarSymbolName(dataController: dataController))
+                        } else {
+                            Image(systemName: "calendar.badge.clock")
+                        }
+                    }
+                    .font(.title2)
                 }
-            }
-            .disabled(!dataController.isReady || viewModel.isAlreadyOnToday(dataController: dataController))
-            .help("Jump to Today")
-            .accessibilityLabel("Today")
+                .disabled(!dataController.isReady || viewModel.isAlreadyOnToday(dataController: dataController))
+                .help("Jump to Today")
+                .accessibilityLabel("Today")
 
-            Button {
-                viewModel.showDatePicker = true
-            } label: {
-                Image(systemName: "calendar")
-            }
-            .disabled(!dataController.isReady)
-            .help("Choose a Date")
-            .accessibilityLabel("Choose Date")
-            .popover(isPresented: $viewModel.showDatePicker) {
-                DatePicker(
-                    "Date",
-                    selection: viewModel.dateBinding(dataController: dataController),
-                    in: dataController.startDate...dataController.endDate,
-                    displayedComponents: .date
-                )
-                .datePickerStyle(.graphical)
-                .labelsHidden()
-                .padding()
-                .frame(minWidth: 320, minHeight: 320)
-                .presentationCompactAdaptation(.popover)
-            }
-
-            Spacer()
-        }
-
-        ToolbarItemGroup(placement: .bottomBar) {
-            saveButton(theme: theme)
-
-            NavigationLink {
-                SavedListView { date in
-                    viewModel.selectedDate = dataController.clampedDate(date)
+                GlassButton(systemName: "calendar") {
+                    withAnimation(animation) {
+                        viewModel.toggleControlPresentation(.datePicker)
+                    }
                 }
-            } label: {
-                Image(systemName: "list.bullet")
-            }
-            .help("Show Saved Views")
-            .accessibilityLabel("Saved Views")
+                .disabled(!dataController.isReady)
+                .help("Choose a Date")
+                .accessibilityLabel("Choose Date")
 
-            if let snapshot {
-                PolaroidShareButton(
-                    snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, smallMoon: smallMoon, colorScheme: colorScheme
-                )
-                .labelStyle(.iconOnly)
-                .help("Share This View")
-            }
+                Spacer()
+                
+                GlassButton(circular: true) {
+                    viewModel.save(dataController: dataController, modelContext: modelContext)
+                } label: {
+                    Image(systemName: viewModel.justSaved ? "checkmark" : "bookmark")
+                        .font(.title2)
+                        .foregroundStyle(viewModel.justSaved ? theme.brass : theme.ink)
+                }
+                .disabled(!dataController.isReady)
+                .help(viewModel.justSaved ? "Saved" : "Save This View")
+                .accessibilityLabel(viewModel.justSaved ? "Saved" : "Save")
+                
+                GlassButton(systemName: "list.bullet") {
+                    withAnimation(animation) {
+                        viewModel.toggleControlPresentation(.savedItems)
+                    }
+                }
+                .help("Show Saved Views")
+                .accessibilityLabel("Saved Views")
 
-            Button {
-                // Toggle (not just set true) so tapping this button again also
-                // dismisses the settings sheet.
-                viewModel.showSettings.toggle()
-            } label: {
-                Image(systemName: "slider.horizontal.3")
+                if let snapshot {
+                    PolaroidShareButton(
+                        snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, smallMoon: smallMoon, colorScheme: colorScheme
+                    )
+                    .labelStyle(.iconOnly)
+                    .help("Share This View")
+                }
+
+                GlassButton(systemName: "slider.horizontal.3") {
+                    withAnimation(animation) {
+                        viewModel.toggleControlPresentation(.settings)
+                    }
+                }
+                .help("Settings")
+                .accessibilityLabel("Settings")
             }
-            .help("Settings")
-            .accessibilityLabel("Settings")
+            .padding(20)
+            
+            ScrubTimelineView(
+                selectedDate: viewModel.dateBinding(dataController: dataController),
+                minDate: dataController.startDate,
+                maxDate: dataController.endDate,
+                theme: theme
+            )
         }
-    }
-
-    private func saveButton(theme: ThemeColors) -> some View {
-        Button {
-            viewModel.save(dataController: dataController, modelContext: modelContext)
-        } label: {
-            Image(systemName: viewModel.justSaved ? "checkmark" : "bookmark")
-                .foregroundStyle(viewModel.justSaved ? theme.brass : theme.ink)
-        }
-        .disabled(!dataController.isReady)
-        .help(viewModel.justSaved ? "Saved" : "Save This View")
-        .accessibilityLabel(viewModel.justSaved ? "Saved" : "Save")
     }
 }
 
