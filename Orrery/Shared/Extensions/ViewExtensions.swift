@@ -12,7 +12,7 @@ extension View {
 #if os(iOS) || os(macOS)
     
     @ViewBuilder
-    func withSurface<S: Shape>(with material: Material = .thinMaterial, in shape: S) -> some View {
+    func withSurface<S: Shape>(with material: Material = .thickMaterial, in shape: S) -> some View {
         self.background {
             shape
                 .fill(material)

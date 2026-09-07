@@ -50,16 +50,30 @@ struct SmallScreenView: View {
         // `dataController.snapshot(for:)` (a `UTCDay` calendar-based lookup).
         let snapshot = dataController.snapshot(for: viewModel.selectedDate)
         ThemeReader { theme, colorScheme in
-            NavigationStack {
-                Group {
-                    if let snapshot {
-                        MainContentBuilder(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
+            ZStack {
+                LinearGradient(
+                    colors: [theme.brassDim, theme.background],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .cornerRadius(40)
+                .padding(.horizontal, (barOuterPadding / 2))
+                .padding(.bottom, (barOuterPadding / 2) + 20)
+                .ignoresSafeArea(.all, edges: .bottom)
+                
+                MainContentBuilder(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
+                
+                if snapshot == nil {
+                    if #available(iOS 26.0, *) {
+                        CalculatingPositionsView(theme: theme)
+                            .glassEffect(.regular, in: .rect(cornerRadius: panelCornerRadius))
                     } else {
                         CalculatingPositionsView(theme: theme)
+                            .withSurface(in: .rect(cornerRadius: 30))
                     }
                 }
-                .background(theme.background.ignoresSafeArea())
             }
+            .background(theme.background.ignoresSafeArea())
         }
         .task {
             await dataController.bootstrap()
@@ -76,15 +90,16 @@ struct SmallScreenView: View {
     }
 
     @ViewBuilder
-    private func MainContentBuilder(snapshot: DaySnapshot, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
+    private func MainContentBuilder(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
         ZStack(alignment: .bottom) {
             VStack(spacing: 20) {
                 SelectedDateTitleText(date: viewModel.selectedDate, color: theme.ink)
-
-                OrreryView(snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, theme: theme, aspectRatio: 1)
-
-                MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, smallMoon: smallMoon, theme: theme)
-
+                
+                if let snapshot {
+                    OrreryView(snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, theme: theme, aspectRatio: 1)
+                    
+                    MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, smallMoon: smallMoon, theme: theme)
+                }
                 Spacer(minLength: 0)
             }
             .padding(.top, 12)
@@ -96,29 +111,31 @@ struct SmallScreenView: View {
 
             if #available(iOS 26.0, *) {
                 BuildControlsBar(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
-                    .padding(.bottom)
                     .glassEffect(.regular, in: .rect(cornerRadius: panelCornerRadius))
+                    .clipShape(.rect(cornerRadius: panelCornerRadius))
                     .padding(.horizontal, barOuterPadding)
                     .padding(.bottom, barOuterPadding)
             } else {
                 BuildControlsBar(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
-                    .padding(.bottom)
                     .withSurface(in: .rect(cornerRadius: panelCornerRadius))
+                    .clipShape(.rect(cornerRadius: panelCornerRadius))
                     .padding(.horizontal, barOuterPadding)
                     .padding(.bottom, barOuterPadding)
             }
         }
+        .padding(.bottom, 20)
         .ignoresSafeArea(.all, edges: .bottom)
     }
 
     @ViewBuilder
-    private func BuildControlsBar(snapshot: DaySnapshot, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
+    private func BuildControlsBar(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
         VStack(spacing: 0) {
             ZStack {
                 // Always mounted — shown/hidden via `.opacity`, never inserted or
                 // removed by the switch below. See `BuildScrubberAndControls`'s
                 // doc comment for why that distinction matters.
                 BuildScrubberAndControls(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
+                    .padding(.bottom)
                     .opacity(viewModel.controlPresentationState == .none ? 1 : 0)
                     .allowsHitTesting(viewModel.controlPresentationState == .none)
                     .accessibilityHidden(viewModel.controlPresentationState != .none)
@@ -195,7 +212,7 @@ struct SmallScreenView: View {
     /// re-running its brief setup delay on every single panel close, which
     /// was visibly laggy.
     @ViewBuilder
-    private func BuildScrubberAndControls(snapshot: DaySnapshot, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
+    private func BuildScrubberAndControls(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
         VStack(spacing: 0) {
             HStack {
                 if #available(iOS 26.0, *) {
@@ -216,26 +233,28 @@ struct SmallScreenView: View {
                         .withSurface(in: .capsule)
                 }
             }
-            .padding()
-
-            // `ScrubTimelineView`'s animated tick fade gets visibly laggy once the
-            // cached range spans more than ±10 years — the no-animation variant trades
-            // that fade for scrolling that stays smooth at any range size (see
-            // `ScrubTimelineNoAnimationView`).
-            if rangeYears > viewModel.rangeYearsForAnimatedScrubber {
-                ScrubTimelineNoAnimationView(
-                    selectedDate: viewModel.dateBinding(dataController: dataController),
-                    minDate: dataController.startDate,
-                    maxDate: dataController.endDate,
-                    theme: theme
-                )
-            } else {
-                ScrubTimelineView(
-                    selectedDate: viewModel.dateBinding(dataController: dataController),
-                    minDate: dataController.startDate,
-                    maxDate: dataController.endDate,
-                    theme: theme
-                )
+            .padding(10)
+            
+            if snapshot != nil {
+                // `ScrubTimelineView`'s animated tick fade gets visibly laggy once the
+                // cached range spans more than ±10 years — the no-animation variant trades
+                // that fade for scrolling that stays smooth at any range size (see
+                // `ScrubTimelineNoAnimationView`).
+                if rangeYears > viewModel.rangeYearsForAnimatedScrubber {
+                    ScrubTimelineNoAnimationView(
+                        selectedDate: viewModel.dateBinding(dataController: dataController),
+                        minDate: dataController.startDate,
+                        maxDate: dataController.endDate,
+                        theme: theme
+                    )
+                } else {
+                    ScrubTimelineView(
+                        selectedDate: viewModel.dateBinding(dataController: dataController),
+                        minDate: dataController.startDate,
+                        maxDate: dataController.endDate,
+                        theme: theme
+                    )
+                }
             }
         }
     }
@@ -279,7 +298,7 @@ struct SmallScreenView: View {
     }
 
     @ViewBuilder
-    private func BuildButtonsCapsule(snapshot: DaySnapshot, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
+    private func BuildButtonsCapsule(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
         HStack(spacing: 20) {
             Button {
                 viewModel.save(dataController: dataController, modelContext: modelContext)
@@ -306,14 +325,19 @@ struct SmallScreenView: View {
 
             Divider()
                 .frame(height: 25)
-
-            PolaroidShareButton(
-                snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, smallMoon: smallMoon, colorScheme: colorScheme
-            )
-            .labelStyle(.iconOnly)
-            .help("Share This View")
-            .foregroundStyle(.primary)
-
+            
+            if let snapshot {
+                PolaroidShareButton(
+                    snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, smallMoon: smallMoon, colorScheme: colorScheme
+                )
+                .labelStyle(.iconOnly)
+                .help("Share This View")
+                .foregroundStyle(.primary)
+            } else {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.title2)
+            }
+            
             Button {
                 withAnimation(effectiveAnimation) {
                     viewModel.toggleControlPresentation(.settings)

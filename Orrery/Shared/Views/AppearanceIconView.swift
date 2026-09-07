@@ -19,14 +19,16 @@ struct AppearanceIconView: View {
     
     var body: some View {
         ZStack {
-            Image(systemName: "circle.lefthalf.filled")
+            Image(systemName: colorScheme == .dark ? "circle.righthalf.filled" : "circle.lefthalf.filled")
                 .resizable()
                 .frame(width: size, height: size)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
             Semicircle(direction: .left)
                 .frame(width: twoFifthSize, height: twoFifthSize)
                 .foregroundStyle(colorScheme == .dark ? .black : .white)
             Semicircle(direction: .right)
                 .frame(width: twoFifthSize, height: twoFifthSize)
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
         }
     }
 }

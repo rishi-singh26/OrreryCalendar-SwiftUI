@@ -14,11 +14,16 @@ struct CalculatingPositionsView: View {
     var body: some View {
         VStack(spacing: 12) {
             ProgressView()
+                .controlSize(.large)
                 .tint(theme.brass)
             Text("Calculating planetary positions…")
                 .font(.system(.subheadline, design: .rounded))
                 .foregroundStyle(theme.muted)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: 300, maxHeight: 200)
     }
+}
+
+#Preview {
+    CalculatingPositionsView(theme: ThemeColors.light)
 }
