@@ -15,18 +15,21 @@ struct GlassButton<Label: View>: View {
     let label: Label?
     let circular: Bool
     let size: CGFloat
+    let useInteractiveGlass: Bool
     let action: () -> Void
 
     // MARK: - Initialiser 1: Icon Only (Circular)
     init(
         systemName: String,
         size: CGFloat = 50.0,
+        useInteractiveGlass: Bool = true,
         action: @escaping () -> Void
     ) where Label == EmptyView {
         self.systemName = systemName
         self.label = nil
         self.circular = true
         self.size = size
+        self.useInteractiveGlass = useInteractiveGlass
         self.action = action
     }
 
@@ -34,6 +37,7 @@ struct GlassButton<Label: View>: View {
     init(
         circular: Bool = false,
         size: CGFloat = 50.0,
+        useInteractiveGlass: Bool = true,
         action: @escaping () -> Void,
         @ViewBuilder label: () -> Label
     ) {
@@ -41,13 +45,16 @@ struct GlassButton<Label: View>: View {
         self.systemName = nil
         self.circular = circular
         self.size = size
+        self.useInteractiveGlass = useInteractiveGlass
         self.action = action
     }
 
     var body: some View {
         if #available(iOS 26.0, macOS 26.0, *) {
+            let glass: Glass = useInteractiveGlass ? .regular.interactive() : .regular
+            
             buildButton
-                .glassEffect(.regular.interactive(), in: AnyShape(circular ? AnyShape(Circle()) : AnyShape(Capsule())))
+                .glassEffect(glass, in: AnyShape(circular ? AnyShape(Circle()) : AnyShape(Capsule())))
                 .contentShape(circular ? AnyShape(Circle()) : AnyShape(Capsule()))
         } else {
             buildButton
