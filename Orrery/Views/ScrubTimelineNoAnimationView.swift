@@ -17,7 +17,9 @@
 //  Performance note: exactly like `ScrubTimelineView`, month-start tick indices are
 //  precomputed once into `monthStartIndices` (recomputed only when `minDate`/`maxDate`
 //  change) by walking month-by-month rather than day-by-day, so per-tick rendering is a
-//  plain `Set` lookup with no `Calendar` work.
+//  plain `Set` lookup with no `Calendar` work. The day-offset/`Date` conversions and the
+//  month-start walk themselves live in `ScrubTimelineMath`, shared with
+//  `ScrubTimelineView` since they're identical in both.
 //
 //  `selectedDate` is updated continuously as the scroll gesture progresses (not just
 //  when it ends), so the chart tracks the timeline live.
@@ -43,6 +45,11 @@ struct ScrubTimelineNoAnimationView: View {
     @State private var scrollPhase: ScrollPhase = .idle
     @State private var isInitialSetupDone = false
 
+    /// Width available to lay the row out in — measured via `.onGeometryChange`
+    /// rather than wrapping the `ScrollView` in a `GeometryReader` (which greedily
+    /// claims all proposed space and adds a separate layout pass of its own).
+    @State private var containerWidth: CGFloat = 0
+
     /// Tick indices (day offsets from `minDate`) that fall on the 1st of a month —
     /// precomputed once (see performance note above) rather than checked per-tick with
     /// `Calendar`.
@@ -57,7 +64,7 @@ struct ScrubTimelineNoAnimationView: View {
     /// Whole UTC days spanned by `minDate...maxDate`; the row holds `dayCount + 1`
     /// ticks, one per day, inclusive of both ends.
     private var dayCount: Int {
-        max((try? UTCDay.dayCount(from: minDate, to: maxDate)) ?? 0, 0)
+        ScrubTimelineMath.dayCount(minDate: minDate, maxDate: maxDate)
     }
 
     /// Width one day occupies in the row: the tick itself plus padding on both sides.
@@ -66,39 +73,36 @@ struct ScrubTimelineNoAnimationView: View {
     }
 
     var body: some View {
-        GeometryReader { proxy in
-            let size = proxy.size
-
-            ScrollView(.horizontal) {
-                LazyHStack(spacing: 0) {
-                    ForEach(0...dayCount, id: \.self) { index in
-                        tickView(index)
-                    }
+        ScrollView(.horizontal) {
+            LazyHStack(spacing: 0) {
+                ForEach(0...dayCount, id: \.self) { index in
+                    tickView(index)
                 }
-                .frame(height: tickHeight)
-                .frame(maxHeight: .infinity)
-                .contentShape(.rect)
-                .scrollTargetLayout()
             }
-            .scrollIndicators(.hidden)
-            .scrollTargetBehavior(.viewAligned(limitBehavior: .alwaysByOne))
-            .scrollPosition(id: $scrollPosition, anchor: .center)
-            // Centering the first/last tick under the selection point.
-            .safeAreaPadding(.horizontal, (size.width - tickSlotWidth) / 2)
-            .onScrollGeometryChange(for: CGFloat.self) {
-                $0.contentOffset.x + $0.contentInsets.leading
-            } action: { oldValue, newValue in
-                guard scrollPhase != .idle else { return }
-                scrollIndex = max(min(Int((newValue / tickSlotWidth).rounded()), dayCount), 0)
-            }
-            .onScrollPhaseChange { oldPhase, newPhase in
-                scrollPhase = newPhase
+            .frame(height: tickHeight)
+            .frame(maxHeight: .infinity)
+            .contentShape(.rect)
+            .scrollTargetLayout()
+        }
+        .scrollIndicators(.hidden)
+        .scrollTargetBehavior(.viewAligned(limitBehavior: .alwaysByOne))
+        .scrollPosition(id: $scrollPosition, anchor: .center)
+        // Centering the first/last tick under the selection point.
+        .safeAreaPadding(.horizontal, (containerWidth - tickSlotWidth) / 2)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { containerWidth = $0 }
+        .onScrollGeometryChange(for: CGFloat.self) {
+            $0.contentOffset.x + $0.contentInsets.leading
+        } action: { oldValue, newValue in
+            guard scrollPhase != .idle else { return }
+            scrollIndex = max(min(Int((newValue / tickSlotWidth).rounded()), dayCount), 0)
+        }
+        .onScrollPhaseChange { oldPhase, newPhase in
+            scrollPhase = newPhase
 
-                // In some rare instances the view aligned target behaviour will not
-                // center the item; this works it out.
-                if newPhase == .idle && scrollPosition != scrollIndex {
-                    scrollPosition = scrollIndex
-                }
+            // In some rare instances the view aligned target behaviour will not
+            // center the item; this works it out.
+            if newPhase == .idle && scrollPosition != scrollIndex {
+                scrollPosition = scrollIndex
             }
         }
         .frame(height: interactionHeight)
@@ -161,53 +165,20 @@ struct ScrubTimelineNoAnimationView: View {
         guard candidate != selectedDate else { return }
         let previous = selectedDate
         selectedDate = candidate
-        if crossesMonthBoundary(from: previous, to: candidate) {
+        if ScrubTimelineMath.crossesMonthBoundary(from: previous, to: candidate) {
             hapticTick += 1
         }
     }
 
     private func index(for date: Date) -> Int {
-        let days = (try? UTCDay.dayCount(from: minDate, to: date)) ?? 0
-        return max(min(days, dayCount), 0)
+        ScrubTimelineMath.index(for: date, minDate: minDate, dayCount: dayCount)
     }
 
     private func date(forIndex index: Int) -> Date {
-        UTCDay.calendar.date(byAdding: .day, value: index, to: minDate) ?? minDate
+        ScrubTimelineMath.date(forIndex: index, minDate: minDate)
     }
 
-    /// All tick indices (day offsets from `minDate`) that land on the 1st of a month,
-    /// found by stepping a cursor month-by-month across `minDate...maxDate` — a few
-    /// hundred `Calendar` calls at most, regardless of the day-count of the range —
-    /// rather than testing every single day.
     private func computeMonthStartIndices() -> Set<Int> {
-        guard maxDate >= minDate else { return [] }
-        let calendar = UTCDay.calendar
-        var indices = Set<Int>()
-        var cursor = calendar.date(from: calendar.dateComponents([.year, .month], from: minDate)) ?? minDate
-
-        while cursor <= maxDate {
-            if cursor >= minDate, let idx = try? UTCDay.dayCount(from: minDate, to: cursor) {
-                indices.insert(idx)
-            }
-            guard let next = calendar.date(byAdding: .month, value: 1, to: cursor) else { break }
-            cursor = next
-        }
-        return indices
-    }
-
-    /// Whether stepping from `previous` to `next` (in either direction) passes over the
-    /// 1st of a month, checked day by day since a single scroll step can span more than
-    /// one day. `previous` itself is not checked — its tick, if any, already triggered
-    /// feedback when the timeline first landed on it.
-    private func crossesMonthBoundary(from previous: Date, to next: Date) -> Bool {
-        guard let spanDays = try? UTCDay.dayCount(from: previous, to: next), spanDays != 0 else { return false }
-        let step = spanDays > 0 ? 1 : -1
-        var cursor = previous
-        for _ in 0..<abs(spanDays) {
-            guard let stepped = UTCDay.calendar.date(byAdding: .day, value: step, to: cursor) else { break }
-            cursor = stepped
-            if UTCDay.calendar.component(.day, from: cursor) == 1 { return true }
-        }
-        return false
+        ScrubTimelineMath.monthStartIndices(minDate: minDate, maxDate: maxDate)
     }
 }

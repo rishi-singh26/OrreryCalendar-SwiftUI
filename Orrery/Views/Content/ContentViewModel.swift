@@ -51,6 +51,19 @@ final class ContentViewModel {
 
     private var hasInitializedSelection = false
 
+    /// `startDate + 30 days` / `endDate - 30 days` — cached and recomputed only
+    /// when the cached range itself changes (see `handleRangeChange`), since
+    /// `isNearRangeEdge` is read every time `selectedDate` changes, including
+    /// continuously while either scrub timeline is being dragged. Comparing
+    /// `selectedDate` against these directly avoids two `Calendar`-based
+    /// `UTCDay.dayCount` calls on every one of those checks. Default to distant
+    /// past/future so `isNearRangeEdge` reads as "not near" before they're first
+    /// seeded (in practice always seeded before `isReady` flips true — see
+    /// `DataController.bootstrap`/`apply`, which set `startDate`/`endDate`,
+    /// triggering `handleRangeChange`, before `isReady` is set).
+    private var nearStartThreshold: Date = .distantPast
+    private var nearEndThreshold: Date = .distantFuture
+
     /// Call from `.onChange(of: dataController.isReady)`. Seeds the initial selection once
     /// the controller has a cached range to clamp into, then resumes any range extension
     /// that was interrupted (e.g. app terminated mid-extension).
@@ -71,6 +84,8 @@ final class ContentViewModel {
     /// at an uncomputed date forever, since nothing else re-triggers a computation for it.
     func handleRangeChange(dataController: DataController) {
         selectedDate = dataController.clampedDate(selectedDate)
+        nearStartThreshold = UTCDay.calendar.date(byAdding: .day, value: 30, to: dataController.startDate) ?? .distantPast
+        nearEndThreshold = UTCDay.calendar.date(byAdding: .day, value: -30, to: dataController.endDate) ?? .distantFuture
     }
 
     /// Binding that routes every write through `DataController.clampedDate`, so the scrub
@@ -101,12 +116,12 @@ final class ContentViewModel {
 
     /// Within 30 days of either edge of the cached range — a reasonable trigger to surface
     /// the "extend range" affordance rather than silently auto-extending (spec §5 allows
-    /// either; this keeps compute triggers explicit/user-visible).
+    /// either; this keeps compute triggers explicit/user-visible). Compares against
+    /// `nearStartThreshold`/`nearEndThreshold` (kept in sync by `handleRangeChange`)
+    /// rather than recomputing day counts with `Calendar` on every call.
     func isNearRangeEdge(dataController: DataController) -> Bool {
         guard dataController.isReady else { return false }
-        let toStart = (try? UTCDay.dayCount(from: dataController.startDate, to: selectedDate)) ?? .max
-        let toEnd = (try? UTCDay.dayCount(from: selectedDate, to: dataController.endDate)) ?? .max
-        return toStart < 30 || toEnd < 30
+        return selectedDate < nearStartThreshold || selectedDate > nearEndThreshold
     }
 
     func save(dataController: DataController, modelContext: ModelContext) {

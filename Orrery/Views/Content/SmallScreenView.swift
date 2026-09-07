@@ -12,6 +12,7 @@ import SwiftData
 struct SmallScreenView: View {
     @Environment(DataController.self) private var dataController
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
@@ -20,6 +21,28 @@ struct SmallScreenView: View {
 
     @State private var viewModel = ContentViewModel()
     let animation: Animation = .spring(duration: 0.3)
+
+    private let panelCornerRadius: CGFloat = 35
+    private let panelHeight: CGFloat = 450
+    private let datePickerWheelHeight: CGFloat = 280
+    /// Top inset the overlay panels (date picker/saved items/settings) reserve
+    /// for their content, keeping it clear of the close button overlaid at
+    /// `.topTrailing` — that button is a 45pt `GlassButton` plus its own
+    /// `.padding()` (see `BuildCloseOverlayButton`).
+    private let panelTopInset: CGFloat = 40
+    private let barOuterPadding: CGFloat = 10
+
+    /// `animation`, softened when Reduce Motion is on — used at every call
+    /// site that changes `viewModel.controlPresentationState`.
+    private var effectiveAnimation: Animation {
+        reduceMotion ? .linear(duration: 0.1) : animation
+    }
+
+    /// The overlay panels' open/close transition — `.blurReplace` normally, a
+    /// plain fade when Reduce Motion is on to match `effectiveAnimation`.
+    private var panelTransition: AnyTransition {
+        reduceMotion ? .opacity : AnyTransition(.blurReplace)
+    }
 
     var body: some View {
         // Looked up once per body evaluation and handed to both the main content and
@@ -57,105 +80,144 @@ struct SmallScreenView: View {
         ZStack(alignment: .bottom) {
             VStack(spacing: 20) {
                 SelectedDateTitleText(date: viewModel.selectedDate, color: theme.ink)
-                
+
                 OrreryView(snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, theme: theme, aspectRatio: 1)
-                                
+
                 MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, smallMoon: smallMoon, theme: theme)
-                
+
                 Spacer(minLength: 0)
             }
             .padding(.top, 12)
             .onTapGesture {
-                withAnimation(animation) {
+                withAnimation(effectiveAnimation) {
                     viewModel.controlPresentationState = .none
                 }
             }
-            
+
             if #available(iOS 26.0, *) {
-                BuildControllsBar(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
+                BuildControlsBar(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
                     .padding(.bottom)
-                    .clipShape(.rect(cornerRadius: 35))
-                    .glassEffect(.regular, in: .rect(cornerRadius: 35))
-                    .padding(.horizontal, 10)
-                    .padding(.bottom, 10)
+                    .glassEffect(.regular, in: .rect(cornerRadius: panelCornerRadius))
+                    .padding(.horizontal, barOuterPadding)
+                    .padding(.bottom, barOuterPadding)
             } else {
-                BuildControllsBar(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
+                BuildControlsBar(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
                     .padding(.bottom)
-                    .withSurface(in: .rect(cornerRadius: 35))
-                    .padding(.horizontal, 10)
-                    .padding(.bottom, 10)
+                    .withSurface(in: .rect(cornerRadius: panelCornerRadius))
+                    .padding(.horizontal, barOuterPadding)
+                    .padding(.bottom, barOuterPadding)
             }
         }
         .ignoresSafeArea(.all, edges: .bottom)
     }
-    
+
     @ViewBuilder
-    private func BuildControllsBar(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
+    private func BuildControlsBar(snapshot: DaySnapshot, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
         VStack(spacing: 0) {
             ZStack {
+                // Always mounted — shown/hidden via `.opacity`, never inserted or
+                // removed by the switch below. See `BuildScrubberAndControls`'s
+                // doc comment for why that distinction matters.
+                BuildScrubberAndControls(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
+                    .opacity(viewModel.controlPresentationState == .none ? 1 : 0)
+                    .allowsHitTesting(viewModel.controlPresentationState == .none)
+                    .accessibilityHidden(viewModel.controlPresentationState != .none)
+
                 switch viewModel.controlPresentationState {
                 case .datePicker:
-                    DatePicker(
-                        "Date",
-                        selection: viewModel.dateBinding(dataController: dataController),
-                        in: dataController.startDate...dataController.endDate,
-                        displayedComponents: .date
-                    )
-                    .datePickerStyle(.wheel)
-                    .labelsVisibility(.hidden)
-                    .padding()
-                    .frame(height: 280)
-                    .transition(.blurReplace)
+                    panelChrome(height: datePickerWheelHeight) {
+                        DatePicker(
+                            "Date",
+                            selection: viewModel.dateBinding(dataController: dataController),
+                            in: dataController.startDate...dataController.endDate,
+                            displayedComponents: .date
+                        )
+                        .datePickerStyle(.wheel)
+                        .labelsVisibility(.hidden)
+                        .padding()
+                    }
                 case .savedItems:
-                    SavedListView { date in
-                        viewModel.selectedDate = dataController.clampedDate(date)
-                        withAnimation(animation) {
-                            viewModel.controlPresentationState = .none
+                    panelChrome(height: panelHeight) {
+                        SavedListView { date in
+                            viewModel.selectedDate = dataController.clampedDate(date)
+                            withAnimation(effectiveAnimation) {
+                                viewModel.controlPresentationState = .none
+                            }
                         }
                     }
-                    .frame(height: 450)
-                    .transition(.blurReplace)
                 case .settings:
-                    SettingsPanel()
-                        .frame(height: 550)
-                        .transition(.blurReplace)
+                    panelChrome(height: panelHeight) {
+                        SettingsPanel()
+                    }
                 case .none:
                     EmptyView()
                 }
             }
             .compositingGroup()
-            
-            if viewModel.isNearRangeEdge(dataController: dataController) {
+
+            if viewModel.isNearRangeEdge(dataController: dataController) && viewModel.controlPresentationState != .settings {
                 ExtendRangeButton(theme: theme) {
-                    withAnimation(animation) {
+                    withAnimation(effectiveAnimation) {
                         viewModel.controlPresentationState = .settings
                     }
                 }
+                .transition(panelTransition)
             }
-            
+        }
+    }
+
+    /// Shared chrome for the three overlay panels (date picker/saved items/
+    /// settings): a fixed height, a top inset that clears the close button
+    /// overlaid at `.topTrailing`, the close button itself, and the panel's
+    /// open/close transition — previously duplicated at each call site (and,
+    /// for the top inset, duplicated inconsistently: the date picker used
+    /// `.padding(.top:)` while the other two used `.safeAreaPadding(.top:)`;
+    /// all three now agree on the latter).
+    @ViewBuilder
+    private func panelChrome<Content: View>(
+        height: CGFloat,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        content()
+            .frame(height: height)
+            .safeAreaPadding(.top, panelTopInset)
+            .overlay(alignment: .topTrailing) {
+                BuildCloseOverlayButton()
+            }
+            .transition(panelTransition)
+    }
+
+    /// Calendar/buttons capsules plus the scrub timeline. Kept mounted at all
+    /// times by `BuildControlsBar` (shown/hidden via `.opacity`) rather than
+    /// being one case of the presentation-state switch: switching it in and
+    /// out on every date-picker/saved-items/settings open used to reset the
+    /// scrub timeline's `@State` — recomputing its month-tick index and
+    /// re-running its brief setup delay on every single panel close, which
+    /// was visibly laggy.
+    @ViewBuilder
+    private func BuildScrubberAndControls(snapshot: DaySnapshot, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
+        VStack(spacing: 0) {
             HStack {
                 if #available(iOS 26.0, *) {
                     BuildCalendarCapsule()
-                        .clipShape(.capsule)
+                        .glassEffect(.regular.interactive(), in: .capsule)
+                    
+                    Spacer()
+                    
+                    BuildButtonsCapsule(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
                         .glassEffect(.regular.interactive(), in: .capsule)
                 } else {
                     BuildCalendarCapsule()
                         .withSurface(in: .capsule)
-                }
-
-                Spacer()
-                
-                if #available(iOS 26.0, *) {
-                    BuildButtonsCapsule(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
-                        .clipShape(.capsule)
-                        .glassEffect(.regular.interactive(), in: .capsule)
-                } else {
+                    
+                    Spacer()
+                    
                     BuildButtonsCapsule(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
                         .withSurface(in: .capsule)
                 }
             }
             .padding()
-            
+
             // `ScrubTimelineView`'s animated tick fade gets visibly laggy once the
             // cached range spans more than ±10 years — the no-animation variant trades
             // that fade for scrolling that stays smooth at any range size (see
@@ -177,7 +239,7 @@ struct SmallScreenView: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private func BuildCalendarCapsule() -> some View {
         let isTodayButtonDisabled = !dataController.isReady || viewModel.isAlreadyOnToday(dataController: dataController)
@@ -198,9 +260,9 @@ struct SmallScreenView: View {
             .help("Jump to Today")
             .accessibilityLabel("Today")
             .foregroundStyle(isTodayButtonDisabled ? .tertiary : .primary)
-            
+
             Button {
-                withAnimation(animation) {
+                withAnimation(effectiveAnimation) {
                     viewModel.toggleControlPresentation(.datePicker)
                 }
             } label: {
@@ -215,9 +277,9 @@ struct SmallScreenView: View {
         .padding(.horizontal)
         .padding(.vertical, 12)
     }
-    
+
     @ViewBuilder
-    private func BuildButtonsCapsule(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
+    private func BuildButtonsCapsule(snapshot: DaySnapshot, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
         HStack(spacing: 20) {
             Button {
                 viewModel.save(dataController: dataController, modelContext: modelContext)
@@ -229,10 +291,9 @@ struct SmallScreenView: View {
             .disabled(!dataController.isReady)
             .help(viewModel.justSaved ? "Saved" : "Save This View")
             .accessibilityLabel(viewModel.justSaved ? "Saved" : "Save")
-            .foregroundStyle(.primary)
-            
+
             Button {
-                withAnimation(animation) {
+                withAnimation(effectiveAnimation) {
                     viewModel.toggleControlPresentation(.savedItems)
                 }
             } label: {
@@ -242,21 +303,19 @@ struct SmallScreenView: View {
             .help("Show Saved Views")
             .accessibilityLabel("Saved Views")
             .foregroundStyle(.primary)
-            
+
             Divider()
                 .frame(height: 25)
-            
-            if let snapshot {
-                PolaroidShareButton(
-                    snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, smallMoon: smallMoon, colorScheme: colorScheme
-                )
-                .labelStyle(.iconOnly)
-                .help("Share This View")
-                .foregroundStyle(.primary)
-            }
+
+            PolaroidShareButton(
+                snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, smallMoon: smallMoon, colorScheme: colorScheme
+            )
+            .labelStyle(.iconOnly)
+            .help("Share This View")
+            .foregroundStyle(.primary)
 
             Button {
-                withAnimation(animation) {
+                withAnimation(effectiveAnimation) {
                     viewModel.toggleControlPresentation(.settings)
                 }
             } label: {
@@ -269,6 +328,18 @@ struct SmallScreenView: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 11)
+    }
+
+    @ViewBuilder
+    private func BuildCloseOverlayButton() -> some View {
+        GlassButton(systemName: "xmark", size: 45, useInteractiveGlass: false) {
+            withAnimation(effectiveAnimation) {
+                viewModel.controlPresentationState = .none
+            }
+        }
+        .help("Close")
+        .accessibilityLabel("Close")
+        .padding()
     }
 }
 
