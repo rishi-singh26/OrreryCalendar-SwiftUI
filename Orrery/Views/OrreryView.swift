@@ -38,9 +38,11 @@ struct OrreryView: View {
         let scale = OrreryGeometry.scale(halfSize: halfSize)
         let center = CGPoint(x: size.width / 2, y: size.height / 2)
 
+        let orbitCount = PlanetConfig.all.count
+
         if showOrbits {
-            for config in PlanetConfig.all {
-                let r = OrreryGeometry.radius(forDistanceAU: config.orbitAU, halfSize: halfSize)
+            for index in 0..<orbitCount {
+                let r = OrreryGeometry.radius(forOrbitIndex: index, count: orbitCount, halfSize: halfSize)
                 let rect = CGRect(x: center.x - r, y: center.y - r, width: r * 2, height: r * 2)
                 context.stroke(Path(ellipseIn: rect), with: .color(theme.orbitStroke), lineWidth: 1)
             }
@@ -48,9 +50,12 @@ struct OrreryView: View {
 
         drawSun(context: context, center: center, scale: scale)
 
-        for config in PlanetConfig.all {
+        for (index, config) in PlanetConfig.all.enumerated() {
             guard let value = snapshot.planetValue(named: config.name) else { continue }
-            drawPlanet(config: config, value: value, context: context, center: center, halfSize: halfSize, scale: scale)
+            drawPlanet(
+                config: config, value: value, orbitIndex: index, orbitCount: orbitCount,
+                context: context, center: center, halfSize: halfSize, scale: scale
+            )
         }
     }
 
@@ -64,12 +69,12 @@ struct OrreryView: View {
     }
 
     private func drawPlanet(
-        config: PlanetConfig, value: PlanetValue, context: GraphicsContext,
+        config: PlanetConfig, value: PlanetValue, orbitIndex: Int, orbitCount: Int, context: GraphicsContext,
         center: CGPoint, halfSize: Double, scale: Double
     ) {
         let dotSize = config.referenceSize * scale
         let position = OrreryGeometry.position(
-            distanceAU: value.distanceAU, angleDeg: value.angleDeg, center: center, halfSize: halfSize
+            orbitIndex: orbitIndex, count: orbitCount, angleDeg: value.angleDeg, center: center, halfSize: halfSize
         )
 
         if config.name == "saturn" {
@@ -82,7 +87,7 @@ struct OrreryView: View {
         guard showLabels else { return }
 
         let anchor = OrreryGeometry.labelAnchor(
-            distanceAU: value.distanceAU, angleDeg: value.angleDeg, dotSize: dotSize, center: center, halfSize: halfSize
+            orbitIndex: orbitIndex, count: orbitCount, angleDeg: value.angleDeg, dotSize: dotSize, center: center, halfSize: halfSize
         )
         let text = Text(config.displayName)
             .font(.system(size: max(9, 11 * scale), design: .rounded))

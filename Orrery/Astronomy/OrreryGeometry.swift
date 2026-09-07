@@ -17,17 +17,18 @@ struct PlanetConfig {
     let name: String
     let displayName: String
     let referenceSize: Double // dot radius in px, at halfSize == 220
-    let orbitAU: Double // nominal semi-major axis, for the static orbit ring
 
+    /// Ordered innermost (Mercury) to outermost (Neptune) — this order, not any AU
+    /// value, is what determines each planet's orbit ring in `OrreryGeometry`.
     static let all: [PlanetConfig] = [
-        PlanetConfig(name: "mercury", displayName: "Mercury", referenceSize: 3, orbitAU: 0.387),
-        PlanetConfig(name: "venus", displayName: "Venus", referenceSize: 5, orbitAU: 0.723),
-        PlanetConfig(name: "earth", displayName: "Earth", referenceSize: 5.2, orbitAU: 1.000),
-        PlanetConfig(name: "mars", displayName: "Mars", referenceSize: 3.6, orbitAU: 1.524),
-        PlanetConfig(name: "jupiter", displayName: "Jupiter", referenceSize: 9, orbitAU: 5.203),
-        PlanetConfig(name: "saturn", displayName: "Saturn", referenceSize: 8.5, orbitAU: 9.537),
-        PlanetConfig(name: "uranus", displayName: "Uranus", referenceSize: 6, orbitAU: 19.191),
-        PlanetConfig(name: "neptune", displayName: "Neptune", referenceSize: 6, orbitAU: 30.07),
+        PlanetConfig(name: "mercury", displayName: "Mercury", referenceSize: 3),
+        PlanetConfig(name: "venus", displayName: "Venus", referenceSize: 5),
+        PlanetConfig(name: "earth", displayName: "Earth", referenceSize: 5.2),
+        PlanetConfig(name: "mars", displayName: "Mars", referenceSize: 3.6),
+        PlanetConfig(name: "jupiter", displayName: "Jupiter", referenceSize: 9),
+        PlanetConfig(name: "saturn", displayName: "Saturn", referenceSize: 8.5),
+        PlanetConfig(name: "uranus", displayName: "Uranus", referenceSize: 6),
+        PlanetConfig(name: "neptune", displayName: "Neptune", referenceSize: 6),
     ]
 
     static func config(named name: String) -> PlanetConfig? {
@@ -38,15 +39,7 @@ struct PlanetConfig {
 enum OrreryGeometry {
     static let referenceHalfSize = 220.0
     static let rMinFraction = 34.0 / referenceHalfSize
-    /// Radius fraction at `innerZoneMaxAU`, where the evenly-spaced inner zone hands off
-    /// to the sqrt-compressed outer zone.
-    static let rMidFraction = 72.0 / referenceHalfSize
     static let rMaxFraction = 186.0 / referenceHalfSize
-    static let minAU = 0.0
-    static let maxAU = 30.5
-    /// End of the inner (rocky-planet) zone: just past Mars' aphelion (~1.666 AU) so Mars
-    /// stays in the linear zone across its whole orbit, not just at its nominal distance.
-    static let innerZoneMaxAU = 1.7
 
     static func halfSize(for viewSize: CGSize) -> Double {
         min(viewSize.width, viewSize.height) / 2
@@ -58,35 +51,24 @@ enum OrreryGeometry {
         halfSize / referenceHalfSize
     }
 
-    /// Screen-space radius for a heliocentric distance, scaled to `halfSize`.
-    ///
-    /// Below `innerZoneMaxAU` the mapping is linear in AU: a plain sqrt curve is steepest
-    /// right at the Sun, so Mercury alone eats most of the Sun-to-first-orbit gap and
-    /// leaves Mercury/Venus/Earth/Mars crowded together. Linear spacing there gives the
-    /// four rocky planets clearly separated orbits using that same gap, without pushing
-    /// `rMax` (and so the chart's overall size) out any further. Beyond that, `sqrt`
-    /// continues to compress the outer planets so the whole system fits the chart.
-    static func radius(forDistanceAU au: Double, halfSize: Double) -> Double {
+    /// Screen-space radius for the `index`-th orbit out of `count` total, evenly spaced
+    /// from `rMin` (innermost, index 0) to `rMax` (outermost, index `count - 1`) —
+    /// orbits are drawn equidistant rather than scaled to any real distance.
+    static func radius(forOrbitIndex index: Int, count: Int, halfSize: Double) -> Double {
         let rMin = halfSize * rMinFraction
-        let rMid = halfSize * rMidFraction
         let rMax = halfSize * rMaxFraction
-        let au = min(max(au, minAU), maxAU)
-        if au <= innerZoneMaxAU {
-            let t = (au - minAU) / (innerZoneMaxAU - minAU)
-            return rMin + (rMid - rMin) * t
-        } else {
-            let t = (au - innerZoneMaxAU) / (maxAU - innerZoneMaxAU)
-            return rMid + (rMax - rMid) * t.squareRoot()
-        }
+        guard count > 1 else { return rMin }
+        let t = Double(index) / Double(count - 1)
+        return rMin + (rMax - rMin) * t
     }
 
-    /// Screen position for a body at `distanceAU`/`angleDeg` (ecliptic longitude),
-    /// centered on `center`. `angleDeg` increases counter-clockwise, the direction
-    /// planets actually orbit as seen from ecliptic north; the `y` term is negated to
-    /// counteract SwiftUI's downward-increasing y-axis, which would otherwise mirror
-    /// that into apparent clockwise motion on screen.
-    static func position(distanceAU: Double, angleDeg: Double, center: CGPoint, halfSize: Double) -> CGPoint {
-        let r = radius(forDistanceAU: distanceAU, halfSize: halfSize)
+    /// Screen position for a body on the `index`-th of `count` orbits, at `angleDeg`
+    /// (ecliptic longitude), centered on `center`. `angleDeg` increases counter-clockwise,
+    /// the direction planets actually orbit as seen from ecliptic north; the `y` term is
+    /// negated to counteract SwiftUI's downward-increasing y-axis, which would otherwise
+    /// mirror that into apparent clockwise motion on screen.
+    static func position(orbitIndex: Int, count: Int, angleDeg: Double, center: CGPoint, halfSize: Double) -> CGPoint {
+        let r = radius(forOrbitIndex: orbitIndex, count: count, halfSize: halfSize)
         let rad = angleDeg * .pi / 180
         return CGPoint(x: center.x + r * cos(rad), y: center.y - r * sin(rad))
     }
@@ -105,13 +87,13 @@ enum OrreryGeometry {
 
     /// Label anchor point: along the same radial line as the dot, just past it.
     /// `dotSize` is the already-scaled on-screen dot radius. `y` is negated for the same
-    /// reason as in `position(distanceAU:angleDeg:center:halfSize:)`, so the label lands
-    /// on the same ray as the dot it belongs to.
+    /// reason as in `position(orbitIndex:count:angleDeg:center:halfSize:)`, so the label
+    /// lands on the same ray as the dot it belongs to.
     static func labelAnchor(
-        distanceAU: Double, angleDeg: Double, dotSize: Double, center: CGPoint, halfSize: Double
+        orbitIndex: Int, count: Int, angleDeg: Double, dotSize: Double, center: CGPoint, halfSize: Double
     ) -> CGPoint {
         let offset = dotSize + 13 * scale(halfSize: halfSize)
-        let r = radius(forDistanceAU: distanceAU, halfSize: halfSize) + offset
+        let r = radius(forOrbitIndex: orbitIndex, count: count, halfSize: halfSize) + offset
         let rad = angleDeg * .pi / 180
         return CGPoint(x: center.x + r * cos(rad), y: center.y - r * sin(rad))
     }

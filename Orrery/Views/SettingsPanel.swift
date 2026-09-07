@@ -27,21 +27,6 @@ struct SettingsPanel: View {
                 Toggle("Small Moon", isOn: $smallMoon)
             }
             
-            Section("Appearance") {
-                Picker(selection: $appearanceMode) {
-                    Label("System", systemImage: "iphone.gen2").tag(AppearanceMode.system)
-                    Label("Light", systemImage: "sun.max").tag(AppearanceMode.light)
-                    Label("Dark", systemImage: "moon.stars").tag(AppearanceMode.dark)
-                } label: {
-                    Label {
-                        Text("Appearance")
-                    } icon: {
-                        AppearanceIconView(size: 24)
-                            .foregroundStyle(.primary)
-                    }
-                }
-            }
-
             Section("Date range") {
                 if dataController.isReady {
                     Text("Currently cached: \(rangeDescription)")
@@ -72,6 +57,21 @@ struct SettingsPanel: View {
                             dataController.setRange(toYears: rangeYears)
                         }
                         .disabled(dataController.isComputing)
+                    }
+                }
+            }
+            
+            Section("Appearance") {
+                Picker(selection: $appearanceMode) {
+                    Label("System", systemImage: "iphone.gen2").tag(AppearanceMode.system)
+                    Label("Light", systemImage: "sun.max").tag(AppearanceMode.light)
+                    Label("Dark", systemImage: "moon.stars").tag(AppearanceMode.dark)
+                } label: {
+                    Label {
+                        Text("Appearance")
+                    } icon: {
+                        AppearanceIconView(size: 24)
+                            .foregroundStyle(.primary)
                     }
                 }
             }

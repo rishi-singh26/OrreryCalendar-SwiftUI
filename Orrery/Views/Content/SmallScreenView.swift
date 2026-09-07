@@ -52,7 +52,7 @@ struct SmallScreenView: View {
         ThemeReader { theme, colorScheme in
             ZStack {
                 LinearGradient(
-                    colors: [theme.brassDim, theme.background],
+                    colors: [theme.brassDim.opacity(0.3), theme.background],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -161,10 +161,12 @@ struct SmallScreenView: View {
                                 viewModel.controlPresentationState = .none
                             }
                         }
+                        .scrollContentBackground(.hidden)
                     }
                 case .settings:
                     panelChrome(height: panelHeight) {
                         SettingsPanel()
+                            .scrollContentBackground(.hidden)
                     }
                 case .none:
                     EmptyView()
@@ -255,6 +257,11 @@ struct SmallScreenView: View {
                         theme: theme
                     )
                 }
+            } else {
+                VStack {
+                    
+                }
+                .frame(height: 65)
             }
         }
     }
@@ -335,7 +342,6 @@ struct SmallScreenView: View {
                 .foregroundStyle(.primary)
             } else {
                 Image(systemName: "square.and.arrow.up")
-                    .font(.title2)
             }
             
             Button {
@@ -356,7 +362,7 @@ struct SmallScreenView: View {
 
     @ViewBuilder
     private func BuildCloseOverlayButton() -> some View {
-        GlassButton(systemName: "xmark", size: 45, useInteractiveGlass: false) {
+        GlassButton(systemName: "xmark", size: 45) {
             withAnimation(effectiveAnimation) {
                 viewModel.controlPresentationState = .none
             }
