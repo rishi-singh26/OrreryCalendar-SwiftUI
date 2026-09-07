@@ -36,17 +36,9 @@ struct SettingsPanel: View {
                     Label {
                         Text("Appearance")
                     } icon: {
-                        ZStack {
-                            Image(systemName: "circle.lefthalf.filled")
-                                .scaleEffect(1.2)
-                            Image(systemName: "circle.lefthalf.filled")
-                                .foregroundStyle(.background)
-                                .scaleEffect(0.6)
-                            Image(systemName: "circle.righthalf.filled")
-                                .scaleEffect(0.6)
-                        }
+                        AppearanceIconView(size: 24)
+                            .foregroundStyle(.primary)
                     }
-
                 }
             }
 
@@ -104,23 +96,5 @@ struct SettingsPanel: View {
         let startYear = UTCDay.calendar.component(.year, from: dataController.startDate)
         let endYear = UTCDay.calendar.component(.year, from: dataController.endDate)
         return "±\(dataController.coveredYears) years (\(startYear)–\(endYear))"
-    }
-}
-
-struct SettingsSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationStack {
-            SettingsPanel()
-                .navigationTitle("Settings")
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Done", systemImage: "checkmark") {
-                            dismiss()
-                        }
-                    }
-                }
-        }
     }
 }
