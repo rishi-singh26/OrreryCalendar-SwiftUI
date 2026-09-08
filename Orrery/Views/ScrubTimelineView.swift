@@ -157,7 +157,7 @@ struct ScrubTimelineView: View {
     private func tickView(_ index: Int) -> some View {
         let isInside = animationRange.contains(index)
         let isMonthStart = monthStartIndices.contains(index)
-        let fillColor = isInside ? theme.brass : theme.ink.opacity(isMonthStart ? 0.6 : 0.35)
+        let fillColor: Color = isInside ? .accentColor : theme.ink.opacity(isMonthStart ? 0.6 : 0.35)
         let heightProgress: CGFloat = isInside ? 1 : (isMonthStart ? majorHeightProgress : minorHeightProgress)
 
         Rectangle()
