@@ -21,8 +21,8 @@ struct MoonPhaseRow: View {
 
     var body: some View {
         HStack(spacing: smallMoon ? 100 : 50) {
-            disc(mirrored: false, label: smallMoon ? "N" : "Northern hemisphere")
-            disc(mirrored: true, label: smallMoon ? "S" : "Southern hemisphere")
+            disc(mirrored: false, label: smallMoon ? "N" : "NORTHERN HEMISPHERE")
+            disc(mirrored: true, label: smallMoon ? "S" : "SOUTHERN HEMISPHERE")
         }
     }
 
@@ -39,13 +39,15 @@ struct MoonPhaseRow: View {
             .clipShape(Circle())
 
             Text(label)
-                .font(.system(size: smallMoon ? 11 : 12, design: .rounded))
+                .font(.system(size: 10, design: .rounded))
                 .foregroundStyle(theme.muted)
+                .monospaced()
 
             if !smallMoon {
                 Text("\(illuminatedPercent)%")
                     .font(.system(size: 12, design: .rounded))
                     .foregroundStyle(theme.muted)
+                    .monospaced()
             }
         }
     }
