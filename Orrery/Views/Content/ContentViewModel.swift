@@ -40,6 +40,21 @@ final class ContentViewModel {
         controlPresentationState = controlPresentationState == state ? .none : state
     }
 
+    /// Range the trailing-edge Moon-size scrubber's normalized (`0...1`) position
+    /// maps onto — symmetric around the scrubber's default midpoint so a scrub of
+    /// `0.5` reproduces `MoonPhaseRow`'s normal size (`1.0`) exactly; the low end
+    /// scales the Moon discs down to 75%, the high end up to 125%. `SmallScreenView`-
+    /// only, same scoping as `controlPresentationState` above.
+    private let moonSizeMultiplierRange: ClosedRange<CGFloat> = 0.75...1.25
+
+    /// Maps the Moon-size scrubber's persisted `0...1` position (kept in
+    /// `SmallScreenView`, since it's `@AppStorage`-backed UI state) onto the size
+    /// multiplier `MoonPhaseRow` reads.
+    func moonSizeMultiplier(forScrub scrub: Double) -> CGFloat {
+        let range = moonSizeMultiplierRange
+        return range.lowerBound + CGFloat(scrub) * (range.upperBound - range.lowerBound)
+    }
+
     /// Independent presentation flags for `LargeScreenView`'s toolbar popovers and inspector.
     /// Deliberately plain, unlinked `Bool`s (not derived from `controlPresentationState`)
     /// because that layout can show more than one of these surfaces at once — e.g. the saved

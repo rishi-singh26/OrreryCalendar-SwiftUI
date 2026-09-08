@@ -22,17 +22,28 @@ struct SmallScreenView: View {
     @State private var viewModel = ContentViewModel()
     let animation: Animation = .spring(duration: 0.3)
 
-    /// Normalized (`0...1`) position of the trailing-edge Moon-size scrubber. `0.5`
-    /// (its default) maps to `1.0` via `moonSizeMultiplier`, reproducing
-    /// `MoonPhaseRow`'s normal size until the user drags it.
-    @State private var moonSizeScrub: CGFloat = 0.5
+    /// Persisted, normalized (`0...1`) position of the trailing-edge Moon-size
+    /// scrubber. `0.5` (its default) maps to `1.0` via `viewModel.moonSizeMultiplier`,
+    /// reproducing `MoonPhaseRow`'s normal size until the user drags it. Kept here
+    /// (rather than in `ContentViewModel`) since `@AppStorage` only integrates with
+    /// SwiftUI's view-update machinery when it's declared directly on a `View` —
+    /// same reason every other persisted display setting (`showOrbits` etc.) lives
+    /// in the view, not the view model. Stored as `Double` since `@AppStorage`
+    /// only bridges a handful of primitive types natively — `moonSizeScrubBinding`
+    /// below hands `VerticalScrubber` the `CGFloat` binding it needs.
+    @AppStorage(AppStorageKeys.moonSizeScrub) private var moonSizeScrub: Double = 0.5
 
-    /// Maps `moonSizeScrub`'s `0...1` range onto a size multiplier for `MoonPhaseRow`,
-    /// centered so the scrubber's default (`0.5`) leaves the Moon discs at their
-    /// normal size (`1.0`); the low end scales them down to 55%, the high end up to
-    /// 125% — capped below the notch's own size so the Moon never grows past it.
+    private var moonSizeScrubBinding: Binding<CGFloat> {
+        Binding(
+            get: { CGFloat(moonSizeScrub) },
+            set: { moonSizeScrub = Double($0) }
+        )
+    }
+
+    /// The size multiplier `MoonPhaseRow` reads — the actual `moonSizeScrub` →
+    /// multiplier mapping is pure business logic, so it lives on `viewModel`.
     private var moonSizeMultiplier: CGFloat {
-        0.55 + moonSizeScrub * 0.7
+        viewModel.moonSizeMultiplier(forScrub: moonSizeScrub)
     }
 
     /// The trailing-edge notch the Moon-size scrubber is docked in — factored out
@@ -128,14 +139,14 @@ struct SmallScreenView: View {
             
             moonSizeScrubberNotchShape
                 .fill(.background)
-                .frame(width: 40, height: 220)
+                .frame(width: 35, height: 220)
                 .overlay {
                     // Drives `moonSizeMultiplier` (via `moonSizeScrub`), which
                     // `MoonPhaseRow` above animates into on change. Padded and
                     // clipped to the notch's straight-walled middle so the ruler
                     // never travels into its flared top/bottom corners.
                     VerticalScrubber(
-                        value: $moonSizeScrub,
+                        value: moonSizeScrubBinding,
                         tickCount: 16,
                         tickThickness: 2,
                         tickLength: 16,
