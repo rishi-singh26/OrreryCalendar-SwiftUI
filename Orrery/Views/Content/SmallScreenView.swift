@@ -17,11 +17,37 @@ struct SmallScreenView: View {
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
     @AppStorage(AppStorageKeys.showSunHalo) private var showSunHalo = true
-    @AppStorage(AppStorageKeys.smallMoon) private var smallMoon = false
     @AppStorage(AppStorageKeys.rangeYears) private var rangeYears = DataController.defaultRangeYears
 
     @State private var viewModel = ContentViewModel()
     let animation: Animation = .spring(duration: 0.3)
+
+    /// Normalized (`0...1`) position of the trailing-edge Moon-size scrubber. `0.5`
+    /// (its default) maps to `1.0` via `moonSizeMultiplier`, reproducing
+    /// `MoonPhaseRow`'s normal size until the user drags it.
+    @State private var moonSizeScrub: CGFloat = 0.5
+
+    /// Maps `moonSizeScrub`'s `0...1` range onto a size multiplier for `MoonPhaseRow`,
+    /// centered so the scrubber's default (`0.5`) leaves the Moon discs at their
+    /// normal size (`1.0`); the low end scales them down to 55%, the high end up to
+    /// 125% — capped below the notch's own size so the Moon never grows past it.
+    private var moonSizeMultiplier: CGFloat {
+        0.55 + moonSizeScrub * 0.7
+    }
+
+    /// The trailing-edge notch the Moon-size scrubber is docked in — factored out
+    /// so its `.fill` and `.clipShape` uses (see `MainContentBuilder`) share one
+    /// set of tuned parameters instead of risking them drifting apart.
+    private var moonSizeScrubberNotchShape: WedgedNotchShape {
+        WedgedNotchShape(
+            edge: .trailing,
+            topCornerRadius: 60,
+            wedgeInset: 12,
+            outerCornerRadius: 20,
+            topCurveFactor: 0.73,
+            topCurveDepth: 45
+        )
+    }
 
     private let panelCornerRadius: CGFloat = 35
     private let panelHeight: CGFloat = 450
@@ -89,7 +115,7 @@ struct SmallScreenView: View {
                 if let snapshot {
                     OrreryView(snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, theme: theme, aspectRatio: 1)
                     
-                    MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, smallMoon: smallMoon, theme: theme)
+                    MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, theme: theme, sizeMultiplier: moonSizeMultiplier)
                 }
                 Spacer(minLength: 0)
             }
@@ -99,6 +125,30 @@ struct SmallScreenView: View {
                     viewModel.controlPresentationState = .none
                 }
             }
+            
+            moonSizeScrubberNotchShape
+                .fill(.background)
+                .frame(width: 40, height: 220)
+                .overlay {
+                    // Drives `moonSizeMultiplier` (via `moonSizeScrub`), which
+                    // `MoonPhaseRow` above animates into on change. Padded and
+                    // clipped to the notch's straight-walled middle so the ruler
+                    // never travels into its flared top/bottom corners.
+                    VerticalScrubber(
+                        value: $moonSizeScrub,
+                        tickCount: 16,
+                        tickThickness: 2,
+                        tickLength: 16,
+                        dimColor: theme.ink.opacity(0.5),
+                        accentColor: .accentColor,
+                        accessibilityLabel: "Moon size"
+                    )
+                    .padding(.vertical, 50)
+                }
+                .clipShape(moonSizeScrubberNotchShape)
+                .padding(.trailing, (barOuterPadding / 2))
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .offset(y: -180)
             
             BuildControlsBar(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
                 .glassOrSurface(glass: .tinted(ThemeColors.controlsBarTint), in: .rect(cornerRadius: panelCornerRadius))
@@ -308,7 +358,7 @@ struct SmallScreenView: View {
             
             if let snapshot {
                 PolaroidShareButton(
-                    snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, smallMoon: smallMoon, colorScheme: colorScheme
+                    snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, colorScheme: colorScheme
                 )
                 .labelStyle(.iconOnly)
                 .help("Share This View")

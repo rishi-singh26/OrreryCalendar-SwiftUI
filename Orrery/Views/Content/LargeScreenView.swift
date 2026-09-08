@@ -15,7 +15,6 @@ struct LargeScreenView: View {
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
     @AppStorage(AppStorageKeys.showSunHalo) private var showSunHalo = true
-    @AppStorage(AppStorageKeys.smallMoon) private var smallMoon = false
     @AppStorage(AppStorageKeys.rangeYears) private var rangeYears = DataController.defaultRangeYears
 
     @State private var viewModel = ContentViewModel()
@@ -70,7 +69,7 @@ struct LargeScreenView: View {
 
             Spacer(minLength: 0)
 
-            MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, smallMoon: smallMoon, theme: theme)
+            MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, theme: theme)
 
             Spacer(minLength: 0)
 
@@ -195,7 +194,7 @@ struct LargeScreenView: View {
             
             if let snapshot {
                 PolaroidShareButton(
-                    snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, smallMoon: smallMoon, colorScheme: colorScheme
+                    snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, colorScheme: colorScheme
                 )
                 .labelStyle(.iconOnly)
                 .help("Share This View")

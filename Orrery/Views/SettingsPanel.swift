@@ -14,7 +14,6 @@ struct SettingsPanel: View {
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
     @AppStorage(AppStorageKeys.showSunHalo) private var showSunHalo = true
-    @AppStorage(AppStorageKeys.smallMoon) private var smallMoon = false
     @AppStorage(AppStorageKeys.appearanceMode) private var appearanceMode: AppearanceMode = .system
     @AppStorage(AppStorageKeys.rangeYears) private var rangeYears = DataController.defaultRangeYears
 
@@ -26,7 +25,6 @@ struct SettingsPanel: View {
                 Toggle("Show Orbits", isOn: $showOrbits)
                 Toggle("Show Labels", isOn: $showLabels)
                 Toggle("Show Sun Halo", isOn: $showSunHalo)
-                Toggle("Small Moon", isOn: $smallMoon)
             }
             
             Section("Appearance") {

@@ -6,7 +6,7 @@
 //  rings (if enabled), and both Moon phase discs with labels — no buttons, no settings
 //  chrome, no scrub timeline. The polaroid frame itself (cream border, dark caption) is
 //  fixed regardless of app theme; the chart content inside follows the current
-//  orbit/label/small-moon toggle state and color scheme, per spec.
+//  orbit/label toggle state and color scheme, per spec.
 //
 
 import SwiftUI
@@ -21,7 +21,6 @@ struct PolaroidShareView: View {
     let showOrbits: Bool
     let showLabels: Bool
     let showSunHalo: Bool
-    let smallMoon: Bool
     let colorScheme: ColorScheme
 
     private var theme: ThemeColors { colorScheme == .dark ? .dark : .light }
@@ -33,7 +32,7 @@ struct PolaroidShareView: View {
                 .padding(12)
                 .background(theme.background)
 
-            MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, smallMoon: smallMoon, theme: theme)
+            MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, theme: theme)
 
             SelectedDateTitleText(date: snapshot.date, color: ThemeColors.polaroidCaption)
         }
@@ -55,7 +54,6 @@ struct PolaroidShareButton: View {
     let showOrbits: Bool
     let showLabels: Bool
     let showSunHalo: Bool
-    let smallMoon: Bool
     let colorScheme: ColorScheme
 
     @State private var renderedImage: Image?
@@ -97,7 +95,7 @@ struct PolaroidShareButton: View {
     }
 
     private var renderKey: String {
-        "\(snapshot.date.timeIntervalSince1970)-\(showOrbits)-\(showLabels)-\(showSunHalo)-\(smallMoon)-\(colorScheme == .dark)"
+        "\(snapshot.date.timeIntervalSince1970)-\(showOrbits)-\(showLabels)-\(showSunHalo)-\(colorScheme == .dark)"
     }
 
     private var captionText: String {
@@ -107,7 +105,7 @@ struct PolaroidShareButton: View {
     @MainActor
     private func render() {
         let content = PolaroidShareView(
-            snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, smallMoon: smallMoon, colorScheme: colorScheme
+            snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, colorScheme: colorScheme
         )
         let renderer = ImageRenderer(content: content)
         renderer.scale = 3

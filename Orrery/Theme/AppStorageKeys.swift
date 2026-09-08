@@ -10,7 +10,6 @@ enum AppStorageKeys {
     static let showOrbits = "showOrbits"
     static let showLabels = "showLabels"
     static let showSunHalo = "showSunHalo"
-    static let smallMoon = "smallMoon"
     static let appearanceMode = "appearanceMode"
     static let rangeYears = "rangeYears"
 }
