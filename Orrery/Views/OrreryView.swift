@@ -12,6 +12,7 @@ struct OrreryView: View {
     let snapshot: DaySnapshot
     let showOrbits: Bool
     let showLabels: Bool
+    let showSunHalo: Bool
     let theme: ThemeColors
     /// Frame shape offered to the Canvas. Defaults to the reference web canvas's
     /// 440×392 ratio; the drawing itself is fully radially symmetric (see
@@ -21,9 +22,21 @@ struct OrreryView: View {
     /// a fixed aspect ratio (e.g. the polaroid share card) can rely on the default.
     var aspectRatio: CGFloat = 440.0 / 392.0
 
-    /// Sun dot radius at the reference canvas scale (halfSize 220) — not specified by
-    /// name in spec §2's per-planet SIZE table, sized visibly larger than any planet.
-    private static let sunReferenceRadius = 14.0
+    // Sun dot radius at the reference canvas scale (halfSize 220) — not specified by
+    // name in spec §2's per-planet SIZE table, sized visibly larger than any planet.
+    // If sunReferenceRadius was originally derived as orreryWidth * (X / 340) / 2,
+    // keep these consistent with that same reference orreryWidth of 340.
+    static let sunCoreReferenceRadius: Double = 15  // 30 / 2, i.e. (30.0 / 340.0) * 340 / 2
+
+    /// The halo's reference-scale radius, pinned to exactly Venus's orbit radius
+    /// rather than a hand-picked constant — both are computed from `halfSize` the
+    /// same linear way (see `OrreryGeometry.radius`), so `haloRadius == orbitRadius`
+    /// holds at every canvas size, not just at the reference scale.
+    static let sunHaloReferenceRadius: Double = {
+        let orbitCount = PlanetConfig.all.count
+        let venusIndex = PlanetConfig.all.firstIndex { $0.name == "venus" } ?? 1
+        return OrreryGeometry.radius(forOrbitIndex: venusIndex, count: orbitCount, halfSize: OrreryGeometry.referenceHalfSize)
+    }()
 
     var body: some View {
         Canvas { context, size in
@@ -44,7 +57,7 @@ struct OrreryView: View {
             for index in 0..<orbitCount {
                 let r = OrreryGeometry.radius(forOrbitIndex: index, count: orbitCount, halfSize: halfSize)
                 let rect = CGRect(x: center.x - r, y: center.y - r, width: r * 2, height: r * 2)
-                context.stroke(Path(ellipseIn: rect), with: .color(theme.orbitStroke), lineWidth: 1)
+                context.stroke(Path(ellipseIn: rect), with: .color(theme.orrery.orbitStroke.opacity(theme.orrery.orbitOpacity)), lineWidth: 1)
             }
         }
 
@@ -60,11 +73,45 @@ struct OrreryView: View {
     }
 
     private func drawSun(context: GraphicsContext, center: CGPoint, scale: Double) {
-        let radius = Self.sunReferenceRadius * scale
-        let rect = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
+        let coreRadius = Self.sunCoreReferenceRadius * scale
+        let haloRadius = Self.sunHaloReferenceRadius * scale
+
+        // Halo
+        if showSunHalo {
+            let haloRect = CGRect(
+                x: center.x - haloRadius,
+                y: center.y - haloRadius,
+                width: haloRadius * 2,
+                height: haloRadius * 2
+            )
+            context.fill(
+                Path(ellipseIn: haloRect),
+                with: .color(theme.orrery.sunHalo.opacity(theme.orrery.sunHaloOpacity))
+            )
+        }
+
+        // Core
+        let coreRect = CGRect(
+            x: center.x - coreRadius,
+            y: center.y - coreRadius,
+            width: coreRadius * 2,
+            height: coreRadius * 2
+        )
+
+        // Off-center focal point, matching UnitPoint(x: 0.38, y: 0.34) from the original RadialGradient view
+        let gradientCenter = CGPoint(
+            x: coreRect.minX + coreRect.width * 0.38,
+            y: coreRect.minY + coreRect.height * 0.34
+        )
+
         context.fill(
-            Path(ellipseIn: rect),
-            with: .radialGradient(ThemeColors.sunGradient, center: center, startRadius: 0, endRadius: radius)
+            Path(ellipseIn: coreRect),
+            with: .radialGradient(
+                ThemeColors.sunCoreGradient,
+                center: gradientCenter,
+                startRadius: 0,
+                endRadius: coreRadius * 1.44 // = coreDiameter * 0.72
+            )
         )
     }
 
@@ -77,12 +124,13 @@ struct OrreryView: View {
             orbitIndex: orbitIndex, count: orbitCount, angleDeg: value.angleDeg, center: center, halfSize: halfSize
         )
 
-        if config.name == "saturn" {
+        let isSaturn = config.name == "saturn"
+        if isSaturn {
             drawSaturnRing(size: dotSize, angleDeg: value.angleDeg, position: position, scale: scale, context: context)
         }
 
         let dotRect = CGRect(x: position.x - dotSize, y: position.y - dotSize, width: dotSize * 2, height: dotSize * 2)
-        context.fill(Path(ellipseIn: dotRect), with: .color(theme.ink))
+        context.fill(Path(ellipseIn: dotRect), with: .color(isSaturn ? theme.orrery.saturnBody : theme.orrery.planet))
 
         guard showLabels else { return }
 
@@ -101,7 +149,7 @@ struct OrreryView: View {
         let transform = CGAffineTransform(translationX: position.x, y: position.y)
             .rotated(by: ring.rotationDeg * .pi / 180)
         let ringPath = Path(ellipseIn: localRect).applying(transform)
-        context.stroke(ringPath, with: .color(theme.muted), lineWidth: max(0.75, 0.75 * scale))
+        context.stroke(ringPath, with: .color(theme.orrery.planet), lineWidth: max(0.75, 0.75 * scale))
     }
 
     private func unitPoint(for alignment: OrreryGeometry.LabelAlignment) -> UnitPoint {
