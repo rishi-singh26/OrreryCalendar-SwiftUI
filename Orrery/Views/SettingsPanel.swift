@@ -13,6 +13,7 @@ struct SettingsPanel: View {
 
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
+    @AppStorage(AppStorageKeys.showSunHalo) private var showSunHalo = true
     @AppStorage(AppStorageKeys.smallMoon) private var smallMoon = false
     @AppStorage(AppStorageKeys.appearanceMode) private var appearanceMode: AppearanceMode = .system
     @AppStorage(AppStorageKeys.rangeYears) private var rangeYears = DataController.defaultRangeYears
@@ -24,12 +25,28 @@ struct SettingsPanel: View {
             Section("General") {
                 Toggle("Show Orbits", isOn: $showOrbits)
                 Toggle("Show Labels", isOn: $showLabels)
+                Toggle("Show Sun Halo", isOn: $showSunHalo)
                 Toggle("Small Moon", isOn: $smallMoon)
+            }
+            
+            Section("Appearance") {
+                Picker(selection: $appearanceMode) {
+                    Label("System", systemImage: "iphone.gen2").tag(AppearanceMode.system)
+                    Label("Light", systemImage: "sun.max").tag(AppearanceMode.light)
+                    Label("Dark", systemImage: "moon.stars").tag(AppearanceMode.dark)
+                } label: {
+                    Label {
+                        Text("Appearance")
+                    } icon: {
+                        AppearanceIconView(size: 24)
+                            .foregroundStyle(.primary)
+                    }
+                }
             }
             
             Section("Date range") {
                 if dataController.isReady {
-                    Text("Currently cached: \(rangeDescription)")
+                    Text("Cached: \(rangeDescription)")
                         .foregroundStyle(.secondary)
                 }
 
@@ -52,26 +69,11 @@ struct SettingsPanel: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(error)
                             .font(.footnote)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(ThemeColors.errorText)
                         Button("Retry") {
                             dataController.setRange(toYears: rangeYears)
                         }
                         .disabled(dataController.isComputing)
-                    }
-                }
-            }
-            
-            Section("Appearance") {
-                Picker(selection: $appearanceMode) {
-                    Label("System", systemImage: "iphone.gen2").tag(AppearanceMode.system)
-                    Label("Light", systemImage: "sun.max").tag(AppearanceMode.light)
-                    Label("Dark", systemImage: "moon.stars").tag(AppearanceMode.dark)
-                } label: {
-                    Label {
-                        Text("Appearance")
-                    } icon: {
-                        AppearanceIconView(size: 24)
-                            .foregroundStyle(.primary)
                     }
                 }
             }
