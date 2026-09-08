@@ -16,6 +16,7 @@ struct SmallScreenView: View {
 
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
+    @AppStorage(AppStorageKeys.showSunHalo) private var showSunHalo = true
     @AppStorage(AppStorageKeys.smallMoon) private var smallMoon = false
     @AppStorage(AppStorageKeys.rangeYears) private var rangeYears = DataController.defaultRangeYears
 
@@ -51,29 +52,19 @@ struct SmallScreenView: View {
         let snapshot = dataController.snapshot(for: viewModel.selectedDate)
         ThemeReader { theme, colorScheme in
             ZStack {
-                LinearGradient(
-                    colors: [theme.brassDim.opacity(0.3), theme.background],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .cornerRadius(40)
-                .padding(.horizontal, (barOuterPadding / 2))
-                .padding(.bottom, (barOuterPadding / 2) + 20)
-                .ignoresSafeArea(.all, edges: .bottom)
+                BackgroundView()
+                    .cornerRadius(40)
+                    .padding(.horizontal, (barOuterPadding / 2))
+                    .padding(.bottom, (barOuterPadding / 2) + 20)
+                    .ignoresSafeArea(.all, edges: .bottom)
                 
                 MainContentBuilder(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
                 
                 if snapshot == nil {
-                    if #available(iOS 26.0, *) {
-                        CalculatingPositionsView(theme: theme)
-                            .glassEffect(.regular, in: .rect(cornerRadius: panelCornerRadius))
-                    } else {
-                        CalculatingPositionsView(theme: theme)
-                            .withSurface(in: .rect(cornerRadius: 30))
-                    }
+                    CalculatingPositionsView(theme: theme)
+                        .glassOrSurface(in: .rect(cornerRadius: panelCornerRadius))
                 }
             }
-            .background(theme.background.ignoresSafeArea())
         }
         .task {
             await dataController.bootstrap()
@@ -96,7 +87,7 @@ struct SmallScreenView: View {
                 SelectedDateTitleText(date: viewModel.selectedDate, color: theme.ink)
                 
                 if let snapshot {
-                    OrreryView(snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, theme: theme, aspectRatio: 1)
+                    OrreryView(snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, theme: theme, aspectRatio: 1)
                     
                     MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, smallMoon: smallMoon, theme: theme)
                 }
@@ -108,20 +99,12 @@ struct SmallScreenView: View {
                     viewModel.controlPresentationState = .none
                 }
             }
-
-            if #available(iOS 26.0, *) {
-                BuildControlsBar(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
-                    .glassEffect(.regular, in: .rect(cornerRadius: panelCornerRadius))
-                    .clipShape(.rect(cornerRadius: panelCornerRadius))
-                    .padding(.horizontal, barOuterPadding)
-                    .padding(.bottom, barOuterPadding)
-            } else {
-                BuildControlsBar(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
-                    .withSurface(in: .rect(cornerRadius: panelCornerRadius))
-                    .clipShape(.rect(cornerRadius: panelCornerRadius))
-                    .padding(.horizontal, barOuterPadding)
-                    .padding(.bottom, barOuterPadding)
-            }
+            
+            BuildControlsBar(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
+                .glassOrSurface(glass: .tinted(ThemeColors.controlsBarTint), in: .rect(cornerRadius: panelCornerRadius))
+                .clipShape(.rect(cornerRadius: panelCornerRadius))
+                .padding(.horizontal, barOuterPadding)
+                .padding(.bottom, barOuterPadding)
         }
         .padding(.bottom, 20)
         .ignoresSafeArea(.all, edges: .bottom)
@@ -217,23 +200,13 @@ struct SmallScreenView: View {
     private func BuildScrubberAndControls(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
         VStack(spacing: 0) {
             HStack {
-                if #available(iOS 26.0, *) {
-                    BuildCalendarCapsule()
-                        .glassEffect(.regular.interactive(), in: .capsule)
-                    
-                    Spacer()
-                    
-                    BuildButtonsCapsule(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
-                        .glassEffect(.regular.interactive(), in: .capsule)
-                } else {
-                    BuildCalendarCapsule()
-                        .withSurface(in: .capsule)
-                    
-                    Spacer()
-                    
-                    BuildButtonsCapsule(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
-                        .withSurface(in: .capsule)
-                }
+                BuildCalendarCapsule()
+                    .glassOrSurface(glass: .interactive, in: .capsule)
+
+                Spacer()
+
+                BuildButtonsCapsule(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
+                    .glassOrSurface(glass: .interactive, in: .capsule)
             }
             .padding(10)
             
@@ -312,7 +285,7 @@ struct SmallScreenView: View {
             } label: {
                 Image(systemName: viewModel.justSaved ? "checkmark" : "bookmark")
                     .font(.title2)
-                    .foregroundStyle(viewModel.justSaved ? .accentColor : theme.ink)
+                    .foregroundStyle(viewModel.justSaved ? Color.accentColor : theme.ink)
             }
             .disabled(!dataController.isReady)
             .help(viewModel.justSaved ? "Saved" : "Save This View")
@@ -335,7 +308,7 @@ struct SmallScreenView: View {
             
             if let snapshot {
                 PolaroidShareButton(
-                    snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, smallMoon: smallMoon, colorScheme: colorScheme
+                    snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, smallMoon: smallMoon, colorScheme: colorScheme
                 )
                 .labelStyle(.iconOnly)
                 .help("Share This View")

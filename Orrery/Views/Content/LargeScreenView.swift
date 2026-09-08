@@ -14,6 +14,7 @@ struct LargeScreenView: View {
 
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
+    @AppStorage(AppStorageKeys.showSunHalo) private var showSunHalo = true
     @AppStorage(AppStorageKeys.smallMoon) private var smallMoon = false
     @AppStorage(AppStorageKeys.rangeYears) private var rangeYears = DataController.defaultRangeYears
 
@@ -64,7 +65,7 @@ struct LargeScreenView: View {
             SelectedDateTitleText(date: viewModel.selectedDate, color: theme.ink)
                 .padding(.top)
 
-            OrreryView(snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, theme: theme)
+            OrreryView(snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, theme: theme)
                 .frame(minWidth: DeviceType.isIpad ? 450 : 600, minHeight: DeviceType.isIpad ? 450 : 600)
 
             Spacer(minLength: 0)
@@ -160,7 +161,7 @@ struct LargeScreenView: View {
                     viewModel.save(dataController: dataController, modelContext: modelContext)
                 } label: {
                     Image(systemName: viewModel.justSaved ? "checkmark" : "bookmark")
-                        .foregroundStyle(viewModel.justSaved ? .accentColor : theme.ink)
+                        .foregroundStyle(viewModel.justSaved ? theme.brass : theme.ink)
                 }
                 .disabled(!dataController.isReady)
                 .help(viewModel.justSaved ? "Saved" : "Save This View")
@@ -194,7 +195,7 @@ struct LargeScreenView: View {
             
             if let snapshot {
                 PolaroidShareButton(
-                    snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, smallMoon: smallMoon, colorScheme: colorScheme
+                    snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, smallMoon: smallMoon, colorScheme: colorScheme
                 )
                 .labelStyle(.iconOnly)
                 .help("Share This View")
