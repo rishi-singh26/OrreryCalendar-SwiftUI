@@ -96,11 +96,6 @@ struct SmallScreenView: View {
                     .ignoresSafeArea(.all, edges: .bottom)
                 
                 MainContentBuilder(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
-                
-                if snapshot == nil {
-                    CalculatingPositionsView(theme: theme)
-                        .glassOrSurface(in: .rect(cornerRadius: panelCornerRadius))
-                }
             }
         }
         .task {
@@ -122,10 +117,17 @@ struct SmallScreenView: View {
         ZStack(alignment: .bottom) {
             VStack(spacing: 20) {
                 SelectedDateTitleText(date: viewModel.selectedDate, color: theme.ink)
-                
+
+                // Always mounted — `OrreryView` shows its own loading pose (planets
+                // lined up left of their orbits) while `snapshot` is nil, then eases
+                // into place once it arrives, rather than the chart not appearing
+                // at all until data is ready.
+                OrreryView(
+                    snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, theme: theme,
+                    aspectRatio: 1, dateChangeAnimationTrigger: viewModel.dateChangeAnimationTrigger
+                )
+
                 if let snapshot {
-                    OrreryView(snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, theme: theme, aspectRatio: 1)
-                    
                     MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, theme: theme, sizeMultiplier: moonSizeMultiplier)
                 }
                 Spacer(minLength: 0)
@@ -147,14 +149,16 @@ struct SmallScreenView: View {
                     // never travels into its flared top/bottom corners.
                     VerticalScrubber(
                         value: moonSizeScrubBinding,
-                        tickCount: 16,
+                        tickCount: 30,
+                        visibleTickCount: 12,
                         tickThickness: 2,
                         tickLength: 16,
                         dimColor: theme.ink.opacity(0.5),
                         accentColor: .accentColor,
                         accessibilityLabel: "Moon size"
                     )
-                    .padding(.vertical, 50)
+                    .frame(height: 160)
+                    .padding(.horizontal, 10)
                 }
                 .clipShape(moonSizeScrubberNotchShape)
                 .padding(.trailing, (barOuterPadding / 2))
@@ -189,7 +193,7 @@ struct SmallScreenView: View {
                     panelChrome(height: datePickerWheelHeight) {
                         DatePicker(
                             "Date",
-                            selection: viewModel.dateBinding(dataController: dataController),
+                            selection: viewModel.animatedDateBinding(dataController: dataController),
                             in: dataController.startDate...dataController.endDate,
                             displayedComponents: .date
                         )
@@ -200,7 +204,7 @@ struct SmallScreenView: View {
                 case .savedItems:
                     panelChrome(height: panelHeight) {
                         SavedListView { date in
-                            viewModel.selectedDate = dataController.clampedDate(date)
+                            viewModel.jumpToDate(date, dataController: dataController)
                             withAnimation(effectiveAnimation) {
                                 viewModel.controlPresentationState = .none
                             }

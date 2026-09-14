@@ -1,7 +1,7 @@
 {
   "images" : [
     {
-      "filename" : "Orbit and planet tint 1.png",
+      "filename" : "OrbitAndPlanetAny.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -13,7 +13,7 @@
           "value" : "dark"
         }
       ],
-      "filename" : "Orbit and planet dark.png",
+      "filename" : "OrbitAndPlanetAny.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -25,7 +25,7 @@
           "value" : "tinted"
         }
       ],
-      "filename" : "Orbit and planet tint.png",
+      "filename" : "OrbitAndPlanetTint.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -76,7 +76,7 @@
       "size" : "512x512"
     },
     {
-      "filename" : "Orbit and planet light.png",
+      "filename" : "OrbitAndPlanetAny.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "512x512"

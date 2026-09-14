@@ -41,6 +41,12 @@ enum OrreryGeometry {
     static let rMinFraction = 34.0 / referenceHalfSize
     static let rMaxFraction = 186.0 / referenceHalfSize
 
+    /// Ecliptic longitude every planet sits at in `OrreryView`'s loading pose — 180°
+    /// puts each one directly left of the Sun (`cos(180°) == -1`, `sin(180°) == 0` in
+    /// `position(orbitIndex:count:angleDeg:center:halfSize:)`), i.e. one straight line
+    /// running left from the Sun, each planet on its own orbit radius.
+    static let loadingAngleDeg: Double = 180
+
     static func halfSize(for viewSize: CGSize) -> Double {
         min(viewSize.width, viewSize.height) / 2
     }
@@ -71,6 +77,35 @@ enum OrreryGeometry {
         let r = radius(forOrbitIndex: orbitIndex, count: count, halfSize: halfSize)
         let rad = angleDeg * .pi / 180
         return CGPoint(x: center.x + r * cos(rad), y: center.y - r * sin(rad))
+    }
+
+    /// Which way an interpolated angle sweeps on screen — see `position`'s doc comment
+    /// for why increasing `angleDeg` reads as counter-clockwise once the y-axis negation
+    /// is accounted for.
+    enum SweepDirection {
+        case clockwise
+        case counterClockwise
+    }
+
+    /// Interpolates from `start` to `end` (both ecliptic-longitude degrees), sweeping in
+    /// the given `direction` regardless of which way is the shorter arc — `OrreryView`
+    /// picks `.clockwise` for the launch entrance (always) and forward/backward-in-time
+    /// jumps for date-picker/"Today" transitions (`.counterClockwise`/`.clockwise`,
+    /// matching the real orbital direction; see `position`'s doc comment). `progress` is
+    /// `0...1`, already eased by the caller.
+    static func interpolatedAngleDeg(from start: Double, to end: Double, progress: Double, direction: SweepDirection) -> Double {
+        let forwardDelta = (end - start).truncatingRemainder(dividingBy: 360)
+        let normalizedForwardDelta = (forwardDelta + 360).truncatingRemainder(dividingBy: 360) // [0, 360)
+        let delta: Double
+        switch direction {
+        case .counterClockwise:
+            delta = normalizedForwardDelta
+        case .clockwise:
+            // Avoid a spurious full 360° sweep when start == end (mod 360) — with no
+            // rotation needed, neither direction should move at all.
+            delta = normalizedForwardDelta == 0 ? 0 : normalizedForwardDelta - 360
+        }
+        return start + delta * progress
     }
 
     enum LabelAlignment {

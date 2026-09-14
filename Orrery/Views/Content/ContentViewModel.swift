@@ -114,8 +114,47 @@ final class ContentViewModel {
         )
     }
 
+    /// Bumped once for every *actual* change `setSelectedDateAnimated` makes to
+    /// `selectedDate` — read by `OrreryView` (via its `dateChangeAnimationTrigger`
+    /// parameter) to tell an explicit "jump to a date" apart from a `snapshot`
+    /// change driven by continuous scrubbing, which should keep snapping straight
+    /// to the new position exactly as before. Plain `Int` rather than a `Date`/`UUID`
+    /// so equality is trivial and it survives `Observable` diffing cheaply.
+    var dateChangeAnimationTrigger = 0
+
+    /// Sets `selectedDate` to `newDate` (already clamped by the caller), bumping
+    /// `dateChangeAnimationTrigger` iff it's an actual change — shared by every
+    /// explicit "jump to a date" action (`animatedDateBinding`, `selectToday`) so
+    /// they all animate consistently, and a no-op write (e.g. re-confirming the day
+    /// already selected in a wheel `DatePicker`, or tapping "Today" while already
+    /// there) never leaves a stray, unconsumed bump that could cause a later,
+    /// unrelated scrub to be mistaken for one that should animate.
+    private func setSelectedDateAnimated(_ newDate: Date) {
+        guard newDate != selectedDate else { return }
+        selectedDate = newDate
+        dateChangeAnimationTrigger += 1
+    }
+
+    /// Like `dateBinding`, but for date pickers: routes through
+    /// `setSelectedDateAnimated` instead of writing `selectedDate` directly, so
+    /// `OrreryView` eases the chart into the new positions instead of snapping.
+    func animatedDateBinding(dataController: DataController) -> Binding<Date> {
+        Binding(
+            get: { self.selectedDate },
+            set: { self.setSelectedDateAnimated(dataController.clampedDate($0)) }
+        )
+    }
+
     func selectToday(dataController: DataController) {
-        selectedDate = dataController.clampedDate(dataController.todayDate)
+        setSelectedDateAnimated(dataController.clampedDate(dataController.todayDate))
+    }
+
+    /// Jumps `selectedDate` to `date` (clamped into the cached range), animating
+    /// `OrreryView` into the new positions the same way `animatedDateBinding`/
+    /// `selectToday` do. Used when a saved snapshot is picked from `SavedListView`,
+    /// so that jump eases the chart instead of snapping it straight to the new date.
+    func jumpToDate(_ date: Date, dataController: DataController) {
+        setSelectedDateAnimated(dataController.clampedDate(date))
     }
 
     func isAlreadyOnToday(dataController: DataController) -> Bool {
