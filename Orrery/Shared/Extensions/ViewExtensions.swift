@@ -18,6 +18,7 @@ struct GlassStyle {
     static let plain = GlassStyle(tint: nil, interactive: false)
     static let interactive = GlassStyle(tint: nil, interactive: true)
     static func tinted(_ color: Color) -> GlassStyle { GlassStyle(tint: color, interactive: false) }
+    static func tintedInteractive(_ color: Color) -> GlassStyle { GlassStyle(tint: color, interactive: true) }
 }
 
 extension View {
@@ -45,7 +46,7 @@ extension View {
     @ViewBuilder
     func glassOrSurface<S: Shape>(
         glass: GlassStyle = .plain,
-        material: Material = .thickMaterial,
+        material: Material = .thinMaterial,
         in shape: S
     ) -> some View {
         if #available(iOS 26.0, macOS 26.0, *) {

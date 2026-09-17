@@ -16,6 +16,7 @@ enum ControlPresentationState {
     case settings
     case savedItems
     case datePicker
+    case planets
     case none
 }
 
@@ -25,6 +26,11 @@ final class ContentViewModel {
     let rangeYearsForAnimatedScrubber = 10
     var selectedDate = UTCDay.todayAsUTCMidnight()
     var justSaved = false
+    
+    let animation: Animation = .spring(duration: 0.3)
+    let transition: AnyTransition = AnyTransition(.blurReplace)
+    let reducedAnimation: Animation = .linear(duration: 0.1)
+    let reducedTransition: AnyTransition = .opacity
 
     /// Single source of truth for which control surface `SmallScreenView` presents in its
     /// bottom control bar — that bar has one slot, so these are mutually exclusive by
@@ -63,6 +69,7 @@ final class ContentViewModel {
     var showSettings = false
     var showSavedList = false
     var showDatePicker = false
+    var showPlanetsView = false
 
     private var hasInitializedSelection = false
 

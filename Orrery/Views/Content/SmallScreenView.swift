@@ -13,6 +13,7 @@ struct SmallScreenView: View {
     @Environment(DataController.self) private var dataController
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
 
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
@@ -20,7 +21,6 @@ struct SmallScreenView: View {
     @AppStorage(AppStorageKeys.rangeYears) private var rangeYears = DataController.defaultRangeYears
 
     @State private var viewModel = ContentViewModel()
-    let animation: Animation = .spring(duration: 0.3)
 
     /// Persisted, normalized (`0...1`) position of the trailing-edge Moon-size
     /// scrubber. `0.5` (its default) maps to `1.0` via `viewModel.moonSizeMultiplier`,
@@ -63,6 +63,7 @@ struct SmallScreenView: View {
     private let panelCornerRadius: CGFloat = 35
     private let panelHeight: CGFloat = 450
     private let datePickerWheelHeight: CGFloat = 280
+    private let planetsPanelHeight: CGFloat = 650
     /// Top inset the overlay panels (date picker/saved items/settings) reserve
     /// for their content, keeping it clear of the close button overlaid at
     /// `.topTrailing` — that button is a 45pt `GlassButton` plus its own
@@ -73,13 +74,13 @@ struct SmallScreenView: View {
     /// `animation`, softened when Reduce Motion is on — used at every call
     /// site that changes `viewModel.controlPresentationState`.
     private var effectiveAnimation: Animation {
-        reduceMotion ? .linear(duration: 0.1) : animation
+        reduceMotion ? viewModel.reducedAnimation : viewModel.animation
     }
 
     /// The overlay panels' open/close transition — `.blurReplace` normally, a
     /// plain fade when Reduce Motion is on to match `effectiveAnimation`.
     private var panelTransition: AnyTransition {
-        reduceMotion ? .opacity : AnyTransition(.blurReplace)
+        reduceMotion ? viewModel.reducedTransition : viewModel.transition
     }
 
     var body: some View {
@@ -116,7 +117,38 @@ struct SmallScreenView: View {
     private func MainContentBuilder(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
         ZStack(alignment: .bottom) {
             VStack(spacing: 20) {
-                SelectedDateTitleText(date: viewModel.selectedDate, color: theme.ink)
+                HStack {
+                    SelectedDateTitleText(date: viewModel.selectedDate, color: theme.ink)
+                    
+                    Spacer()
+                    
+                    if #available(iOS 26.0, *) {
+                        Button {
+                            withAnimation(effectiveAnimation) {
+                                viewModel.toggleControlPresentation(.planets)
+                            }
+                        } label: {
+                            Text("Planets")
+                                .font(.caption)
+                                .monospaced()
+                        }
+                        .buttonStyle(.glassProminent)
+                        .buttonBorderShape(.capsule)
+                    } else {
+                        Button {
+                            withAnimation(effectiveAnimation) {
+                                viewModel.toggleControlPresentation(.planets)
+                            }
+                        } label: {
+                            Text("Planets")
+                                .font(.caption)
+                                .monospaced()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .buttonBorderShape(.capsule)
+                    }
+                }
+                .padding(.horizontal, 20)
 
                 // Always mounted — `OrreryView` shows its own loading pose (planets
                 // lined up left of their orbits) while `snapshot` is nil, then eases
@@ -216,6 +248,11 @@ struct SmallScreenView: View {
                         SettingsPanel()
                             .scrollContentBackground(.hidden)
                     }
+
+                case .planets:
+                    panelChrome(height: planetsPanelHeight) {
+                        PlanetDetailView()
+                    }
                 case .none:
                     EmptyView()
                 }
@@ -248,6 +285,18 @@ struct SmallScreenView: View {
         content()
             .frame(height: height)
             .safeAreaPadding(.top, panelTopInset)
+            .overlay(alignment: .top) {
+                LinearGradient(
+                    colors: [
+                        colorScheme == .dark
+                            ? .orange.mix(with: .black, by: 0.4).opacity(0.4)
+                            : .orange.mix(with: .gray, by: 0.3).opacity(0.6),
+                        .clear
+                    ],
+                    startPoint: .top, endPoint: .bottom
+                )
+                    .frame(height: 80)
+            }
             .overlay(alignment: .topTrailing) {
                 BuildCloseOverlayButton()
             }

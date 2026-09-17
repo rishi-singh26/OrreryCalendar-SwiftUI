@@ -15,6 +15,8 @@ struct MoonPhaseRow: View {
     /// scrubber) drive the size smoothly. `1.0`, the default, is the normal size
     /// every call site got back when "Small Moon" was a separate on/off setting.
     var sizeMultiplier: CGFloat = 1.0
+    
+    var horizontal: Bool = true
 
     /// Base (unscaled) disc diameter, matching the old "Small Moon" off size.
     private static let baseSize: CGFloat = 68
@@ -31,9 +33,17 @@ struct MoonPhaseRow: View {
     private var illuminatedPercent: Int {
         Int(((1 - cos(fraction * 2 * .pi)) / 2 * 100).rounded())
     }
+    
+    private var layoutSpacing: CGFloat {
+        (isCompact ? 100 : 50) * sizeMultiplier
+    }
+    
+    private var layout: AnyLayout {
+        horizontal ? AnyLayout(HStackLayout(spacing: layoutSpacing)) : AnyLayout(VStackLayout(spacing: layoutSpacing))
+    }
 
     var body: some View {
-        HStack(spacing: (isCompact ? 100 : 50) * sizeMultiplier) {
+        layout {
             disc(mirrored: false, label: isCompact ? "N" : "NORTHERN HEMISPHERE")
             disc(mirrored: true, label: isCompact ? "S" : "SOUTHERN HEMISPHERE")
         }
