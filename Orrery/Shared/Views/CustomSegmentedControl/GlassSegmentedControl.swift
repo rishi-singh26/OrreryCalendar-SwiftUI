@@ -17,6 +17,9 @@ struct GlassSegmentedControl: View {
     @State private var scrollPhase: ScrollPhase = .idle
     @State private var didSetInitialScrollPosition = false
     @State private var programmaticScrollTargetX: CGFloat?
+    // Cached from `tabs`, recomputed only when a tab's measured size actually
+    // changes (see onGeometryChange below) rather than on every scroll frame.
+    @State private var cachedSnapPoints: [CGFloat] = []
     
     var body: some View {
         GeometryReader {
@@ -36,6 +39,19 @@ struct GlassSegmentedControl: View {
                                 $0.size
                             } action: { newValue in
                                 tab.viewSize = newValue
+                                cachedSnapPoints = tabs.snapPoints
+                                // Sizes are measured asynchronously, one tab at a time, so the
+                                // initial scroll (which depends on snapPoints derived from those
+                                // sizes) must wait until every tab has reported a non-zero size.
+                                guard !didSetInitialScrollPosition, tabs.allSatisfy({ $0.viewSize != .zero }) else { return }
+                                didSetInitialScrollPosition = true
+                                let cappedIndex = max(min(selection, tabs.count - 1), 0)
+                                let targetX = cachedSnapPoints[cappedIndex]
+                                // Mark this as a programmatic scroll so the in-flight intermediate
+                                // offsets reported by onScrollGeometryChange aren't misread as the
+                                // user landing on a different tab.
+                                programmaticScrollTargetX = targetX
+                                scrollPosition.scrollTo(x: targetX)
                             }
                             .contentShape(.rect)
                             .onTapGesture {
@@ -97,7 +113,7 @@ struct GlassSegmentedControl: View {
             .scrollIndicators(.hidden)
             // Starting and ending at center
             .safeAreaPadding(.horizontal, (containerSize.width / 2))
-            .scrollTargetBehavior(CustomScrollTarget(tabs: $tabs))
+            .scrollTargetBehavior(CustomScrollTarget(snapPoints: cachedSnapPoints))
             .scrollPosition($scrollPosition, anchor: .center)
             .onScrollGeometryChange(for: CGFloat.self) {
                 $0.contentOffset.x + $0.contentInsets.leading
@@ -120,7 +136,7 @@ struct GlassSegmentedControl: View {
                 // is wasteful for consumers that react to each change with
                 // expensive work. It's committed once the scroll settles instead;
                 // see onScrollPhaseChange.
-                if let index = tabs.closestSnapPointIndex(newValue), activeIndex != nil {
+                if let index = cachedSnapPoints.closestSnapPointIndex(newValue), activeIndex != nil {
                     activeIndex = index
                 }
             }
@@ -146,24 +162,10 @@ struct GlassSegmentedControl: View {
                 activeIndex = cappedIndex
             }
         }
-        // Sizes are measured asynchronously via onGeometryChange, so the initial scroll
-        // (which depends on snapPoints derived from those sizes) must wait until every
-        // tab has reported a non-zero size.
-        .onChange(of: tabs.map(\.viewSize)) { _, _ in
-            guard !didSetInitialScrollPosition, tabs.allSatisfy({ $0.viewSize != .zero }) else { return }
-            didSetInitialScrollPosition = true
-            let cappedIndex = max(min(selection, tabs.count - 1), 0)
-            let targetX = tabs.snapPoints[cappedIndex]
-            // Mark this as a programmatic scroll so the in-flight intermediate offsets
-            // reported by onScrollGeometryChange aren't misread as the user landing on
-            // a different tab.
-            programmaticScrollTargetX = targetX
-            scrollPosition.scrollTo(x: targetX)
-        }
         .onChange(of: selection) { oldValue, newValue in
             if activeIndex != newValue {
                 let cappedIndex = max(min(selection, tabs.count - 1), 0)
-                let targetX = tabs.snapPoints[cappedIndex]
+                let targetX = cachedSnapPoints[cappedIndex]
                 programmaticScrollTargetX = targetX
                 // Optional: Animation
                 withAnimation(.snappy) {
@@ -198,18 +200,20 @@ fileprivate extension [GlassSegmentedControl.Tab] {
             snapPoints.append(x + tab.viewSize.width / 2)
             x += tab.viewSize.width
         }
-        
+
         return snapPoints
     }
-    
+}
+
+fileprivate extension [CGFloat] {
     func closestSnapPoint(_ offset: CGFloat) -> CGFloat {
-        snapPoints.min(by: {
+        self.min(by: {
             abs($0 - offset) < abs($1 - offset)
         }) ?? offset
     }
-    
+
     func closestSnapPointIndex(_ offset: CGFloat) -> Int? {
-        if let (index, _) = snapPoints.enumerated().min(by: {
+        if let (index, _) = self.enumerated().min(by: {
             abs($0.element - offset) < abs($1.element - offset)
         }) {
             return index
@@ -219,11 +223,11 @@ fileprivate extension [GlassSegmentedControl.Tab] {
 }
 
 fileprivate struct CustomScrollTarget: ScrollTargetBehavior {
-    @Binding var tabs: [GlassSegmentedControl.Tab]
+    var snapPoints: [CGFloat]
     func updateTarget(_ target: inout ScrollTarget, context: TargetContext) {
         let offset = target.rect.origin.x
-        
-        target.rect.origin.x = tabs.closestSnapPoint(offset)
+
+        target.rect.origin.x = snapPoints.closestSnapPoint(offset)
     }
     
     // Optional: For fast declaration!
