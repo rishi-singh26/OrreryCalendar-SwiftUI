@@ -17,7 +17,7 @@ struct PlanetDetailView: View {
     @State private var tabs: [GlassSegmentedControl.Tab] = PlanetConfig.all.map { .init(title: $0.displayName) }
 
     private var selectedPlanet: PlanetConfig {
-        PlanetConfig.all[selectedPlanetIndex]
+        PlanetConfig.all[max(min(selectedPlanetIndex, PlanetConfig.all.count - 1), 0)]
     }
 
     private var planetName: String {
