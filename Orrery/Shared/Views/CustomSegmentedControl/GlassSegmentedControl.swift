@@ -92,7 +92,7 @@ struct GlassSegmentedControl: View {
                 // Capsule shape
                 .background(alignment: .leading) {
                     ZStack {
-                        if #available(iOS 26, *) {
+                        if #available(iOS 26, macOS 26, *) {
                             Capsule()
                                 .fill(.clear)
                                 .frame(width: activeSize.width, height: activeSize.height)
@@ -244,7 +244,9 @@ fileprivate struct CustomScrollTarget: ScrollTargetBehavior {
     // Optional: For fast declaration!
     func properties(context: PropertiesContext) -> Properties {
         var properties = Properties()
+        #if !os(macOS)
         properties.limitsScrolls = true
+        #endif
         return properties
     }
 }
