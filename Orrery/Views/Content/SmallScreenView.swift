@@ -13,18 +13,57 @@ struct SmallScreenView: View {
     @Environment(DataController.self) private var dataController
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
 
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
-    @AppStorage(AppStorageKeys.smallMoon) private var smallMoon = false
+    @AppStorage(AppStorageKeys.showSunHalo) private var showSunHalo = true
     @AppStorage(AppStorageKeys.rangeYears) private var rangeYears = DataController.defaultRangeYears
 
     @State private var viewModel = ContentViewModel()
-    let animation: Animation = .spring(duration: 0.3)
+
+    /// Persisted, normalized (`0...1`) position of the trailing-edge Moon-size
+    /// scrubber. `0.5` (its default) maps to `1.0` via `viewModel.moonSizeMultiplier`,
+    /// reproducing `MoonPhaseRow`'s normal size until the user drags it. Kept here
+    /// (rather than in `ContentViewModel`) since `@AppStorage` only integrates with
+    /// SwiftUI's view-update machinery when it's declared directly on a `View` —
+    /// same reason every other persisted display setting (`showOrbits` etc.) lives
+    /// in the view, not the view model. Stored as `Double` since `@AppStorage`
+    /// only bridges a handful of primitive types natively — `moonSizeScrubBinding`
+    /// below hands `VerticalScrubber` the `CGFloat` binding it needs.
+    @AppStorage(AppStorageKeys.moonSizeScrub) private var moonSizeScrub: Double = 0.5
+
+    private var moonSizeScrubBinding: Binding<CGFloat> {
+        Binding(
+            get: { CGFloat(moonSizeScrub) },
+            set: { moonSizeScrub = Double($0) }
+        )
+    }
+
+    /// The size multiplier `MoonPhaseRow` reads — the actual `moonSizeScrub` →
+    /// multiplier mapping is pure business logic, so it lives on `viewModel`.
+    private var moonSizeMultiplier: CGFloat {
+        viewModel.moonSizeMultiplier(forScrub: moonSizeScrub)
+    }
+
+    /// The trailing-edge notch the Moon-size scrubber is docked in — factored out
+    /// so its `.fill` and `.clipShape` uses (see `MainContentBuilder`) share one
+    /// set of tuned parameters instead of risking them drifting apart.
+    private var moonSizeScrubberNotchShape: WedgedNotchShape {
+        WedgedNotchShape(
+            edge: .trailing,
+            topCornerRadius: 60,
+            wedgeInset: 12,
+            outerCornerRadius: 20,
+            topCurveFactor: 0.73,
+            topCurveDepth: 45
+        )
+    }
 
     private let panelCornerRadius: CGFloat = 35
     private let panelHeight: CGFloat = 450
     private let datePickerWheelHeight: CGFloat = 280
+    private let planetsPanelHeight: CGFloat = 660
     /// Top inset the overlay panels (date picker/saved items/settings) reserve
     /// for their content, keeping it clear of the close button overlaid at
     /// `.topTrailing` — that button is a 45pt `GlassButton` plus its own
@@ -35,13 +74,13 @@ struct SmallScreenView: View {
     /// `animation`, softened when Reduce Motion is on — used at every call
     /// site that changes `viewModel.controlPresentationState`.
     private var effectiveAnimation: Animation {
-        reduceMotion ? .linear(duration: 0.1) : animation
+        reduceMotion ? viewModel.reducedAnimation : viewModel.animation
     }
 
     /// The overlay panels' open/close transition — `.blurReplace` normally, a
     /// plain fade when Reduce Motion is on to match `effectiveAnimation`.
     private var panelTransition: AnyTransition {
-        reduceMotion ? .opacity : AnyTransition(.blurReplace)
+        reduceMotion ? viewModel.reducedTransition : viewModel.transition
     }
 
     var body: some View {
@@ -51,29 +90,14 @@ struct SmallScreenView: View {
         let snapshot = dataController.snapshot(for: viewModel.selectedDate)
         ThemeReader { theme, colorScheme in
             ZStack {
-                LinearGradient(
-                    colors: [theme.brassDim.opacity(0.3), theme.background],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .cornerRadius(40)
-                .padding(.horizontal, (barOuterPadding / 2))
-                .padding(.bottom, (barOuterPadding / 2) + 20)
-                .ignoresSafeArea(.all, edges: .bottom)
+                BackgroundView()
+                    .cornerRadius(40)
+                    .padding(.horizontal, (barOuterPadding / 2))
+                    .padding(.bottom, (barOuterPadding / 2) + 20)
+                    .ignoresSafeArea(.all, edges: .bottom)
                 
                 MainContentBuilder(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
-                
-                if snapshot == nil {
-                    if #available(iOS 26.0, *) {
-                        CalculatingPositionsView(theme: theme)
-                            .glassEffect(.regular, in: .rect(cornerRadius: panelCornerRadius))
-                    } else {
-                        CalculatingPositionsView(theme: theme)
-                            .withSurface(in: .rect(cornerRadius: 30))
-                    }
-                }
             }
-            .background(theme.background.ignoresSafeArea())
         }
         .task {
             await dataController.bootstrap()
@@ -93,12 +117,50 @@ struct SmallScreenView: View {
     private func MainContentBuilder(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
         ZStack(alignment: .bottom) {
             VStack(spacing: 20) {
-                SelectedDateTitleText(date: viewModel.selectedDate, color: theme.ink)
-                
-                if let snapshot {
-                    OrreryView(snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, theme: theme, aspectRatio: 1)
+                HStack {
+                    SelectedDateTitleText(date: viewModel.selectedDate, color: theme.ink)
                     
-                    MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, smallMoon: smallMoon, theme: theme)
+                    Spacer()
+                    
+                    if #available(iOS 26.0, *) {
+                        Button {
+                            withAnimation(effectiveAnimation) {
+                                viewModel.toggleControlPresentation(.planets)
+                            }
+                        } label: {
+                            Text("Planets")
+                                .font(.caption)
+                                .monospaced()
+                        }
+                        .buttonStyle(.glassProminent)
+                        .buttonBorderShape(.capsule)
+                    } else {
+                        Button {
+                            withAnimation(effectiveAnimation) {
+                                viewModel.toggleControlPresentation(.planets)
+                            }
+                        } label: {
+                            Text("Planets")
+                                .font(.caption)
+                                .monospaced()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .buttonBorderShape(.capsule)
+                    }
+                }
+                .padding(.horizontal, 20)
+
+                // Always mounted — `OrreryView` shows its own loading pose (planets
+                // lined up left of their orbits) while `snapshot` is nil, then eases
+                // into place once it arrives, rather than the chart not appearing
+                // at all until data is ready.
+                OrreryView(
+                    snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, theme: theme,
+                    aspectRatio: 1, dateChangeAnimationTrigger: viewModel.dateChangeAnimationTrigger
+                )
+
+                if let snapshot {
+                    MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, theme: theme, sizeMultiplier: moonSizeMultiplier)
                 }
                 Spacer(minLength: 0)
             }
@@ -108,20 +170,38 @@ struct SmallScreenView: View {
                     viewModel.controlPresentationState = .none
                 }
             }
-
-            if #available(iOS 26.0, *) {
-                BuildControlsBar(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
-                    .glassEffect(.regular, in: .rect(cornerRadius: panelCornerRadius))
-                    .clipShape(.rect(cornerRadius: panelCornerRadius))
-                    .padding(.horizontal, barOuterPadding)
-                    .padding(.bottom, barOuterPadding)
-            } else {
-                BuildControlsBar(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
-                    .withSurface(in: .rect(cornerRadius: panelCornerRadius))
-                    .clipShape(.rect(cornerRadius: panelCornerRadius))
-                    .padding(.horizontal, barOuterPadding)
-                    .padding(.bottom, barOuterPadding)
-            }
+            
+            moonSizeScrubberNotchShape
+                .fill(.background)
+                .frame(width: 35, height: 220)
+                .overlay {
+                    // Drives `moonSizeMultiplier` (via `moonSizeScrub`), which
+                    // `MoonPhaseRow` above animates into on change. Padded and
+                    // clipped to the notch's straight-walled middle so the ruler
+                    // never travels into its flared top/bottom corners.
+                    VerticalScrubber(
+                        value: moonSizeScrubBinding,
+                        tickCount: 30,
+                        visibleTickCount: 12,
+                        tickThickness: 2,
+                        tickLength: 16,
+                        dimColor: theme.ink.opacity(0.5),
+                        accentColor: .accentColor,
+                        accessibilityLabel: "Moon size"
+                    )
+                    .frame(height: 160)
+                    .padding(.horizontal, 10)
+                }
+                .clipShape(moonSizeScrubberNotchShape)
+                .padding(.trailing, (barOuterPadding / 2))
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .offset(y: -180)
+            
+            BuildControlsBar(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
+                .glassOrSurface(glass: .tinted(ThemeColors.controlsBarTint), in: .rect(cornerRadius: panelCornerRadius))
+                .clipShape(.rect(cornerRadius: panelCornerRadius))
+                .padding(.horizontal, barOuterPadding)
+                .padding(.bottom, barOuterPadding)
         }
         .padding(.bottom, 20)
         .ignoresSafeArea(.all, edges: .bottom)
@@ -145,18 +225,18 @@ struct SmallScreenView: View {
                     panelChrome(height: datePickerWheelHeight) {
                         DatePicker(
                             "Date",
-                            selection: viewModel.dateBinding(dataController: dataController),
+                            selection: viewModel.animatedDateBinding(dataController: dataController),
                             in: dataController.startDate...dataController.endDate,
                             displayedComponents: .date
                         )
                         .datePickerStyle(.wheel)
-                        .labelsVisibility(.hidden)
-                        .padding()
+                        .padding(.horizontal, 30)
+                        .labelsHidden()
                     }
                 case .savedItems:
                     panelChrome(height: panelHeight) {
                         SavedListView { date in
-                            viewModel.selectedDate = dataController.clampedDate(date)
+                            viewModel.jumpToDate(date, dataController: dataController)
                             withAnimation(effectiveAnimation) {
                                 viewModel.controlPresentationState = .none
                             }
@@ -167,6 +247,11 @@ struct SmallScreenView: View {
                     panelChrome(height: panelHeight) {
                         SettingsPanel()
                             .scrollContentBackground(.hidden)
+                    }
+
+                case .planets:
+                    panelChrome(height: planetsPanelHeight) {
+                        PlanetDetailView(selectedDate: viewModel.selectedDate)
                     }
                 case .none:
                     EmptyView()
@@ -200,6 +285,18 @@ struct SmallScreenView: View {
         content()
             .frame(height: height)
             .safeAreaPadding(.top, panelTopInset)
+            .overlay(alignment: .top) {
+                LinearGradient(
+                    colors: [
+                        colorScheme == .dark
+                            ? .orange.mix(with: .black, by: 0.4).opacity(0.4)
+                            : .orange.mix(with: .gray, by: 0.3).opacity(0.6),
+                        .clear
+                    ],
+                    startPoint: .top, endPoint: .bottom
+                )
+                .frame(height: 80)
+            }
             .overlay(alignment: .topTrailing) {
                 BuildCloseOverlayButton()
             }
@@ -217,23 +314,13 @@ struct SmallScreenView: View {
     private func BuildScrubberAndControls(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
         VStack(spacing: 0) {
             HStack {
-                if #available(iOS 26.0, *) {
-                    BuildCalendarCapsule()
-                        .glassEffect(.regular.interactive(), in: .capsule)
-                    
-                    Spacer()
-                    
-                    BuildButtonsCapsule(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
-                        .glassEffect(.regular.interactive(), in: .capsule)
-                } else {
-                    BuildCalendarCapsule()
-                        .withSurface(in: .capsule)
-                    
-                    Spacer()
-                    
-                    BuildButtonsCapsule(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
-                        .withSurface(in: .capsule)
-                }
+                BuildCalendarCapsule()
+                    .glassOrSurface(glass: .interactive, in: .capsule)
+
+                Spacer()
+
+                BuildButtonsCapsule(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
+                    .glassOrSurface(glass: .interactive, in: .capsule)
             }
             .padding(10)
             
@@ -312,7 +399,7 @@ struct SmallScreenView: View {
             } label: {
                 Image(systemName: viewModel.justSaved ? "checkmark" : "bookmark")
                     .font(.title2)
-                    .foregroundStyle(viewModel.justSaved ? .accentColor : theme.ink)
+                    .foregroundStyle(viewModel.justSaved ? Color.accentColor : theme.ink)
             }
             .disabled(!dataController.isReady)
             .help(viewModel.justSaved ? "Saved" : "Save This View")
@@ -335,7 +422,7 @@ struct SmallScreenView: View {
             
             if let snapshot {
                 PolaroidShareButton(
-                    snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, smallMoon: smallMoon, colorScheme: colorScheme
+                    snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, colorScheme: colorScheme
                 )
                 .labelStyle(.iconOnly)
                 .help("Share This View")

@@ -11,13 +11,61 @@ import SwiftData
 struct LargeScreenView: View {
     @Environment(DataController.self) private var dataController
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
-    @AppStorage(AppStorageKeys.smallMoon) private var smallMoon = false
+    @AppStorage(AppStorageKeys.showSunHalo) private var showSunHalo = true
     @AppStorage(AppStorageKeys.rangeYears) private var rangeYears = DataController.defaultRangeYears
 
+    /// Persisted, normalized (`0...1`) position of the trailing-edge Moon-size
+    /// scrubber — same `AppStorageKeys.moonSizeScrub` key `SmallScreenView` uses, so
+    /// the two layouts share one persisted position. Kept here (rather than in
+    /// `ContentViewModel`) since `@AppStorage` only integrates with SwiftUI's
+    /// view-update machinery when it's declared directly on a `View`; see
+    /// `SmallScreenView`'s matching property for the full rationale.
+    @AppStorage(AppStorageKeys.moonSizeScrub) private var moonSizeScrub: Double = 0.5
+
     @State private var viewModel = ContentViewModel()
+    
+    /// `animation`, softened when Reduce Motion is on — used at every call
+    /// site that changes `viewModel.controlPresentationState`.
+    private var effectiveAnimation: Animation {
+        reduceMotion ? viewModel.reducedAnimation : viewModel.animation
+    }
+
+    /// The overlay panels' open/close transition — `.blurReplace` normally, a
+    /// plain fade when Reduce Motion is on to match `effectiveAnimation`.
+    private var panelTransition: AnyTransition {
+        reduceMotion ? viewModel.reducedTransition : viewModel.transition
+    }
+
+    private var moonSizeScrubBinding: Binding<CGFloat> {
+        Binding(
+            get: { CGFloat(moonSizeScrub) },
+            set: { moonSizeScrub = Double($0) }
+        )
+    }
+
+    /// The size multiplier `MoonPhaseRow` reads — the actual `moonSizeScrub` →
+    /// multiplier mapping is pure business logic, so it lives on `viewModel`
+    /// (shared with `SmallScreenView`, not duplicated).
+    private var moonSizeMultiplier: CGFloat {
+        viewModel.moonSizeMultiplier(forScrub: moonSizeScrub)
+    }
+
+    /// The trailing-edge notch the Moon-size scrubber is docked in — mirrors
+    /// `SmallScreenView`'s matching shape so the two layouts share one tuned look.
+    private var moonSizeScrubberNotchShape: WedgedNotchShape {
+        WedgedNotchShape(
+            edge: .trailing,
+            topCornerRadius: 60,
+            wedgeInset: 12,
+            outerCornerRadius: 20,
+            topCurveFactor: 0.73,
+            topCurveDepth: 45
+        )
+    }
 
     var body: some View {
         // Looked up once per body evaluation and handed to both the main content and
@@ -26,20 +74,22 @@ struct LargeScreenView: View {
         let snapshot = dataController.snapshot(for: viewModel.selectedDate)
         ThemeReader { theme, colorScheme in
             NavigationStack {
-                Group {
-                    if let snapshot {
-                        MainContentBuilder(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
-                    } else {
-                        CalculatingPositionsView(theme: theme)
+                ZStack {
+                    BackgroundView()
+                        .cornerRadius(20)
+
+                    GeometryReader { proxy in
+                        MainContentBuilder(snapshot: snapshot, theme: theme, colorScheme: colorScheme, size: proxy.size)
                     }
+                    .frame(minWidth: 450, minHeight: 700)
                 }
-                .background(theme.background.ignoresSafeArea())
+                .padding([.horizontal, .bottom], 5)
                 .toolbar {
                     ToolbarBuilder(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
                 }
                 .withInspector(isPresented: $viewModel.showSavedList) {
                     SavedListView { date in
-                        viewModel.selectedDate = dataController.clampedDate(date)
+                        viewModel.jumpToDate(date, dataController: dataController)
                     }
                 }
             }
@@ -59,54 +109,147 @@ struct LargeScreenView: View {
     }
 
     @ViewBuilder
-    private func MainContentBuilder(snapshot: DaySnapshot, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
-        VStack(spacing: 20) {
-            SelectedDateTitleText(date: viewModel.selectedDate, color: theme.ink)
-                .padding(.top)
-
-            OrreryView(snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, theme: theme)
-                .frame(minWidth: DeviceType.isIpad ? 450 : 600, minHeight: DeviceType.isIpad ? 450 : 600)
-
-            Spacer(minLength: 0)
-
-            MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, smallMoon: smallMoon, theme: theme)
-
-            Spacer(minLength: 0)
-
-            if viewModel.isNearRangeEdge(dataController: dataController) {
-                ExtendRangeButton(theme: theme) {
-                    viewModel.showSettings = true
+    private func MainContentBuilder(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme, size: CGSize) -> some View {
+        ZStack(alignment: .bottom) {
+            VStack(alignment: .leading, spacing: 20) {
+                SelectedDateTitleText(date: viewModel.selectedDate, color: theme.ink)
+                    .padding([.top, .leading])
+                
+                let isWide = size.width > size.height
+                let layout: AnyLayout = isWide ? AnyLayout(HStackLayout()) : AnyLayout(VStackLayout())
+                
+                layout {
+                    if isWide {
+                        Spacer()
+                    }
+                    // Always mounted — `OrreryView` shows its own loading pose (planets
+                    // lined up left of their orbits) while `snapshot` is nil, then eases
+                    // into place once it arrives, rather than the chart not appearing
+                    // at all until data is ready.
+                    OrreryView(
+                        snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, theme: theme,
+                        aspectRatio: 1, dateChangeAnimationTrigger: viewModel.dateChangeAnimationTrigger
+                    )
+                    
+                    Spacer()
+                    
+                    if let snapshot {
+                        MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, theme: theme, sizeMultiplier: moonSizeMultiplier, horizontal: !isWide)
+                    }
+                    
+                    if isWide {
+                        Spacer()
+                    }
                 }
             }
-
-            // `ScrubTimelineView`'s animated tick fade gets visibly laggy once the
-            // cached range spans more than ±10 years, regardless of platform — the
-            // no-animation variant trades that fade for scrolling that stays smooth
-            // at any range size (see `ScrubTimelineNoAnimationView`).
-            if rangeYears > viewModel.rangeYearsForAnimatedScrubber {
-                ScrubTimelineNoAnimationView(
-                    selectedDate: viewModel.dateBinding(dataController: dataController),
-                    minDate: dataController.startDate,
-                    maxDate: dataController.endDate,
-                    theme: theme
-                )
-                .padding(.bottom)
-            } else {
-                ScrubTimelineView(
-                    selectedDate: viewModel.dateBinding(dataController: dataController),
-                    minDate: dataController.startDate,
-                    maxDate: dataController.endDate,
-                    theme: theme
-                )
-                .padding(.bottom)
+            .padding(.bottom, 100)
+            
+            
+            
+            moonSizeScrubberNotchShape
+                .fill(.background)
+                .frame(width: 35, height: 220)
+                .overlay {
+                    // Drives `moonSizeMultiplier` (via `moonSizeScrub`), which
+                    // `MoonPhaseRow` below animates into on change. Padded and
+                    // clipped to the notch's straight-walled middle so the ruler
+                    // never travels into its flared top/bottom corners.
+                    VerticalScrubber(
+                        value: moonSizeScrubBinding,
+                        tickCount: 30,
+                        visibleTickCount: 12,
+                        tickThickness: 2,
+                        tickLength: 16,
+                        dimColor: theme.ink.opacity(0.5),
+                        accentColor: .accentColor,
+                        accessibilityLabel: "Moon size"
+                    )
+                    .frame(height: 160)
+                    .padding(.horizontal, 10)
+                }
+                .clipShape(moonSizeScrubberNotchShape)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+            
+            VStack {
+                if viewModel.isNearRangeEdge(dataController: dataController) {
+                    ExtendRangeButton(theme: theme) {
+                        viewModel.showSettings = true
+                    }
+                }
+                
+                if viewModel.showPlanetsView {
+                    VStack {
+                        // Planets view will go here
+                    }
+                    .frame(height: size.height - 170)
+                    .transition(panelTransition)
+                }
+                // Kept mounted only once `snapshot` exists — same as `SmallScreenView`'s
+                // scrub timeline — so its one-shot initial-position setup (see
+                // `ScrubTimelineView`/`ScrubTimelineNoAnimationView`) always sees the
+                // cached range's final `minDate`/`maxDate`, not the placeholder values
+                // `DataController` reports before it's ready.
+                if snapshot != nil {
+                    // `ScrubTimelineView`'s animated tick fade gets visibly laggy once the
+                    // cached range spans more than ±10 years, regardless of platform — the
+                    // no-animation variant trades that fade for scrolling that stays smooth
+                    // at any range size (see `ScrubTimelineNoAnimationView`).
+                    if rangeYears > viewModel.rangeYearsForAnimatedScrubber {
+                        ScrubTimelineNoAnimationView(
+                            selectedDate: viewModel.dateBinding(dataController: dataController),
+                            minDate: dataController.startDate,
+                            maxDate: dataController.endDate,
+                            theme: theme
+                        )
+                    } else {
+                        ScrubTimelineView(
+                            selectedDate: viewModel.dateBinding(dataController: dataController),
+                            minDate: dataController.startDate,
+                            maxDate: dataController.endDate,
+                            theme: theme
+                        )
+                    }
+                } else {
+                    VStack {
+                        
+                    }
+                    .frame(height: 65)
+                }
             }
+            .padding(.vertical, 8)
+            .glassOrSurface(glass: .tintedInteractive(ThemeColors.controlsBarTint), in: .rect(cornerRadius: 15))
+            .padding(5)
         }
-        .padding(.top, 12)
     }
     
     @ToolbarContentBuilder
     private func ToolbarBuilder(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme) -> some ToolbarContent {
         ToolbarItemGroup(placement: .automatic) {
+            if #available(iOS 26.0, macOS 26.0, *) {
+                Button {
+                    withAnimation(effectiveAnimation) {
+                        viewModel.showPlanetsView.toggle()
+                    }
+                } label: {
+                    Text("Planets")
+                        .font(.caption)
+                        .monospaced()
+                }
+                .buttonStyle(.glassProminent)
+            } else {
+                Button {
+                    withAnimation(effectiveAnimation) {
+                        viewModel.showPlanetsView.toggle()
+                    }
+                } label: {
+                    Text("Planets")
+                        .font(.caption)
+                        .monospaced()
+                }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
+            }
+            
             ControlGroup {
                 Button {
                     viewModel.selectToday(dataController: dataController)
@@ -134,7 +277,7 @@ struct LargeScreenView: View {
                     VStack(spacing: 8) {
                         #if os (macOS)
                         MonthYearSelector(
-                            selection: viewModel.dateBinding(dataController: dataController),
+                            selection: viewModel.animatedDateBinding(dataController: dataController),
                             minDate: dataController.startDate,
                             maxDate: dataController.endDate
                         )
@@ -142,7 +285,7 @@ struct LargeScreenView: View {
 
                         DatePicker(
                             "Date",
-                            selection: viewModel.dateBinding(dataController: dataController),
+                            selection: viewModel.animatedDateBinding(dataController: dataController),
                             in: dataController.startDate...dataController.endDate,
                             displayedComponents: .date
                         )
@@ -160,7 +303,7 @@ struct LargeScreenView: View {
                     viewModel.save(dataController: dataController, modelContext: modelContext)
                 } label: {
                     Image(systemName: viewModel.justSaved ? "checkmark" : "bookmark")
-                        .foregroundStyle(viewModel.justSaved ? .accentColor : theme.ink)
+                        .foregroundStyle(viewModel.justSaved ? theme.brass : theme.ink)
                 }
                 .disabled(!dataController.isReady)
                 .help(viewModel.justSaved ? "Saved" : "Save This View")
@@ -176,7 +319,7 @@ struct LargeScreenView: View {
                     .accessibilityLabel("Saved Views")
                     .popover(isPresented: $viewModel.showSavedList) {
                         SavedListView { date in
-                            viewModel.selectedDate = dataController.clampedDate(date)
+                            viewModel.jumpToDate(date, dataController: dataController)
                         }
                         .frame(minHeight: DeviceType.isIpad ? 450 : 360)
                         .frame(minWidth: 320, idealWidth: 360)
@@ -194,7 +337,7 @@ struct LargeScreenView: View {
             
             if let snapshot {
                 PolaroidShareButton(
-                    snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, smallMoon: smallMoon, colorScheme: colorScheme
+                    snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, colorScheme: colorScheme
                 )
                 .labelStyle(.iconOnly)
                 .help("Share This View")

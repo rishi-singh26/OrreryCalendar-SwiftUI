@@ -64,20 +64,23 @@ struct MoonPhaseShape: Shape {
         var points: [CGPoint] = []
         points.reserveCapacity((sampleCount + 1) * 2)
 
-        // Outer boundary: half-circle on the `outerSign` side, top (-r) to bottom (+r).
+        // Outer boundary: half-circle, parametrized by angle phi in [-π/2, π/2]
+        // so phi = -π/2 is the top pole (y = -r) and phi = π/2 is the bottom pole (y = r).
         for i in 0...sampleCount {
             let t = Double(i) / Double(sampleCount)
-            let y = -r + t * (2 * r)
-            let x = outerSign * max(r * r - y * y, 0).squareRoot()
+            let phi = -Double.pi / 2 + t * Double.pi
+            let y = r * sin(phi)
+            let x = outerSign * r * cos(phi)
             points.append(CGPoint(x: x, y: y))
         }
-        // Inner boundary (terminator): ellipse arc on the `innerSign` side, bottom back
-        // to top, closing the polygon.
+
+        // Inner boundary (terminator): half-ellipse, same angle parametrization,
+        // traversed bottom back to top to close the polygon.
         for i in 0...sampleCount {
             let t = Double(i) / Double(sampleCount)
-            let y = r - t * (2 * r)
-            let normalized = 1 - (y / r) * (y / r)
-            let x = innerSign * xRadius * max(normalized, 0).squareRoot()
+            let phi = Double.pi / 2 - t * Double.pi
+            let y = r * sin(phi)
+            let x = innerSign * xRadius * cos(phi)
             points.append(CGPoint(x: x, y: y))
         }
         return points

@@ -243,4 +243,216 @@ struct OrreryTests {
         #expect(centroidX < 0, "last quarter (waning) should light the left half, centroid x = \(centroidX)")
     }
 
+    // MARK: - OrreryGeometry.interpolatedAngleDeg (sweep direction)
+    //
+    // `interpolatedAngleDeg` must sweep in the *given* direction even when that's not
+    // the shorter arc — this is what makes `OrreryView`'s launch entrance always
+    // clockwise and its date-jump transitions forward/backward-in-time-aware, rather
+    // than picking whichever way happens to be shorter.
+
+    /// Normalizes an angle into `[0, 360)` — `interpolatedAngleDeg` doesn't itself wrap
+    /// its output into that range (its raw result can exceed 360 or go negative), so
+    /// tests compare against the normalized form when checking *which* angle a raw
+    /// result represents.
+    private static func normalizedDeg(_ deg: Double) -> Double {
+        let m = deg.truncatingRemainder(dividingBy: 360)
+        return m < 0 ? m + 360 : m
+    }
+
+    @Test func interpolatedAngleDeg_counterClockwise_shortForwardSweep_crossesZeroBoundary() throws {
+        // 350° -> 10°: the short way is 20° forward (increasing, crossing the 360°/0°
+        // boundary), which also happens to be the counter-clockwise direction here.
+        let start = 350.0
+        let end = 10.0
+        var previous = start
+        for step in 1...10 {
+            let progress = Double(step) / 10
+            let angle = OrreryGeometry.interpolatedAngleDeg(from: start, to: end, progress: progress, direction: .counterClockwise)
+            #expect(angle > previous, "counter-clockwise sweep should keep increasing, got \(angle) after \(previous)")
+            previous = angle
+        }
+        #expect(abs(Self.normalizedDeg(previous) - end) < 0.0001)
+    }
+
+    @Test func interpolatedAngleDeg_clockwise_shortBackwardSweep_crossesZeroBoundary() throws {
+        // 10° -> 350°: the short way is 20° backward (decreasing, crossing the
+        // 360°/0° boundary), which also happens to be the clockwise direction here.
+        let start = 10.0
+        let end = 350.0
+        var previous = start
+        for step in 1...10 {
+            let progress = Double(step) / 10
+            let angle = OrreryGeometry.interpolatedAngleDeg(from: start, to: end, progress: progress, direction: .clockwise)
+            #expect(angle < previous, "clockwise sweep should keep decreasing, got \(angle) after \(previous)")
+            previous = angle
+        }
+        #expect(abs(Self.normalizedDeg(previous) - end) < 0.0001)
+    }
+
+    @Test func interpolatedAngleDeg_counterClockwise_forcedTheLongWayWhenShortPathIsClockwise() throws {
+        // 10° -> 350°: the *short* path is clockwise (20°, backward). Forcing
+        // counter-clockwise must instead take the long way around (340°, forward),
+        // so the midpoint should land on the far side, near 180°, not near 190°.
+        let start = 10.0
+        let end = 350.0
+        let midpoint = OrreryGeometry.interpolatedAngleDeg(from: start, to: end, progress: 0.5, direction: .counterClockwise)
+        #expect(abs(Self.normalizedDeg(midpoint) - 180) < 0.0001, "expected the long-way midpoint near 180°, got \(Self.normalizedDeg(midpoint))")
+        let atOne = OrreryGeometry.interpolatedAngleDeg(from: start, to: end, progress: 1, direction: .counterClockwise)
+        #expect(abs(Self.normalizedDeg(atOne) - end) < 0.0001)
+    }
+
+    @Test func interpolatedAngleDeg_clockwise_forcedTheLongWayWhenShortPathIsCounterClockwise() throws {
+        // 350° -> 10°: the *short* path is counter-clockwise (20°, forward). Forcing
+        // clockwise must instead take the long way around (340°, backward), so the
+        // midpoint should land on the far side, near 180°.
+        let start = 350.0
+        let end = 10.0
+        let midpoint = OrreryGeometry.interpolatedAngleDeg(from: start, to: end, progress: 0.5, direction: .clockwise)
+        #expect(abs(Self.normalizedDeg(midpoint) - 180) < 0.0001, "expected the long-way midpoint near 180°, got \(Self.normalizedDeg(midpoint))")
+        let atOne = OrreryGeometry.interpolatedAngleDeg(from: start, to: end, progress: 1, direction: .clockwise)
+        #expect(abs(Self.normalizedDeg(atOne) - end) < 0.0001)
+    }
+
+    @Test func interpolatedAngleDeg_sameAngle_staysPutRegardlessOfDirection() throws {
+        // Equal angles (including two different representations of the same angle,
+        // 0° and 360°) must not produce a spurious full-circle sweep in either
+        // direction.
+        let pairs: [(Double, Double)] = [(42, 42), (0, 360), (360, 0)]
+        let directions: [OrreryGeometry.SweepDirection] = [.clockwise, .counterClockwise]
+        for (start, end) in pairs {
+            for direction in directions {
+                for progress in [0.0, 0.25, 0.5, 0.75, 1.0] {
+                    let result = OrreryGeometry.interpolatedAngleDeg(from: start, to: end, progress: progress, direction: direction)
+                    #expect(abs(result - start) < 0.0001, "\(direction) at progress \(progress) from \(start) to \(end) should stay put, got \(result)")
+                }
+            }
+        }
+    }
+
+    @Test func interpolatedAngleDeg_endpoints_matchStartAndEnd() throws {
+        let start = 200.0
+        let end = 40.0
+        for direction: OrreryGeometry.SweepDirection in [.clockwise, .counterClockwise] {
+            let atZero = OrreryGeometry.interpolatedAngleDeg(from: start, to: end, progress: 0, direction: direction)
+            let atOne = OrreryGeometry.interpolatedAngleDeg(from: start, to: end, progress: 1, direction: direction)
+            #expect(abs(atZero - start) < 0.0001)
+            #expect(abs(Self.normalizedDeg(atOne) - Self.normalizedDeg(end)) < 0.0001)
+        }
+    }
+
+    // MARK: - ScrubTimelineMath boundary-tick computations (Orrery/Views/ScrubTimelineMath.swift)
+
+    /// Naive, unoptimized reference implementation of `weekStartIndices` — the shape
+    /// the production code used before being optimized to do one `Calendar` lookup
+    /// total instead of one per week. Used only to cross-check the optimized version
+    /// produces identical output, so the optimization can't have silently changed
+    /// which days get marked as boundary ticks.
+    private static func naiveWeekStartIndices(minDate: Date, maxDate: Date) -> Set<Int> {
+        guard maxDate >= minDate else { return [] }
+        let calendar = UTCDay.calendar
+        var indices = Set<Int>()
+        var cursor = calendar.dateInterval(of: .weekOfYear, for: minDate)?.start ?? minDate
+        while cursor <= maxDate {
+            if cursor >= minDate, let idx = try? UTCDay.dayCount(from: minDate, to: cursor) {
+                indices.insert(idx)
+            }
+            guard let next = calendar.date(byAdding: .day, value: 7, to: cursor) else { break }
+            cursor = next
+        }
+        return indices
+    }
+
+    @Test func weekStartIndices_matchesNaiveCalendarWalk_acrossVariedRanges() throws {
+        let cases: [(minDate: Date, maxDate: Date)] = [
+            // minDate exactly on a week start (2026-01-04 is a Sunday).
+            (Self.utcDate(year: 2026, month: 1, day: 4), Self.utcDate(year: 2026, month: 3, day: 1)),
+            // minDate mid-week (a Wednesday).
+            (Self.utcDate(year: 2026, month: 1, day: 7), Self.utcDate(year: 2026, month: 3, day: 1)),
+            // A short range with no week boundary inside it at all.
+            (Self.utcDate(year: 2026, month: 1, day: 7), Self.utcDate(year: 2026, month: 1, day: 9)),
+            // Degenerate single-day range.
+            (Self.utcDate(year: 2026, month: 1, day: 7), Self.utcDate(year: 2026, month: 1, day: 7)),
+            // A multi-year range spanning a leap year, to exercise many weeks at once.
+            (Self.utcDate(year: 2024, month: 1, day: 1), Self.utcDate(year: 2029, month: 1, day: 1)),
+        ]
+
+        for (minDate, maxDate) in cases {
+            let optimized = ScrubTimelineMath.weekStartIndices(minDate: minDate, maxDate: maxDate)
+            let naive = Self.naiveWeekStartIndices(minDate: minDate, maxDate: maxDate)
+            #expect(optimized == naive, "mismatch for \(minDate)...\(maxDate): optimized has \(optimized.count) indices, naive has \(naive.count)")
+        }
+    }
+
+    @Test func weekStartIndices_alignsToUTCCalendarSunday() throws {
+        // `UTCDay.calendar` has no explicit locale, so its `firstWeekday` must be the
+        // locale-independent Gregorian default (1 == Sunday) for "Weekly" boundary
+        // ticks to land on a consistent, predictable weekday for every user.
+        #expect(UTCDay.calendar.firstWeekday == 1)
+
+        // 2026-01-04 is a Sunday; every 7th day after it should be a boundary index.
+        let minDate = Self.utcDate(year: 2026, month: 1, day: 4)
+        let maxDate = Self.utcDate(year: 2026, month: 2, day: 1)
+        let indices = ScrubTimelineMath.weekStartIndices(minDate: minDate, maxDate: maxDate)
+        #expect(indices == [0, 7, 14, 21, 28])
+    }
+
+    @Test func fixedCadenceIndices_alwaysIncludesMinDateAndSteps() throws {
+        let minDate = Self.utcDate(year: 2026, month: 1, day: 1)
+        let maxDate = Self.utcDate(year: 2026, month: 2, day: 1) // 31 days later
+
+        let every10 = ScrubTimelineMath.fixedCadenceIndices(minDate: minDate, maxDate: maxDate, intervalDays: 10)
+        #expect(every10 == [0, 10, 20, 30])
+
+        let every15 = ScrubTimelineMath.fixedCadenceIndices(minDate: minDate, maxDate: maxDate, intervalDays: 15)
+        #expect(every15 == [0, 15, 30])
+    }
+
+    @Test func crossesBoundary_excludesFromIndexIncludesToIndex_bothDirections() throws {
+        let boundaries: Set<Int> = [0, 10, 20]
+
+        // Landing exactly on a boundary fires, in either direction.
+        #expect(ScrubTimelineMath.crossesBoundary(fromIndex: 9, toIndex: 10, boundaryIndices: boundaries))
+        #expect(ScrubTimelineMath.crossesBoundary(fromIndex: 11, toIndex: 10, boundaryIndices: boundaries))
+        // Moving away from a boundary already landed on does not re-fire.
+        #expect(!ScrubTimelineMath.crossesBoundary(fromIndex: 10, toIndex: 12, boundaryIndices: boundaries))
+        #expect(!ScrubTimelineMath.crossesBoundary(fromIndex: 10, toIndex: 8, boundaryIndices: boundaries))
+        // A multi-day jump that passes over (without landing exactly on) a boundary still fires.
+        #expect(ScrubTimelineMath.crossesBoundary(fromIndex: 5, toIndex: 15, boundaryIndices: boundaries))
+        // No boundary anywhere in the traversed range.
+        #expect(!ScrubTimelineMath.crossesBoundary(fromIndex: 1, toIndex: 3, boundaryIndices: boundaries))
+        // No-op (same index) never fires.
+        #expect(!ScrubTimelineMath.crossesBoundary(fromIndex: 10, toIndex: 10, boundaryIndices: boundaries))
+    }
+
+    @Test func boundaryIndices_dispatchesToTheRightFrequency() throws {
+        let minDate = Self.utcDate(year: 2026, month: 1, day: 4) // a Sunday
+        let maxDate = Self.utcDate(year: 2026, month: 2, day: 1)
+        #expect(ScrubTimelineMath.boundaryIndices(minDate: minDate, maxDate: maxDate, frequency: .weekly)
+                == ScrubTimelineMath.weekStartIndices(minDate: minDate, maxDate: maxDate))
+        #expect(ScrubTimelineMath.boundaryIndices(minDate: minDate, maxDate: maxDate, frequency: .monthly)
+                == ScrubTimelineMath.monthStartIndices(minDate: minDate, maxDate: maxDate))
+        #expect(ScrubTimelineMath.boundaryIndices(minDate: minDate, maxDate: maxDate, frequency: .every10Days)
+                == ScrubTimelineMath.fixedCadenceIndices(minDate: minDate, maxDate: maxDate, intervalDays: 10))
+        #expect(ScrubTimelineMath.boundaryIndices(minDate: minDate, maxDate: maxDate, frequency: .every15Days)
+                == ScrubTimelineMath.fixedCadenceIndices(minDate: minDate, maxDate: maxDate, intervalDays: 15))
+    }
+
+    @Test func boundaryTickFrequency_persistedFallsBackToDefaultAndRoundTrips() throws {
+        let key = AppStorageKeys.boundaryTickFrequency
+        let original = UserDefaults.standard.string(forKey: key)
+        defer {
+            if let original {
+                UserDefaults.standard.set(original, forKey: key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+
+        UserDefaults.standard.removeObject(forKey: key)
+        #expect(BoundaryTickFrequency.persisted == BoundaryTickFrequency.defaultFrequency)
+
+        UserDefaults.standard.set(BoundaryTickFrequency.weekly.rawValue, forKey: key)
+        #expect(BoundaryTickFrequency.persisted == .weekly)
+    }
+
 }

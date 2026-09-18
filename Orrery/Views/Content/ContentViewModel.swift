@@ -16,6 +16,7 @@ enum ControlPresentationState {
     case settings
     case savedItems
     case datePicker
+    case planets
     case none
 }
 
@@ -25,6 +26,11 @@ final class ContentViewModel {
     let rangeYearsForAnimatedScrubber = 10
     var selectedDate = UTCDay.todayAsUTCMidnight()
     var justSaved = false
+    
+    let animation: Animation = .spring(duration: 0.3)
+    let transition: AnyTransition = AnyTransition(.blurReplace)
+    let reducedAnimation: Animation = .linear(duration: 0.1)
+    let reducedTransition: AnyTransition = .opacity
 
     /// Single source of truth for which control surface `SmallScreenView` presents in its
     /// bottom control bar — that bar has one slot, so these are mutually exclusive by
@@ -40,6 +46,21 @@ final class ContentViewModel {
         controlPresentationState = controlPresentationState == state ? .none : state
     }
 
+    /// Range the trailing-edge Moon-size scrubber's normalized (`0...1`) position
+    /// maps onto — symmetric around the scrubber's default midpoint so a scrub of
+    /// `0.5` reproduces `MoonPhaseRow`'s normal size (`1.0`) exactly; the low end
+    /// scales the Moon discs down to 75%, the high end up to 125%. `SmallScreenView`-
+    /// only, same scoping as `controlPresentationState` above.
+    private let moonSizeMultiplierRange: ClosedRange<CGFloat> = 0.75...1.25
+
+    /// Maps the Moon-size scrubber's persisted `0...1` position (kept in
+    /// `SmallScreenView`, since it's `@AppStorage`-backed UI state) onto the size
+    /// multiplier `MoonPhaseRow` reads.
+    func moonSizeMultiplier(forScrub scrub: Double) -> CGFloat {
+        let range = moonSizeMultiplierRange
+        return range.lowerBound + CGFloat(scrub) * (range.upperBound - range.lowerBound)
+    }
+
     /// Independent presentation flags for `LargeScreenView`'s toolbar popovers and inspector.
     /// Deliberately plain, unlinked `Bool`s (not derived from `controlPresentationState`)
     /// because that layout can show more than one of these surfaces at once — e.g. the saved
@@ -48,6 +69,7 @@ final class ContentViewModel {
     var showSettings = false
     var showSavedList = false
     var showDatePicker = false
+    var showPlanetsView = false
 
     private var hasInitializedSelection = false
 
@@ -99,8 +121,47 @@ final class ContentViewModel {
         )
     }
 
+    /// Bumped once for every *actual* change `setSelectedDateAnimated` makes to
+    /// `selectedDate` — read by `OrreryView` (via its `dateChangeAnimationTrigger`
+    /// parameter) to tell an explicit "jump to a date" apart from a `snapshot`
+    /// change driven by continuous scrubbing, which should keep snapping straight
+    /// to the new position exactly as before. Plain `Int` rather than a `Date`/`UUID`
+    /// so equality is trivial and it survives `Observable` diffing cheaply.
+    var dateChangeAnimationTrigger = 0
+
+    /// Sets `selectedDate` to `newDate` (already clamped by the caller), bumping
+    /// `dateChangeAnimationTrigger` iff it's an actual change — shared by every
+    /// explicit "jump to a date" action (`animatedDateBinding`, `selectToday`) so
+    /// they all animate consistently, and a no-op write (e.g. re-confirming the day
+    /// already selected in a wheel `DatePicker`, or tapping "Today" while already
+    /// there) never leaves a stray, unconsumed bump that could cause a later,
+    /// unrelated scrub to be mistaken for one that should animate.
+    private func setSelectedDateAnimated(_ newDate: Date) {
+        guard newDate != selectedDate else { return }
+        selectedDate = newDate
+        dateChangeAnimationTrigger += 1
+    }
+
+    /// Like `dateBinding`, but for date pickers: routes through
+    /// `setSelectedDateAnimated` instead of writing `selectedDate` directly, so
+    /// `OrreryView` eases the chart into the new positions instead of snapping.
+    func animatedDateBinding(dataController: DataController) -> Binding<Date> {
+        Binding(
+            get: { self.selectedDate },
+            set: { self.setSelectedDateAnimated(dataController.clampedDate($0)) }
+        )
+    }
+
     func selectToday(dataController: DataController) {
-        selectedDate = dataController.clampedDate(dataController.todayDate)
+        setSelectedDateAnimated(dataController.clampedDate(dataController.todayDate))
+    }
+
+    /// Jumps `selectedDate` to `date` (clamped into the cached range), animating
+    /// `OrreryView` into the new positions the same way `animatedDateBinding`/
+    /// `selectToday` do. Used when a saved snapshot is picked from `SavedListView`,
+    /// so that jump eases the chart instead of snapping it straight to the new date.
+    func jumpToDate(_ date: Date, dataController: DataController) {
+        setSelectedDateAnimated(dataController.clampedDate(date))
     }
 
     func isAlreadyOnToday(dataController: DataController) -> Bool {

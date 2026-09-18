@@ -120,4 +120,67 @@ public enum AstronomyEngine {
         }
         return result.angle
     }
+
+    /// Heliocentric Cartesian position of `body` at `time`, in AU. Private — an
+    /// implementation detail of `distance(from:to:)` below, not a public primitive on
+    /// its own.
+    private struct HelioVector {
+        let x, y, z: Double
+    }
+
+    private static func helioVector(body: CelestialBody, time: AstronomyTime) throws -> HelioVector {
+        let v = Astronomy_HelioVector(body.cBody, time.raw)
+        guard v.status == ASTRO_SUCCESS else {
+            throw AstronomyEngineError.computationFailed(
+                "Astronomy_HelioVector(\(body)) failed with status \(v.status.rawValue)"
+            )
+        }
+        return HelioVector(x: v.x, y: v.y, z: v.z)
+    }
+
+    /// Straight-line distance between `from` and `to` on `date`, in AU — the actual
+    /// physical separation at that instant (via heliocentric vector subtraction), not
+    /// `Astronomy_GeoVector`'s light-time-corrected apparent position.
+    public static func distance(from: CelestialBody, to: CelestialBody, date: Date) throws -> Double {
+        try distance(from: from, to: to, time: time(for: date))
+    }
+
+    /// Straight-line distance between `from` and `to` at `time`, in AU.
+    public static func distance(from: CelestialBody, to: CelestialBody, time: AstronomyTime) throws -> Double {
+        let a = try helioVector(body: from, time: time)
+        let b = try helioVector(body: to, time: time)
+        let dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z
+        return (dx * dx + dy * dy + dz * dz).squareRoot()
+    }
+
+    /// Sidereal orbital period of `body` around the Sun, in days. Only meaningful for
+    /// `orderedPlanets` — not `.sun` or `.moon`.
+    public static func orbitalPeriodDays(body: CelestialBody) -> Double {
+        Astronomy_PlanetOrbitalPeriod(body.cBody)
+    }
+
+    /// Brightness/phase of `body` as seen from Earth.
+    public struct Illumination: Sendable {
+        /// Visual magnitude — smaller values are brighter.
+        public let magnitude: Double
+        /// Fraction of the body's apparent disc that's illuminated, 0...1.
+        public let phaseFraction: Double
+    }
+
+    /// Illumination of `body` on `date`. Throws for `.earth` — the underlying engine
+    /// rejects it, since "as seen from Earth" is undefined for Earth itself.
+    public static func illumination(body: CelestialBody, date: Date) throws -> Illumination {
+        try illumination(body: body, time: time(for: date))
+    }
+
+    /// Illumination of `body` at `time`. Throws for `.earth` (see above).
+    public static func illumination(body: CelestialBody, time: AstronomyTime) throws -> Illumination {
+        let result = Astronomy_Illumination(body.cBody, time.raw)
+        guard result.status == ASTRO_SUCCESS else {
+            throw AstronomyEngineError.computationFailed(
+                "Astronomy_Illumination(\(body)) failed with status \(result.status.rawValue)"
+            )
+        }
+        return Illumination(magnitude: result.mag, phaseFraction: result.phase_fraction)
+    }
 }

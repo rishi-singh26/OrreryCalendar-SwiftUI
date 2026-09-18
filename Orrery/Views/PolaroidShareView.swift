@@ -6,7 +6,7 @@
 //  rings (if enabled), and both Moon phase discs with labels — no buttons, no settings
 //  chrome, no scrub timeline. The polaroid frame itself (cream border, dark caption) is
 //  fixed regardless of app theme; the chart content inside follows the current
-//  orbit/label/small-moon toggle state and color scheme, per spec.
+//  orbit/label toggle state and color scheme, per spec.
 //
 
 import SwiftUI
@@ -20,28 +20,28 @@ struct PolaroidShareView: View {
     let snapshot: DaySnapshot
     let showOrbits: Bool
     let showLabels: Bool
-    let smallMoon: Bool
+    let showSunHalo: Bool
     let colorScheme: ColorScheme
 
     private var theme: ThemeColors { colorScheme == .dark ? .dark : .light }
 
     var body: some View {
         VStack(spacing: 18) {
-            OrreryView(snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, theme: theme)
+            OrreryView(snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, theme: theme)
                 .frame(width: 320, height: 285)
                 .padding(12)
                 .background(theme.background)
 
-            MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, smallMoon: smallMoon, theme: theme)
+            MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, theme: theme)
 
-            SelectedDateTitleText(date: snapshot.date, color: .black.opacity(0.75))
+            SelectedDateTitleText(date: snapshot.date, color: ThemeColors.polaroidCaption)
         }
         .padding(24)
         .padding(.bottom, 8)
-        .background(Color(red: 0.98, green: 0.97, blue: 0.94)) // fixed cream polaroid frame
+        .background(ThemeColors.polaroidFrame) // fixed cream polaroid frame
         .overlay(
             RoundedRectangle(cornerRadius: 4)
-                .stroke(Color.black.opacity(0.08), lineWidth: 1)
+                .stroke(ThemeColors.polaroidStroke, lineWidth: 1)
         )
     }
 }
@@ -53,7 +53,7 @@ struct PolaroidShareButton: View {
     let snapshot: DaySnapshot
     let showOrbits: Bool
     let showLabels: Bool
-    let smallMoon: Bool
+    let showSunHalo: Bool
     let colorScheme: ColorScheme
 
     @State private var renderedImage: Image?
@@ -95,7 +95,7 @@ struct PolaroidShareButton: View {
     }
 
     private var renderKey: String {
-        "\(snapshot.date.timeIntervalSince1970)-\(showOrbits)-\(showLabels)-\(smallMoon)-\(colorScheme == .dark)"
+        "\(snapshot.date.timeIntervalSince1970)-\(showOrbits)-\(showLabels)-\(showSunHalo)-\(colorScheme == .dark)"
     }
 
     private var captionText: String {
@@ -105,7 +105,7 @@ struct PolaroidShareButton: View {
     @MainActor
     private func render() {
         let content = PolaroidShareView(
-            snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, smallMoon: smallMoon, colorScheme: colorScheme
+            snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, colorScheme: colorScheme
         )
         let renderer = ImageRenderer(content: content)
         renderer.scale = 3

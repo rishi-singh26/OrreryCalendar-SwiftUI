@@ -13,9 +13,16 @@ struct SettingsPanel: View {
 
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
-    @AppStorage(AppStorageKeys.smallMoon) private var smallMoon = false
+    @AppStorage(AppStorageKeys.showSunHalo) private var showSunHalo = true
     @AppStorage(AppStorageKeys.appearanceMode) private var appearanceMode: AppearanceMode = .system
     @AppStorage(AppStorageKeys.rangeYears) private var rangeYears = DataController.defaultRangeYears
+    @AppStorage(AppStorageKeys.boundaryTickFrequency) private var boundaryTickFrequency: BoundaryTickFrequency = .defaultFrequency
+
+    #if os(iOS)
+    @State private var selectedAppIcon: AppIconOption = .current
+    // @State private var currentIcon = UIApplication.shared.alternateIconName ?? Icon.primary.appIconName
+
+    #endif
 
     private static let rangePresets = [5, 10, 15, 20, 50, 100]
 
@@ -24,12 +31,12 @@ struct SettingsPanel: View {
             Section("General") {
                 Toggle("Show Orbits", isOn: $showOrbits)
                 Toggle("Show Labels", isOn: $showLabels)
-                Toggle("Small Moon", isOn: $smallMoon)
+                Toggle("Show Sun Halo", isOn: $showSunHalo)
             }
             
             Section("Date range") {
                 if dataController.isReady {
-                    Text("Currently cached: \(rangeDescription)")
+                    Text("Cached: \(rangeDescription)")
                         .foregroundStyle(.secondary)
                 }
 
@@ -52,7 +59,7 @@ struct SettingsPanel: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(error)
                             .font(.footnote)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(ThemeColors.errorText)
                         Button("Retry") {
                             dataController.setRange(toYears: rangeYears)
                         }
@@ -75,11 +82,54 @@ struct SettingsPanel: View {
                     }
                 }
             }
+            
+            Section("Scrubber") {
+                Picker("Boundary Ticks", selection: $boundaryTickFrequency) {
+                    ForEach(BoundaryTickFrequency.allCases) { frequency in
+                        Text(frequency.label).tag(frequency)
+                    }
+                }
+            }
+
+            #if os(iOS)
+            Section("App Icon") {
+                HStack(spacing: 20) {
+                    ForEach(AppIconOption.allCases) { option in
+                        AppIconOptionButton(
+                            option: option,
+                            isSelected: selectedAppIcon == option
+                        ) {
+                            guard selectedAppIcon != option else { return }
+                            // Only persist the selection once the OS confirms the icon
+                            // actually changed — an optimistic write here would leave
+                            // Settings showing the wrong icon as selected (and that
+                            // option stuck, since the guard above would then skip it)
+                            // if `setAlternateIconName` ever fails.
+                            setIconSelection(to: option)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.vertical, 4)
+            }
+            #endif
         }
         .formStyle(.grouped)
         .frame(minHeight: DeviceType.isIpad ? 450 : 360)
         .frame(minWidth: 320, idealWidth: 360)
     }
+
+    #if os(iOS)
+    private func setIconSelection(to newValue: AppIconOption) {
+        let previous = selectedAppIcon
+        selectedAppIcon = newValue
+        newValue.apply { error in
+            guard error != nil else { return }
+            // The system couldn't apply the icon (e.g. simulator quirks); roll the picker back.
+            selectedAppIcon = previous
+        }
+    }
+    #endif
 
     private var rangeSelection: Binding<Int> {
         Binding(

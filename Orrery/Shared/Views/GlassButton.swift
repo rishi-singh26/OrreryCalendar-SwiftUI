@@ -50,17 +50,10 @@ struct GlassButton<Label: View>: View {
     }
 
     var body: some View {
-        if #available(iOS 26.0, macOS 26.0, *) {
-            let glass: Glass = useInteractiveGlass ? .regular.interactive() : .regular
-            
-            buildButton
-                .glassEffect(glass, in: AnyShape(circular ? AnyShape(Circle()) : AnyShape(Capsule())))
-                .contentShape(circular ? AnyShape(Circle()) : AnyShape(Capsule()))
-        } else {
-            buildButton
-                .withSurface(in: AnyShape(circular ? AnyShape(Circle()) : AnyShape(Capsule())))
-                .contentShape(circular ? AnyShape(Circle()) : AnyShape(Capsule()))
-        }
+        let shape = AnyShape(circular ? AnyShape(Circle()) : AnyShape(Capsule()))
+        buildButton
+            .glassOrSurface(glass: useInteractiveGlass ? .interactive : .plain, in: shape)
+            .contentShape(shape)
     }
     
     var buildButton: some View {
@@ -75,7 +68,7 @@ struct GlassButton<Label: View>: View {
                     label
                 }
             }
-            .foregroundStyle(isEnabled ? .primary : Color.secondary.opacity(0.7))
+            .foregroundStyle(isEnabled ? .primary : ThemeColors.disabledForeground)
             .padding(.horizontal, circular ? 0 : 20)
             .frame(height: size)
             .frame(width: circular ? size : nil)
