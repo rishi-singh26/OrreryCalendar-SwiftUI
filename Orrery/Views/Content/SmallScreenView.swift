@@ -63,7 +63,7 @@ struct SmallScreenView: View {
     private let panelCornerRadius: CGFloat = 35
     private let panelHeight: CGFloat = 450
     private let datePickerWheelHeight: CGFloat = 280
-    private let planetsPanelHeight: CGFloat = 650
+    private let planetsPanelHeight: CGFloat = 660
     /// Top inset the overlay panels (date picker/saved items/settings) reserve
     /// for their content, keeping it clear of the close button overlaid at
     /// `.topTrailing` — that button is a 45pt `GlassButton` plus its own
@@ -251,7 +251,7 @@ struct SmallScreenView: View {
 
                 case .planets:
                     panelChrome(height: planetsPanelHeight) {
-                        PlanetDetailView()
+                        PlanetDetailView(selectedDate: viewModel.selectedDate)
                     }
                 case .none:
                     EmptyView()
