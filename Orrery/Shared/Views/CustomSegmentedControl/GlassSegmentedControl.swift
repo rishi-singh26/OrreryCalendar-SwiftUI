@@ -17,6 +17,11 @@ struct GlassSegmentedControl: View {
     @State private var scrollPhase: ScrollPhase = .idle
     @State private var didSetInitialScrollPosition = false
     @State private var programmaticScrollTargetX: CGFloat?
+    // Tracks the tab nearest the scroll view center on every scroll geometry
+    // update, independent of `activeIndex`'s programmatic-scroll guard, so
+    // haptics fire for every tab crossed during both a drag and a tap-driven
+    // animated scroll.
+    @State private var hapticIndex: Int?
     // Cached from `tabs`, recomputed only when a tab's measured size actually
     // changes (see onGeometryChange below) rather than on every scroll frame.
     @State private var cachedSnapPoints: [CGFloat] = []
@@ -118,6 +123,9 @@ struct GlassSegmentedControl: View {
             .onScrollGeometryChange(for: CGFloat.self) {
                 $0.contentOffset.x + $0.contentInsets.leading
             } action: { oldValue, newValue in
+                if let index = cachedSnapPoints.closestSnapPointIndex(newValue) {
+                    hapticIndex = index
+                }
                 // While a scroll we triggered programmatically (initial position, or a
                 // tap/selection-driven snap) is still settling, its intermediate offsets
                 // pass through other tabs' snap points and must not be mistaken for the
@@ -153,6 +161,9 @@ struct GlassSegmentedControl: View {
                     selection = activeIndex
                 }
             }
+        }
+        .sensoryFeedback(.selection, trigger: hapticIndex) { oldValue, newValue in
+            oldValue != nil && newValue != nil && oldValue != newValue
         }
         .frame(height: 40)
         .task {
