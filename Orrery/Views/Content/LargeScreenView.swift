@@ -11,6 +11,7 @@ import SwiftData
 struct LargeScreenView: View {
     @Environment(DataController.self) private var dataController
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
@@ -26,6 +27,18 @@ struct LargeScreenView: View {
     @AppStorage(AppStorageKeys.moonSizeScrub) private var moonSizeScrub: Double = 0.5
 
     @State private var viewModel = ContentViewModel()
+    
+    /// `animation`, softened when Reduce Motion is on — used at every call
+    /// site that changes `viewModel.controlPresentationState`.
+    private var effectiveAnimation: Animation {
+        reduceMotion ? viewModel.reducedAnimation : viewModel.animation
+    }
+
+    /// The overlay panels' open/close transition — `.blurReplace` normally, a
+    /// plain fade when Reduce Motion is on to match `effectiveAnimation`.
+    private var panelTransition: AnyTransition {
+        reduceMotion ? viewModel.reducedTransition : viewModel.transition
+    }
 
     private var moonSizeScrubBinding: Binding<CGFloat> {
         Binding(
@@ -65,32 +78,10 @@ struct LargeScreenView: View {
                     BackgroundView()
                         .cornerRadius(20)
 
-                    MainContentBuilder(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
-                        .frame(minWidth: 400, minHeight: 700)
-
-                    moonSizeScrubberNotchShape
-                        .fill(.background)
-                        .frame(width: 35, height: 220)
-                        .overlay {
-                            // Drives `moonSizeMultiplier` (via `moonSizeScrub`), which
-                            // `MoonPhaseRow` below animates into on change. Padded and
-                            // clipped to the notch's straight-walled middle so the ruler
-                            // never travels into its flared top/bottom corners.
-                            VerticalScrubber(
-                                value: moonSizeScrubBinding,
-                                tickCount: 30,
-                                visibleTickCount: 12,
-                                tickThickness: 2,
-                                tickLength: 16,
-                                dimColor: theme.ink.opacity(0.5),
-                                accentColor: .accentColor,
-                                accessibilityLabel: "Moon size"
-                            )
-                            .frame(height: 160)
-                            .padding(.horizontal, 10)
-                        }
-                        .clipShape(moonSizeScrubberNotchShape)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                    GeometryReader { proxy in
+                        MainContentBuilder(snapshot: snapshot, theme: theme, colorScheme: colorScheme, size: proxy.size)
+                    }
+                    .frame(minWidth: 450, minHeight: 700)
                 }
                 .padding([.horizontal, .bottom], 5)
                 .toolbar {
@@ -118,35 +109,81 @@ struct LargeScreenView: View {
     }
 
     @ViewBuilder
-    private func MainContentBuilder(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
-        VStack(spacing: 20) {
-            SelectedDateTitleText(date: viewModel.selectedDate, color: theme.ink)
-                .padding(.top)
-
-            // Always mounted — `OrreryView` shows its own loading pose (planets lined
-            // up left of their orbits) while `snapshot` is nil, then eases into place
-            // once it arrives, rather than the chart not appearing at all until data
-            // is ready.
-            OrreryView(
-                snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, theme: theme,
-                dateChangeAnimationTrigger: viewModel.dateChangeAnimationTrigger
-            )
-
-            Spacer(minLength: 0)
-
-            if let snapshot {
-                MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, theme: theme, sizeMultiplier: moonSizeMultiplier)
-            }
-
-            Spacer(minLength: 0)
-
-            if viewModel.isNearRangeEdge(dataController: dataController) {
-                ExtendRangeButton(theme: theme) {
-                    viewModel.showSettings = true
+    private func MainContentBuilder(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme, size: CGSize) -> some View {
+        ZStack(alignment: .bottom) {
+            VStack(alignment: .leading, spacing: 20) {
+                SelectedDateTitleText(date: viewModel.selectedDate, color: theme.ink)
+                    .padding([.top, .leading])
+                
+                let isWide = size.width > size.height
+                let layout: AnyLayout = isWide ? AnyLayout(HStackLayout()) : AnyLayout(VStackLayout())
+                
+                layout {
+                    if isWide {
+                        Spacer()
+                    }
+                    // Always mounted — `OrreryView` shows its own loading pose (planets
+                    // lined up left of their orbits) while `snapshot` is nil, then eases
+                    // into place once it arrives, rather than the chart not appearing
+                    // at all until data is ready.
+                    OrreryView(
+                        snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, theme: theme,
+                        aspectRatio: 1, dateChangeAnimationTrigger: viewModel.dateChangeAnimationTrigger
+                    )
+                    
+                    Spacer()
+                    
+                    if let snapshot {
+                        MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, theme: theme, sizeMultiplier: moonSizeMultiplier, horizontal: !isWide)
+                    }
+                    
+                    if isWide {
+                        Spacer()
+                    }
                 }
             }
+            .padding(.bottom, 100)
             
-            Group {
+            
+            
+            moonSizeScrubberNotchShape
+                .fill(.background)
+                .frame(width: 35, height: 220)
+                .overlay {
+                    // Drives `moonSizeMultiplier` (via `moonSizeScrub`), which
+                    // `MoonPhaseRow` below animates into on change. Padded and
+                    // clipped to the notch's straight-walled middle so the ruler
+                    // never travels into its flared top/bottom corners.
+                    VerticalScrubber(
+                        value: moonSizeScrubBinding,
+                        tickCount: 30,
+                        visibleTickCount: 12,
+                        tickThickness: 2,
+                        tickLength: 16,
+                        dimColor: theme.ink.opacity(0.5),
+                        accentColor: .accentColor,
+                        accessibilityLabel: "Moon size"
+                    )
+                    .frame(height: 160)
+                    .padding(.horizontal, 10)
+                }
+                .clipShape(moonSizeScrubberNotchShape)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+            
+            VStack {
+                if viewModel.isNearRangeEdge(dataController: dataController) {
+                    ExtendRangeButton(theme: theme) {
+                        viewModel.showSettings = true
+                    }
+                }
+                
+                if viewModel.showPlanetsView {
+                    VStack {
+                        // Planets view will go here
+                    }
+                    .frame(height: size.height - 170)
+                    .transition(panelTransition)
+                }
                 // Kept mounted only once `snapshot` exists — same as `SmallScreenView`'s
                 // scrub timeline — so its one-shot initial-position setup (see
                 // `ScrubTimelineView`/`ScrubTimelineNoAnimationView`) always sees the
@@ -180,7 +217,7 @@ struct LargeScreenView: View {
                 }
             }
             .padding(.vertical, 8)
-            .glassOrSurface(glass: .interactive, in: .rect(cornerRadius: 15))
+            .glassOrSurface(glass: .tintedInteractive(ThemeColors.controlsBarTint), in: .rect(cornerRadius: 15))
             .padding(5)
         }
     }
@@ -188,6 +225,31 @@ struct LargeScreenView: View {
     @ToolbarContentBuilder
     private func ToolbarBuilder(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme) -> some ToolbarContent {
         ToolbarItemGroup(placement: .automatic) {
+            if #available(iOS 26.0, macOS 26.0, *) {
+                Button {
+                    withAnimation(effectiveAnimation) {
+                        viewModel.showPlanetsView.toggle()
+                    }
+                } label: {
+                    Text("Planets")
+                        .font(.caption)
+                        .monospaced()
+                }
+                .buttonStyle(.glassProminent)
+            } else {
+                Button {
+                    withAnimation(effectiveAnimation) {
+                        viewModel.showPlanetsView.toggle()
+                    }
+                } label: {
+                    Text("Planets")
+                        .font(.caption)
+                        .monospaced()
+                }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
+            }
+            
             ControlGroup {
                 Button {
                     viewModel.selectToday(dataController: dataController)
