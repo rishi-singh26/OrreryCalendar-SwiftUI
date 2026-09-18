@@ -230,8 +230,8 @@ struct SmallScreenView: View {
                             displayedComponents: .date
                         )
                         .datePickerStyle(.wheel)
-                        .labelsVisibility(.hidden)
-                        .padding()
+                        .padding(.horizontal, 30)
+                        .labelsHidden()
                     }
                 case .savedItems:
                     panelChrome(height: panelHeight) {
@@ -295,7 +295,7 @@ struct SmallScreenView: View {
                     ],
                     startPoint: .top, endPoint: .bottom
                 )
-                    .frame(height: 80)
+                .frame(height: 80)
             }
             .overlay(alignment: .topTrailing) {
                 BuildCloseOverlayButton()
