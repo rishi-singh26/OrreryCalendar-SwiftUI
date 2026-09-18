@@ -43,7 +43,7 @@ struct USDZRenderView: View {
     @State var isResetting = false
     let resetAnimationDuration: TimeInterval = 0.4
 
-    let timer = Timer.publish(every: 0.3/60.0, on: .main, in: .common).autoconnect()
+    static let timer = Timer.publish(every: 1.0/60.0, on: .main, in: .common).autoconnect()
 
     // Fixed camera parameters — tweak these two to change zoom/margin.
     let cameraFOVDegrees: Float = 28
@@ -79,7 +79,7 @@ struct USDZRenderView: View {
         .task(id: name) {
             await loadModel(named: name)
         }
-        .onReceive(timer) { _ in
+        .onReceive(Self.timer) { _ in
             guard isPlaying, !isDragging, !isResetting else { return }
             let dt: Float = 1.0 / 60.0
             let direction: Float = rotateLeft ? -1.0 : 1.0
