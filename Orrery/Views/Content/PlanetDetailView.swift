@@ -10,6 +10,7 @@ import SwiftData
 
 struct PlanetDetailView: View {
     @State private var isPlaying: Bool = true
+    @State private var resetTrigger: Int = 0
     @State private var selectedPlanetIndex: Int = 2
     @State private var tabs: [GlassSegmentedControl.Tab] = [
         .init(title: "Mercury"),
@@ -28,15 +29,22 @@ struct PlanetDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            USDZRenderView(name: planetName, isPlaying: isPlaying)
-            
+            USDZRenderView(name: planetName, isPlaying: isPlaying, resetTrigger: resetTrigger)
+
             HStack {
                 Text(planetName)
                     .font(.title.monospaced())
                     .fontWeight(.semibold)
-                
+
                 Spacer()
-                
+
+                GlassButton(
+                    systemName: "arrow.counterclockwise",
+                    size: 45
+                ) {
+                    resetTrigger += 1
+                }
+
                 GlassButton(
                     systemName: isPlaying ? "pause.fill" : "play.fill",
                     size: 45

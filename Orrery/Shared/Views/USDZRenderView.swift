@@ -12,13 +12,17 @@ import Combine
 struct USDZRenderView: View {
     var name: String
     var isPlaying: Bool = true
+    /// Bump (e.g. `+= 1`) to snap the model back to its resting orientation
+    /// and zoom, undoing whatever the drag-to-rotate and pinch-to-zoom
+    /// gestures below have accumulated.
+    var resetTrigger: Int = 0
     @State var rootEntity = Entity()
     @State var modelEntity: Entity?
     @State var baseScale: Float = 1.0
     @State var userScale: Float = 1.0
 
     @State var orientation = simd_quatf(angle: 0, axis: [0, 1, 0])
-    @State var rotationSpeed: Float = .pi / 20
+    @State var rotationSpeed: Float = .pi / 15
     @State var rotateLeft: Bool = false
 
     @State var lastDragTranslation: CGSize = .zero
@@ -29,6 +33,15 @@ struct USDZRenderView: View {
     @State var scaleAtGestureStart: Float?
     let minUserScale: Float = 0.4
     let maxUserScale: Float = 4.0
+
+    /// True while the reset-triggered `entity.move(to:)` animation is playing.
+    /// Held off from the auto-rotate timer below so it doesn't fight
+    /// RealityKit's own per-frame interpolation by setting
+    /// `entity.transform.rotation` directly every tick; a new drag/pinch
+    /// gesture starting mid-animation clears it and cancels the animation
+    /// outright, so direct manipulation always wins.
+    @State var isResetting = false
+    let resetAnimationDuration: TimeInterval = 0.4
 
     let timer = Timer.publish(every: 0.3/60.0, on: .main, in: .common).autoconnect()
 
@@ -67,12 +80,15 @@ struct USDZRenderView: View {
             await loadModel(named: name)
         }
         .onReceive(timer) { _ in
-            guard isPlaying, !isDragging else { return }
+            guard isPlaying, !isDragging, !isResetting else { return }
             let dt: Float = 1.0 / 60.0
             let direction: Float = rotateLeft ? -1.0 : 1.0
             let step = direction * abs(rotationSpeed) * dt
             orientation = orientation * simd_quatf(angle: step, axis: [0, 1, 0])
             applyRotation()
+        }
+        .onChange(of: resetTrigger) { _, _ in
+            resetTransform()
         }
         .gesture(
             DragGesture()
@@ -80,6 +96,7 @@ struct USDZRenderView: View {
                     if !isDragging {
                         isDragging = true
                         lastDragTranslation = .zero
+                        cancelResetAnimationIfNeeded()
                     }
                     let deltaX = Float(value.translation.width - lastDragTranslation.width) * dragSensitivity
                     let deltaY = Float(value.translation.height - lastDragTranslation.height) * dragSensitivity
@@ -99,6 +116,9 @@ struct USDZRenderView: View {
             // repeated pinches accumulate rather than snapping back.
             MagnifyGesture()
                 .onChanged { value in
+                    if scaleAtGestureStart == nil {
+                        cancelResetAnimationIfNeeded()
+                    }
                     let start = scaleAtGestureStart ?? userScale
                     scaleAtGestureStart = start
                     userScale = min(max(start * Float(value.magnification), minUserScale), maxUserScale)
@@ -148,6 +168,50 @@ struct USDZRenderView: View {
     private func applyScale() {
         guard let entity = modelEntity else { return }
         entity.transform.scale = SIMD3(repeating: baseScale * userScale)
+    }
+
+    private func resetTransform() {
+        // Clears any in-flight pinch's cached start scale, so if a reset lands
+        // mid-gesture the pinch recomputes its baseline from the freshly-reset
+        // `userScale` on its next `.onChanged` instead of resuming from the
+        // pre-reset value and undoing this reset.
+        scaleAtGestureStart = nil
+        orientation = simd_quatf(angle: 0, axis: [0, 1, 0])
+        userScale = 1.0
+
+        // SwiftUI's `withAnimation` has no effect on RealityKit entities — they
+        // need to be told to animate directly via `move(to:)`. `applyRotation`/
+        // `applyScale` are left for the timer/gesture call sites, which need an
+        // instant, every-frame set; this is the only call site that wants a
+        // smooth transition back to rest.
+        guard let entity = modelEntity else { return }
+        var target = entity.transform
+        target.rotation = orientation
+        target.scale = SIMD3(repeating: baseScale * userScale)
+
+        isResetting = true
+        entity.move(to: target, relativeTo: entity.parent, duration: resetAnimationDuration, timingFunction: .easeInOut)
+
+        // Tagged with the trigger value that started this wait: if reset is
+        // tapped again before this animation finishes, only the *latest*
+        // reset's wait should clear `isResetting`. Without this check, this
+        // earlier wait would fire first and let the auto-rotate timer resume
+        // while the later animation it retriggered is still playing.
+        let startedAtTrigger = resetTrigger
+        Task {
+            try? await Task.sleep(for: .seconds(resetAnimationDuration))
+            guard resetTrigger == startedAtTrigger else { return }
+            isResetting = false
+        }
+    }
+
+    /// Called when a drag/pinch gesture begins — if a reset animation is still
+    /// playing, direct manipulation should win outright rather than fight
+    /// RealityKit's own per-frame interpolation for control of the transform.
+    private func cancelResetAnimationIfNeeded() {
+        guard isResetting else { return }
+        isResetting = false
+        modelEntity?.stopAllAnimations()
     }
 }
 
