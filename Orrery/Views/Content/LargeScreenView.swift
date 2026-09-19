@@ -230,6 +230,7 @@ struct LargeScreenView: View {
                 }
             }
             .glassOrSurface(glass: .tinted(ThemeColors.controlsBarTint), in: .rect(cornerRadius: 15))
+            .clipShape(.rect(cornerRadius: 15))
             .padding(5)
         }
     }

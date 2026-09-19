@@ -10,6 +10,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 #if os(macOS)
 import AppKit
 #else
@@ -25,25 +26,63 @@ struct PolaroidShareView: View {
 
     private var theme: ThemeColors { colorScheme == .dark ? .dark : .light }
 
+    /// Corner radius of the mesh-gradient panel behind the chart.
+    private let panelCornerRadius: CGFloat = 20
+    /// Space between that panel and the outer polaroid edge.
+    private let outerPadding: CGFloat = 24
+    /// The outer edge's radius, kept concentric with `panelCornerRadius` — offset by
+    /// exactly the padding between them so both corners share the same center.
+    private var outerCornerRadius: CGFloat { panelCornerRadius + outerPadding - 6 }
+
     var body: some View {
         VStack(spacing: 18) {
             OrreryView(snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, theme: theme)
-                .frame(width: 320, height: 285)
-                .padding(12)
-                .background(theme.background)
+                .frame(width: 320, height: 320)
+                .background(
+                    // `BackgroundView` reads colorScheme from the environment, which
+                    // `ImageRenderer` won't otherwise supply for an off-screen render —
+                    // forced explicitly to the same `colorScheme` `theme` is derived from.
+                    BackgroundView()
+                        .environment(\.colorScheme, colorScheme)
+                        .clipShape(RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous))
+                )
 
             MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, theme: theme)
 
             SelectedDateTitleText(date: snapshot.date)
         }
-        .padding(24)
+        .padding(outerPadding)
         .padding(.bottom, 8)
         .background(ThemeColors.polaroidFrame) // fixed cream polaroid frame
-        .overlay(
-            RoundedRectangle(cornerRadius: 4)
-                .stroke(ThemeColors.polaroidStroke, lineWidth: 1)
-        )
+        .clipShape(RoundedRectangle(cornerRadius: outerCornerRadius, style: .continuous))
     }
+}
+
+/// Wraps the rendered PNG bytes and declares them as `.png` to the share sheet's item
+/// provider. Plain `URL` conforms to `Transferable` itself, but exports as a generic
+/// file/URL reference rather than typed image data, and a `FileRepresentation` promise
+/// (the natural-looking alternative) several third-party share extensions — WhatsApp
+/// among them — fail to resolve. Handing over the raw `Data` directly via
+/// `DataRepresentation` sidesteps both: it's typed as an image and needs no file promise.
+struct PolaroidPNGFile: Transferable {
+    let data: Data
+    let date: Date
+
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(exportedContentType: .png) { $0.data }
+            .suggestedFileName { "OrreryCalendar-\(fileNameDateFormatter.string(from: $0.date))" }
+    }
+
+    /// `yyyy-MM-dd`, fixed to UTC/POSIX like `SelectedDateTitleText`'s formatter — a
+    /// sortable, filesystem-safe stand-in for that one's display format (which contains
+    /// commas and spaces).
+    private static let fileNameDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
 }
 
 /// Renders `PolaroidShareView` to an image and offers it via `ShareLink`. The same view
@@ -57,18 +96,18 @@ struct PolaroidShareButton: View {
     let colorScheme: ColorScheme
 
     @State private var renderedImage: Image?
-    @State private var shareURL: URL?
+    @State private var pngData: Data?
 
     var body: some View {
         Group {
-            if let renderedImage, let shareURL {
-                // Share the full-resolution PNG file rather than the SwiftUI `Image` itself:
+            if let renderedImage, let pngData {
+                // Share the full-resolution PNG bytes rather than the SwiftUI `Image` itself:
                 // ShareLink's Transferable conformance for `Image` re-renders at the view's
                 // display size and loses the extra pixel density from `renderer.scale`,
-                // producing a soft, low-quality export. A file URL preserves the exact
-                // pixels the renderer produced. `renderedImage` is kept only for the
-                // (small) SharePreview thumbnail.
-                ShareLink(item: shareURL, preview: SharePreview(captionText, image: renderedImage)) {
+                // producing a soft, low-quality export. Handing over `pngData` directly
+                // preserves the exact pixels the renderer produced. `renderedImage` is kept
+                // only for the (small) SharePreview thumbnail.
+                ShareLink(item: PolaroidPNGFile(data: pngData, date: snapshot.date), preview: SharePreview(captionText, image: renderedImage)) {
                     Label("Share", systemImage: "square.and.arrow.up")
                 }
             } else {
@@ -80,8 +119,8 @@ struct PolaroidShareButton: View {
             // Debounce: `renderKey` embeds the selected date, which changes on every
             // day the scrub timeline's drag/scroll gesture crosses (updated
             // continuously, not just on release). Without this, each of those days
-            // would trigger a full off-screen render + PNG encode + disk write — all
-            // synchronous, uninterruptible main-thread work — competing with the
+            // would trigger a full off-screen render + PNG encode — all synchronous,
+            // uninterruptible main-thread work — competing with the
             // gesture for every frame. Waiting here for the id to settle means only
             // the final date (or a deliberate settings change) actually renders;
             // `Task.sleep` is cancellable, so a superseded id never reaches `render()`.
@@ -111,7 +150,6 @@ struct PolaroidShareButton: View {
         renderer.scale = 3
         guard let cgImage = renderer.cgImage else { return }
 
-        let pngData: Data?
         #if os(macOS)
         let nsImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
         renderedImage = Image(nsImage: nsImage)
@@ -121,24 +159,5 @@ struct PolaroidShareButton: View {
         renderedImage = Image(uiImage: uiImage)
         pngData = uiImage.pngData()
         #endif
-
-        guard let pngData else { return }
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension("png")
-        do {
-            try pngData.write(to: url)
-            // Each render writes a fresh UUID-named file rather than overwriting the
-            // last one, so the previous render's file (if any) is now orphaned —
-            // remove it now that the new one has taken its place, otherwise every
-            // render (one per date/settings change) leaks a PNG into the temp
-            // directory for the rest of the session.
-            if let previousURL = shareURL, previousURL != url {
-                try? FileManager.default.removeItem(at: previousURL)
-            }
-            shareURL = url
-        } catch {
-            shareURL = nil
-        }
     }
 }
