@@ -20,10 +20,11 @@ import SwiftUI
 
 struct SelectedDateTitleText: View {
     let date: Date
+    var font: Font = .title2.bold().monospaced()
 
     var body: some View {
         Text(Self.string(from: date))
-            .font(.title2.bold().monospaced())
+            .font(font)
             .kerning(-1)
             .foregroundStyle(.primary)
     }
