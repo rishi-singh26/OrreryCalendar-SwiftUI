@@ -14,4 +14,6 @@ enum AppStorageKeys {
     static let appearanceMode = "appearanceMode"
     static let rangeYears = "rangeYears"
     static let boundaryTickFrequency = "boundaryTickFrequency"
+    static let selectedPlanetIndex = "selectedPlanetIndex"
+    static let syncPlanetDetailDate = "syncPlanetDetailDate"
 }
