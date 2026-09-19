@@ -35,10 +35,8 @@ struct GlassSegmentedControl: View {
             ScrollView(.horizontal) {
                 HStack(spacing: 0) {
                     ForEach($tabs) { $tab in
-                        Text(tab.title)
-                            .font(.system(size: 18))
-                            .padding(.horizontal, (config.refractionDepth + 3))
-                            .frame(height: containerSize.height)
+                        SegmentText(tab.title, height: containerSize.height)
+                            .foregroundStyle(.secondary)
                         // Retreiving view size
                             .onGeometryChange(for: CGSize.self) {
                                 $0.size
@@ -66,15 +64,33 @@ struct GlassSegmentedControl: View {
                             }
                     }
                 }
+                // Capsule shape
+                .background(alignment: .leading) {
+                    ZStack {
+                        if #available(iOS 26, macOS 26, *) {
+                            Capsule()
+                                .fill(.clear)
+                                .frame(width: activeSize.width, height: activeSize.height)
+                                .glassEffect(.regular.tint(.accentColor), in: .capsule)
+                        } else {
+                            Capsule()
+                                .fill(Color.accentColor)
+                                .frame(width: activeSize.width, height: activeSize.height)
+                        }
+                    }
+                    .visualEffect { content, proxy in
+                        let midx = proxy.frame(in: .scrollView).midX
+                        
+                        return content
+                            .offset(x: -midx)
+                    }
+                }
                 // Optional Cirremt Item Highlight with tint color
                 .overlay {
                     HStack(spacing: 0) {
                         ForEach($tabs) { $tab in
-                            Text(tab.title)
-                                .font(.system(size: 18))
-                                .foregroundStyle(config.tint)
-                                .padding(.horizontal, (config.refractionDepth + 3))
-                                .frame(height: containerSize.height)
+                            SegmentText(tab.title, height: containerSize.height)
+                                .foregroundStyle(.white)
                         }
                     }
                     .mask(alignment: .leading) {
@@ -88,27 +104,6 @@ struct GlassSegmentedControl: View {
                             }
                     }
                     .allowsHitTesting(scrollPhase != .animating)
-                }
-                // Capsule shape
-                .background(alignment: .leading) {
-                    ZStack {
-                        if #available(iOS 26, macOS 26, *) {
-                            Capsule()
-                                .fill(.clear)
-                                .frame(width: activeSize.width, height: activeSize.height)
-                                .glassEffect(.regular, in: .capsule)
-                        } else {
-                            Capsule()
-                                .fill(.ultraThinMaterial)
-                                .frame(width: activeSize.width, height: activeSize.height)
-                        }
-                    }
-                    .visualEffect { content, proxy in
-                        let midx = proxy.frame(in: .scrollView).midX
-                        
-                        return content
-                            .offset(x: -midx)
-                    }
                 }
                 .animation(
                     .interactiveSpring(response: 0.35, dampingFraction: 0.3, blendDuration: 0.4),
@@ -184,6 +179,15 @@ struct GlassSegmentedControl: View {
                 }
             }
         }
+    }
+    
+    @ViewBuilder
+    private func SegmentText(_ text: String, height: CGFloat) -> some View {
+        Text(text)
+            .font(.caption.monospaced())
+            .fontWeight(.semibold)
+            .padding(.horizontal, (config.refractionDepth + 3))
+            .frame(height: height)
     }
     
     struct Config {
