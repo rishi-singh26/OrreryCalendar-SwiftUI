@@ -177,47 +177,59 @@ struct LargeScreenView: View {
                     }
                 }
                 
-                if viewModel.showPlanetsView {
-                    VStack {
-                        // Planets view will go here
-                    }
-                    .frame(height: size.height - 170)
-                    .transition(panelTransition)
-                }
-                // Kept mounted only once `snapshot` exists — same as `SmallScreenView`'s
-                // scrub timeline — so its one-shot initial-position setup (see
-                // `ScrubTimelineView`/`ScrubTimelineNoAnimationView`) always sees the
-                // cached range's final `minDate`/`maxDate`, not the placeholder values
-                // `DataController` reports before it's ready.
-                if snapshot != nil {
-                    // `ScrubTimelineView`'s animated tick fade gets visibly laggy once the
-                    // cached range spans more than ±10 years, regardless of platform — the
-                    // no-animation variant trades that fade for scrolling that stays smooth
-                    // at any range size (see `ScrubTimelineNoAnimationView`).
-                    if rangeYears > viewModel.rangeYearsForAnimatedScrubber {
-                        ScrubTimelineNoAnimationView(
+                ZStack {
+                    if viewModel.showPlanetsView {
+                        PlanetDetailView(
                             selectedDate: viewModel.dateBinding(dataController: dataController),
-                            minDate: dataController.startDate,
-                            maxDate: dataController.endDate,
-                            theme: theme
+                            theme: theme,
+                            onClose: {
+                                withAnimation(effectiveAnimation) {
+                                    viewModel.showPlanetsView.toggle()
+                                }
+                            }
                         )
+                        //.frame(height: size.height)
+                        .transition(panelTransition)
+                    }
+                    
+                    // Kept mounted only once `snapshot` exists — same as `SmallScreenView`'s
+                    // scrub timeline — so its one-shot initial-position setup (see
+                    // `ScrubTimelineView`/`ScrubTimelineNoAnimationView`) always sees the
+                    // cached range's final `minDate`/`maxDate`, not the placeholder values
+                    // `DataController` reports before it's ready.
+                    if snapshot != nil {
+                        Group {
+                            // `ScrubTimelineView`'s animated tick fade gets visibly laggy once the
+                            // cached range spans more than ±10 years, regardless of platform — the
+                            // no-animation variant trades that fade for scrolling that stays smooth
+                            // at any range size (see `ScrubTimelineNoAnimationView`).
+                            if rangeYears > viewModel.rangeYearsForAnimatedScrubber {
+                                ScrubTimelineNoAnimationView(
+                                    selectedDate: viewModel.dateBinding(dataController: dataController),
+                                    minDate: dataController.startDate,
+                                    maxDate: dataController.endDate,
+                                    theme: theme
+                                )
+                            } else {
+                                ScrubTimelineView(
+                                    selectedDate: viewModel.dateBinding(dataController: dataController),
+                                    minDate: dataController.startDate,
+                                    maxDate: dataController.endDate,
+                                    theme: theme
+                                )
+                            }
+                        }
+                        .opacity(!viewModel.showPlanetsView ? 1 : 0)
+                        .allowsHitTesting(!viewModel.showPlanetsView)
+                        .accessibilityHidden(viewModel.showPlanetsView)
+                        .padding(.vertical, 8)
                     } else {
-                        ScrubTimelineView(
-                            selectedDate: viewModel.dateBinding(dataController: dataController),
-                            minDate: dataController.startDate,
-                            maxDate: dataController.endDate,
-                            theme: theme
-                        )
+                        EmptyView()
+                            .frame(height: 64)
                     }
-                } else {
-                    VStack {
-                        
-                    }
-                    .frame(height: 65)
                 }
             }
-            .padding(.vertical, 8)
-            .glassOrSurface(glass: .tintedInteractive(ThemeColors.controlsBarTint), in: .rect(cornerRadius: 15))
+            .glassOrSurface(glass: .tinted(ThemeColors.controlsBarTint), in: .rect(cornerRadius: 15))
             .padding(5)
         }
     }
