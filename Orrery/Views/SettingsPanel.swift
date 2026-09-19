@@ -17,6 +17,7 @@ struct SettingsPanel: View {
     @AppStorage(AppStorageKeys.appearanceMode) private var appearanceMode: AppearanceMode = .system
     @AppStorage(AppStorageKeys.rangeYears) private var rangeYears = DataController.defaultRangeYears
     @AppStorage(AppStorageKeys.boundaryTickFrequency) private var boundaryTickFrequency: BoundaryTickFrequency = .defaultFrequency
+    @AppStorage(AppStorageKeys.syncPlanetDetailDate) private var syncPlanetDetailDate = true
 
     #if os(iOS)
     @State private var selectedAppIcon: AppIconOption = .current
@@ -34,6 +35,17 @@ struct SettingsPanel: View {
                 Toggle("Show Sun Halo", isOn: $showSunHalo)
             }
             
+            Section {
+                Toggle(isOn: $syncPlanetDetailDate) {
+                    Text("Sync Planet Detail Date")
+                }
+            } header: {
+                Text("Planet Detail")
+            } footer: {
+                Text("Keep the date shown in the Planet Detail view matched with the main timeline. Turn off to browse a planet's dates on its own, without moving the main timeline.")
+            }
+
+
             Section("Date range") {
                 if dataController.isReady {
                     Text("Cached: \(rangeDescription)")
