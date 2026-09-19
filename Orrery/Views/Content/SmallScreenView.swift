@@ -59,17 +59,18 @@ struct SmallScreenView: View {
             topCurveDepth: 45
         )
     }
+    
+    private let backgroundCornerRadius: CGFloat = 40
 
-    private let panelCornerRadius: CGFloat = 35
-    private let panelHeight: CGFloat = 450
+    private let panelCornerRadius: CGFloat = 37
     private let datePickerWheelHeight: CGFloat = 280
-    private let planetsPanelHeight: CGFloat = 660
     /// Top inset the overlay panels (date picker/saved items/settings) reserve
     /// for their content, keeping it clear of the close button overlaid at
     /// `.topTrailing` — that button is a 45pt `GlassButton` plus its own
     /// `.padding()` (see `BuildCloseOverlayButton`).
     private let panelTopInset: CGFloat = 40
-    private let barOuterPadding: CGFloat = 10
+    private let barOuterPadding: CGFloat = 6
+    private let viewBottonPadding: CGFloat = 20
 
     /// `animation`, softened when Reduce Motion is on — used at every call
     /// site that changes `viewModel.controlPresentationState`.
@@ -91,9 +92,9 @@ struct SmallScreenView: View {
         ThemeReader { theme, colorScheme in
             ZStack {
                 BackgroundView()
-                    .cornerRadius(40)
+                    .cornerRadius(backgroundCornerRadius)
                     .padding(.horizontal, (barOuterPadding / 2))
-                    .padding(.bottom, (barOuterPadding / 2) + 20)
+                    .padding(.bottom, viewBottonPadding)
                     .ignoresSafeArea(.all, edges: .bottom)
                 
                 MainContentBuilder(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
@@ -117,38 +118,7 @@ struct SmallScreenView: View {
     private func MainContentBuilder(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
         ZStack(alignment: .bottom) {
             VStack(spacing: 20) {
-                HStack {
-                    SelectedDateTitleText(date: viewModel.selectedDate, color: theme.ink)
-                    
-                    Spacer()
-                    
-                    if #available(iOS 26.0, *) {
-                        Button {
-                            withAnimation(effectiveAnimation) {
-                                viewModel.toggleControlPresentation(.planets)
-                            }
-                        } label: {
-                            Text("Planets")
-                                .font(.caption)
-                                .monospaced()
-                        }
-                        .buttonStyle(.glassProminent)
-                        .buttonBorderShape(.capsule)
-                    } else {
-                        Button {
-                            withAnimation(effectiveAnimation) {
-                                viewModel.toggleControlPresentation(.planets)
-                            }
-                        } label: {
-                            Text("Planets")
-                                .font(.caption)
-                                .monospaced()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .buttonBorderShape(.capsule)
-                    }
-                }
-                .padding(.horizontal, 20)
+                BuildHeader(theme: theme)
 
                 // Always mounted — `OrreryView` shows its own loading pose (planets
                 // lined up left of their orbits) while `snapshot` is nil, then eases
@@ -164,7 +134,6 @@ struct SmallScreenView: View {
                 }
                 Spacer(minLength: 0)
             }
-            .padding(.top, 12)
             .onTapGesture {
                 withAnimation(effectiveAnimation) {
                     viewModel.controlPresentationState = .none
@@ -201,10 +170,47 @@ struct SmallScreenView: View {
                 .glassOrSurface(glass: .tinted(ThemeColors.controlsBarTint), in: .rect(cornerRadius: panelCornerRadius))
                 .clipShape(.rect(cornerRadius: panelCornerRadius))
                 .padding(.horizontal, barOuterPadding)
-                .padding(.bottom, barOuterPadding)
+                .padding(.vertical, barOuterPadding / 2)
         }
-        .padding(.bottom, 20)
+        .padding(.bottom, viewBottonPadding)
         .ignoresSafeArea(.all, edges: .bottom)
+    }
+    
+    @ViewBuilder
+    private func BuildHeader(theme: ThemeColors) -> some View {
+        HStack {
+            SelectedDateTitleText(date: viewModel.selectedDate)
+            
+            Spacer()
+            
+            if #available(iOS 26.0, *) {
+                Button {
+                    withAnimation(effectiveAnimation) {
+                        viewModel.toggleControlPresentation(.planets)
+                    }
+                } label: {
+                    Text("Planets")
+                        .font(.caption)
+                        .monospaced()
+                }
+                .buttonStyle(.glassProminent)
+                .buttonBorderShape(.capsule)
+            } else {
+                Button {
+                    withAnimation(effectiveAnimation) {
+                        viewModel.toggleControlPresentation(.planets)
+                    }
+                } label: {
+                    Text("Planets")
+                        .font(.caption)
+                        .monospaced()
+                }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
+            }
+        }
+        .padding(.horizontal, 25)
+        .padding(.top, 17)
     }
 
     @ViewBuilder
@@ -222,7 +228,7 @@ struct SmallScreenView: View {
 
                 switch viewModel.controlPresentationState {
                 case .datePicker:
-                    panelChrome(height: datePickerWheelHeight) {
+                    PanelChrome(height: datePickerWheelHeight) {
                         DatePicker(
                             "Date",
                             selection: viewModel.animatedDateBinding(dataController: dataController),
@@ -230,11 +236,11 @@ struct SmallScreenView: View {
                             displayedComponents: .date
                         )
                         .datePickerStyle(.wheel)
-                        .padding(.horizontal, 30)
+                        .padding(.horizontal)
                         .labelsHidden()
                     }
                 case .savedItems:
-                    panelChrome(height: panelHeight) {
+                    PanelChrome() {
                         SavedListView { date in
                             viewModel.jumpToDate(date, dataController: dataController)
                             withAnimation(effectiveAnimation) {
@@ -244,14 +250,16 @@ struct SmallScreenView: View {
                         .scrollContentBackground(.hidden)
                     }
                 case .settings:
-                    panelChrome(height: panelHeight) {
+                    PanelChrome() {
                         SettingsPanel()
                             .scrollContentBackground(.hidden)
                     }
-
                 case .planets:
-                    panelChrome(height: planetsPanelHeight) {
-                        PlanetDetailView(selectedDate: viewModel.selectedDate)
+                    PanelChrome() {
+                        PlanetDetailView(
+                            selectedDate: viewModel.dateBinding(dataController: dataController),
+                            theme: theme
+                        )
                     }
                 case .none:
                     EmptyView()
@@ -268,39 +276,6 @@ struct SmallScreenView: View {
                 .transition(panelTransition)
             }
         }
-    }
-
-    /// Shared chrome for the three overlay panels (date picker/saved items/
-    /// settings): a fixed height, a top inset that clears the close button
-    /// overlaid at `.topTrailing`, the close button itself, and the panel's
-    /// open/close transition — previously duplicated at each call site (and,
-    /// for the top inset, duplicated inconsistently: the date picker used
-    /// `.padding(.top:)` while the other two used `.safeAreaPadding(.top:)`;
-    /// all three now agree on the latter).
-    @ViewBuilder
-    private func panelChrome<Content: View>(
-        height: CGFloat,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        content()
-            .frame(height: height)
-            .safeAreaPadding(.top, panelTopInset)
-            .overlay(alignment: .top) {
-                LinearGradient(
-                    colors: [
-                        colorScheme == .dark
-                            ? .orange.mix(with: .black, by: 0.4).opacity(0.4)
-                            : .orange.mix(with: .gray, by: 0.3).opacity(0.6),
-                        .clear
-                    ],
-                    startPoint: .top, endPoint: .bottom
-                )
-                .frame(height: 80)
-            }
-            .overlay(alignment: .topTrailing) {
-                BuildCloseOverlayButton()
-            }
-            .transition(panelTransition)
     }
 
     /// Calendar/buttons capsules plus the scrub timeline. Kept mounted at all
@@ -348,7 +323,7 @@ struct SmallScreenView: View {
                 VStack {
                     
                 }
-                .frame(height: 65)
+                .frame(height: 63)
             }
         }
     }
@@ -445,6 +420,43 @@ struct SmallScreenView: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 11)
+    }
+    
+    /// Shared chrome for the three overlay panels (date picker/saved items/
+    /// settings): a fixed height, a top inset that clears the close button
+    /// overlaid at `.topTrailing`, the close button itself, and the panel's
+    /// open/close transition — previously duplicated at each call site (and,
+    /// for the top inset, duplicated inconsistently: the date picker used
+    /// `.padding(.top:)` while the other two used `.safeAreaPadding(.top:)`;
+    /// all three now agree on the latter).
+    @ViewBuilder
+    private func PanelChrome<Content: View>(height: CGFloat? = nil, @ViewBuilder content: () -> Content) -> some View {
+        let isPlanetsShown: Bool = viewModel.controlPresentationState == .planets
+        content()
+            .frame(height: height)
+            .safeAreaPadding(.top, isPlanetsShown ? nil : panelTopInset)
+            .overlay(alignment: .top) {
+                LinearGradient(
+                    colors: [
+                        colorScheme == .dark
+                            ? .orange.mix(with: .black, by: 0.4).opacity(0.4)
+                            : .orange.mix(with: .gray, by: 0.3).opacity(0.6),
+                        .clear
+                    ],
+                    startPoint: .top, endPoint: .bottom
+                )
+                .frame(height: 80)
+            }
+            .overlay(alignment: .topLeading) {
+                if viewModel.controlPresentationState == .planets {
+                    SelectedDateTitleText(date: viewModel.selectedDate)
+                        .padding([.leading, .top], 20)
+                }
+            }
+            .overlay(alignment: .topTrailing) {
+                BuildCloseOverlayButton()
+            }
+            .transition(panelTransition)
     }
 
     @ViewBuilder

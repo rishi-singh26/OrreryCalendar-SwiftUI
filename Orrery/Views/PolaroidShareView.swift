@@ -34,7 +34,7 @@ struct PolaroidShareView: View {
 
             MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, theme: theme)
 
-            SelectedDateTitleText(date: snapshot.date, color: ThemeColors.polaroidCaption)
+            SelectedDateTitleText(date: snapshot.date)
         }
         .padding(24)
         .padding(.bottom, 8)
