@@ -28,7 +28,7 @@ struct GlassButton<Label: View>: View {
         self.systemName = systemName
         self.label = nil
         self.circular = true
-        self.size = size
+        self.size = DeviceType.isMac ? size - 15 : size
         self.useInteractiveGlass = useInteractiveGlass
         self.action = action
     }
@@ -44,16 +44,22 @@ struct GlassButton<Label: View>: View {
         self.label = label()
         self.systemName = nil
         self.circular = circular
-        self.size = size
+        self.size = DeviceType.isMac ? size - 15 : size
         self.useInteractiveGlass = useInteractiveGlass
         self.action = action
     }
 
     var body: some View {
-        let shape = AnyShape(circular ? AnyShape(Circle()) : AnyShape(Capsule()))
-        buildButton
-            .glassOrSurface(glass: useInteractiveGlass ? .interactive : .plain, in: shape)
-            .contentShape(shape)
+        if DeviceType.isMac {
+            buildButton
+        } else {
+            let shape = AnyShape(circular ? AnyShape(Circle()) : AnyShape(Capsule()))
+            buildButton
+                .padding(.horizontal, circular ? 0 : 20)
+                .frame(width: circular ? size : nil)
+                .glassOrSurface(glass: useInteractiveGlass ? .interactive : .plain, in: shape)
+                .contentShape(shape)
+        }
     }
     
     var buildButton: some View {
@@ -69,9 +75,7 @@ struct GlassButton<Label: View>: View {
                 }
             }
             .foregroundStyle(isEnabled ? .primary : ThemeColors.disabledForeground)
-            .padding(.horizontal, circular ? 0 : 20)
             .frame(height: size)
-            .frame(width: circular ? size : nil)
         }
     }
 }
