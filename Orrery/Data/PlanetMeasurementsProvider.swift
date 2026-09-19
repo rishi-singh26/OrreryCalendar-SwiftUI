@@ -30,6 +30,12 @@ enum PlanetMeasurementsProvider {
         let time = AstronomyEngine.time(for: date)
 
         var rows: [PlanetMeasurement] = []
+        
+        rows.append(PlanetMeasurement(
+            id: "orbital-period",
+            label: "Orbital Period",
+            value: formatOrbitalPeriod(days: AstronomyEngine.orbitalPeriodDays(body: selectedBody))
+        ))
 
         let referenceBodies: [CelestialBody] = [.sun] + orderedPlanets
         for body in referenceBodies where body != selectedBody {
@@ -40,12 +46,6 @@ enum PlanetMeasurementsProvider {
                 value: formatDistance(au: au)
             ))
         }
-
-        rows.append(PlanetMeasurement(
-            id: "orbital-period",
-            label: "Orbital Period",
-            value: formatOrbitalPeriod(days: AstronomyEngine.orbitalPeriodDays(body: selectedBody))
-        ))
 
         if let illumination = try? AstronomyEngine.illumination(body: selectedBody, time: time) {
             rows.append(PlanetMeasurement(

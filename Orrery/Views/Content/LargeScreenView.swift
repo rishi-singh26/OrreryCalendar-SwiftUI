@@ -112,7 +112,7 @@ struct LargeScreenView: View {
     private func MainContentBuilder(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme, size: CGSize) -> some View {
         ZStack(alignment: .bottom) {
             VStack(alignment: .leading, spacing: 20) {
-                SelectedDateTitleText(date: viewModel.selectedDate, color: theme.ink)
+                SelectedDateTitleText(date: viewModel.selectedDate)
                     .padding([.top, .leading])
                 
                 let isWide = size.width > size.height

@@ -9,7 +9,10 @@ import SwiftUI
 import SwiftData
 
 struct PlanetDetailView: View {
-    let selectedDate: Date
+    @Binding var selectedDate: Date
+    let theme: ThemeColors
+
+    @Environment(DataController.self) private var dataController
 
     @State private var isPlaying: Bool = true
     @State private var resetTrigger: Int = 0
@@ -27,20 +30,6 @@ struct PlanetDetailView: View {
     private var measurements: [PlanetMeasurement] {
         PlanetMeasurementsProvider.measurements(for: selectedPlanet, on: selectedDate)
     }
-    
-    /// The plain formatted string, for callers that need text rather than a `View` —
-    /// e.g. `PolaroidShareButton`'s `SharePreview` caption.
-    static func string(from date: Date) -> String {
-        formatter.string(from: date)
-    }
-    
-    private static let formatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "d MMM"
-        formatter.timeZone = TimeZone(identifier: "UTC")
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter
-    }()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -56,36 +45,31 @@ struct PlanetDetailView: View {
                 tabs: $tabs
             )
             .padding(.vertical, 5)
+
+            ScrubTimelineNoAnimationView(
+                selectedDate: $selectedDate,
+                minDate: dataController.startDate,
+                maxDate: dataController.endDate,
+                theme: theme
+            )
+            .padding(.bottom, 5)
         }
     }
     
     @ViewBuilder
     private func BuildHeader() -> some View {
         HStack {
-            HStack(alignment: .bottom) {
-                Text(planetName)
-                    .font(.title.monospaced())
-                    .fontWeight(.semibold)
-                Text("On \(Self.string(from: selectedDate))")
-                    .font(.caption.monospaced())
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
-                    .padding(.bottom, 5)
-            }
+            Text(planetName)
+                .font(.title.monospaced())
+                .fontWeight(.semibold)
 
             Spacer()
 
-            GlassButton(
-                systemName: "arrow.counterclockwise",
-                size: 45
-            ) {
+            GlassButton(systemName: "arrow.counterclockwise", size: 45) {
                 resetTrigger += 1
             }
 
-            GlassButton(
-                systemName: isPlaying ? "pause.fill" : "play.fill",
-                size: 45
-            ) {
+            GlassButton(systemName: isPlaying ? "pause.fill" : "play.fill", size: 45) {
                 isPlaying.toggle()
             }
         }

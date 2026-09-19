@@ -111,7 +111,13 @@ struct ScrubTimelineNoAnimationView: View {
         ScrollView(.horizontal) {
             LazyHStack(spacing: 0) {
                 ForEach(0...dayCount, id: \.self) { index in
-                    tickView(index)
+                    let isBoundary = boundaryIndices.contains(index)
+                    let fillColor = theme.ink.opacity(isBoundary ? 0.6 : 0.35)
+                    let heightProgress: CGFloat = isBoundary ? majorHeightProgress : minorHeightProgress
+                    Rectangle()
+                        .fill(fillColor)
+                        .frame(width: tickWidth, height: tickHeight * heightProgress)
+                        .frame(width: tickSlotWidth, height: tickHeight, alignment: .bottom)
                 }
             }
             .frame(height: tickHeight)
@@ -122,6 +128,14 @@ struct ScrubTimelineNoAnimationView: View {
         .scrollIndicators(.hidden)
         .scrollTargetBehavior(.viewAligned(limitBehavior: .alwaysByOne))
         .scrollPosition(id: $scrollPosition, anchor: .center)
+        // Static marker at the viewport's center — the point the view-aligned
+        // scroll behavior snaps the selected tick to (mirrors WheelPicker's
+        // center indicator).
+        .overlay(alignment: .center) {
+            Rectangle()
+                .fill(Color.accentColor)
+                .frame(width: tickWidth, height: tickHeight)
+        }
         // Centering the first/last tick under the selection point. Clamped to
         // a minimum of 0 — before `containerWidth` is measured (still 0 on
         // the first layout pass) this would otherwise go negative, which
@@ -195,21 +209,6 @@ struct ScrubTimelineNoAnimationView: View {
             boundaryIndices = computeBoundaryIndices()
         }
         .hapticTick(hapticTick)
-    }
-
-    // Tick View — no animation: height/color reflect the current scroll position
-    // directly, every redraw.
-    @ViewBuilder
-    private func tickView(_ index: Int) -> some View {
-        let isSelected = index == scrollIndex
-        let isBoundary = boundaryIndices.contains(index)
-        let fillColor = isSelected ? .accentColor : theme.ink.opacity(isBoundary ? 0.6 : 0.35)
-        let heightProgress: CGFloat = isSelected ? 1.2 : (isBoundary ? majorHeightProgress : minorHeightProgress)
-
-        Rectangle()
-            .fill(fillColor)
-            .frame(width: tickWidth, height: tickHeight * heightProgress)
-            .frame(width: tickSlotWidth, height: tickHeight, alignment: .bottom)
     }
 
     private func updateScrollPosition(for date: Date) {

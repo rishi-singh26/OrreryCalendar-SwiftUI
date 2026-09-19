@@ -20,12 +20,12 @@ import SwiftUI
 
 struct SelectedDateTitleText: View {
     let date: Date
-    let color: Color
 
     var body: some View {
         Text(Self.string(from: date))
-            .font(.system(.title, design: .serif))
-            .foregroundStyle(color)
+            .font(.title2.bold().monospaced())
+            .kerning(-1)
+            .foregroundStyle(.primary)
     }
 
     /// The plain formatted string, for callers that need text rather than a `View` —

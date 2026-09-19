@@ -162,7 +162,7 @@ struct GlassSegmentedControl: View {
                 }
             }
         }
-        .sensoryFeedback(.selection, trigger: hapticIndex) { oldValue, newValue in
+        .sensoryFeedback(.impact(weight: .light, intensity: 1), trigger: hapticIndex) { oldValue, newValue in
             oldValue != nil && newValue != nil && oldValue != newValue
         }
         .frame(height: 40)
