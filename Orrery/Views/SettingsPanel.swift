@@ -117,6 +117,7 @@ struct SettingsPanel: View {
         .formStyle(.grouped)
         .frame(minHeight: DeviceType.isIpad ? 450 : 360)
         .frame(minWidth: 320, idealWidth: 360)
+        .scrollIndicators(.hidden)
     }
 
     #if os(iOS)
