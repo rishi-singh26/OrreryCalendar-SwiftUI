@@ -255,12 +255,16 @@ struct SmallScreenView: View {
                             .scrollContentBackground(.hidden)
                     }
                 case .planets:
-                    PanelChrome() {
-                        PlanetDetailView(
-                            selectedDate: viewModel.dateBinding(dataController: dataController),
-                            theme: theme
-                        )
-                    }
+                    PlanetDetailView(
+                        selectedDate: viewModel.dateBinding(dataController: dataController),
+                        theme: theme,
+                        onClose: {
+                            withAnimation(effectiveAnimation) {
+                                viewModel.controlPresentationState = .none
+                            }
+                        }
+                    )
+                    .transition(panelTransition)
                 case .none:
                     EmptyView()
                 }
@@ -323,7 +327,7 @@ struct SmallScreenView: View {
                 VStack {
                     
                 }
-                .frame(height: 63)
+                .frame(height: 64)
             }
         }
     }
@@ -422,19 +426,20 @@ struct SmallScreenView: View {
         .padding(.vertical, 11)
     }
     
-    /// Shared chrome for the three overlay panels (date picker/saved items/
-    /// settings): a fixed height, a top inset that clears the close button
-    /// overlaid at `.topTrailing`, the close button itself, and the panel's
-    /// open/close transition — previously duplicated at each call site (and,
-    /// for the top inset, duplicated inconsistently: the date picker used
-    /// `.padding(.top:)` while the other two used `.safeAreaPadding(.top:)`;
-    /// all three now agree on the latter).
+    /// Shared chrome for the date picker/saved items/settings overlay panels: a
+    /// fixed height, a top inset that clears the close button overlaid at
+    /// `.topTrailing`, the close button itself, and the panel's open/close
+    /// transition — previously duplicated at each call site (and, for the top
+    /// inset, duplicated inconsistently: the date picker used `.padding(.top:)`
+    /// while the other two used `.safeAreaPadding(.top:)`; all three now agree
+    /// on the latter). The Planets panel (`PlanetDetailView`) builds its own
+    /// equivalent chrome instead, since its title needs the planet's own
+    /// (possibly desynced) date rather than the shared `viewModel.selectedDate`.
     @ViewBuilder
     private func PanelChrome<Content: View>(height: CGFloat? = nil, @ViewBuilder content: () -> Content) -> some View {
-        let isPlanetsShown: Bool = viewModel.controlPresentationState == .planets
         content()
             .frame(height: height)
-            .safeAreaPadding(.top, isPlanetsShown ? nil : panelTopInset)
+            .safeAreaPadding(.top, panelTopInset)
             .overlay(alignment: .top) {
                 LinearGradient(
                     colors: [
@@ -446,12 +451,6 @@ struct SmallScreenView: View {
                     startPoint: .top, endPoint: .bottom
                 )
                 .frame(height: 80)
-            }
-            .overlay(alignment: .topLeading) {
-                if viewModel.controlPresentationState == .planets {
-                    SelectedDateTitleText(date: viewModel.selectedDate)
-                        .padding([.leading, .top], 20)
-                }
             }
             .overlay(alignment: .topTrailing) {
                 BuildCloseOverlayButton()
