@@ -294,8 +294,15 @@ struct LargeScreenView: View {
                             minDate: dataController.startDate,
                             maxDate: dataController.endDate
                         )
-                        #endif
 
+                        MacCalendarView(
+                            selection: viewModel.animatedDateBinding(dataController: dataController),
+                            minDate: dataController.startDate,
+                            maxDate: dataController.endDate,
+                            today: dataController.todayDate,
+                            theme: theme
+                        )
+                        #else
                         DatePicker(
                             "Date",
                             selection: viewModel.animatedDateBinding(dataController: dataController),
@@ -304,6 +311,7 @@ struct LargeScreenView: View {
                         )
                         .datePickerStyle(.graphical)
                         .labelsHidden()
+                        #endif
                     }
                     .padding()
                     .frame(minWidth: DeviceType.isIpad ? 320 : nil, minHeight: DeviceType.isIpad ? 320 : nil)
