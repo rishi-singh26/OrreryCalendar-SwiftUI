@@ -34,6 +34,7 @@ struct SettingsPanel: View {
                 Toggle("Show Labels", isOn: $showLabels)
                 Toggle("Show Sun Halo", isOn: $showSunHalo)
             }
+            .tint(.accentColor)
             
             Section {
                 Toggle(isOn: $syncPlanetDetailDate) {
@@ -44,9 +45,10 @@ struct SettingsPanel: View {
             } footer: {
                 Text("Keep the date shown in the Planet Detail view matched with the main timeline. Turn off to browse a planet's dates on its own, without moving the main timeline.")
             }
+            .tint(.accentColor)
 
 
-            Section("Date range") {
+            Section {
                 if dataController.isReady {
                     Text("Cached: \(rangeDescription)")
                         .foregroundStyle(.secondary)
@@ -78,8 +80,12 @@ struct SettingsPanel: View {
                         .disabled(dataController.isComputing)
                     }
                 }
+            } header: {
+                Text("Date range")
+            } footer: {
+                Text("How far before and after today's date to cache planet positions for scrubbing. Larger ranges use more compute and storage.")
             }
-            
+
             Section("Appearance") {
                 Picker(selection: $appearanceMode) {
                     Label("System", systemImage: "iphone.gen2").tag(AppearanceMode.system)
