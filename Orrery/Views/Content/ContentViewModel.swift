@@ -26,6 +26,7 @@ final class ContentViewModel {
     let rangeYearsForAnimatedScrubber = 10
     var selectedDate = UTCDay.todayAsUTCMidnight()
     var justSaved = false
+    @ObservationIgnored private var justSavedResetTask: Task<Void, Never>?
     
     let animation: Animation = .spring(duration: 0.3)
     let transition: AnyTransition = AnyTransition(.blurReplace)
@@ -192,8 +193,10 @@ final class ContentViewModel {
         withAnimation {
             justSaved = true
         }
-        Task {
+        justSavedResetTask?.cancel()
+        justSavedResetTask = Task {
             try? await Task.sleep(for: .seconds(1.2))
+            guard !Task.isCancelled else { return }
             withAnimation {
                 justSaved = false
             }

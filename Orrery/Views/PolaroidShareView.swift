@@ -116,6 +116,10 @@ struct PolaroidShareButton: View {
             }
         }
         .task(id: renderKey) {
+            // Drop the previous render immediately so a stale image is never shared
+            // under the new date while the debounce below is pending.
+            renderedImage = nil
+            pngData = nil
             // Debounce: `renderKey` embeds the selected date, which changes on every
             // day the scrub timeline's drag/scroll gesture crosses (updated
             // continuously, not just on release). Without this, each of those days

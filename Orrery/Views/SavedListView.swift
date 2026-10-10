@@ -13,6 +13,7 @@ import SwiftData
 struct SavedListView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(DataController.self) private var dataController
     @Query(sort: \SavedSnapshot.date, order: .reverse) private var savedSnapshots: [SavedSnapshot]
 
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
@@ -42,7 +43,11 @@ struct SavedListView: View {
     }
 
     private func row(for entry: SavedSnapshot, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
-        Button {
+        // The main view can only show days inside the cached range; jumping to anything
+        // else would silently clamp to a different date.
+        let isInCachedRange = dataController.isReady
+            && dataController.clampedDate(entry.date) == UTCDay.midnight(of: entry.date)
+        return Button {
             onJumpToDate(entry.date)
             dismiss()
         } label: {
@@ -69,6 +74,8 @@ struct SavedListView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(!isInCachedRange)
+        .opacity(isInCachedRange ? 1 : 0.5)
         .contextMenu(menuItems: {
             PolaroidShareButton(
                 snapshot: entry.daySnapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, colorScheme: colorScheme

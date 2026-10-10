@@ -18,6 +18,7 @@ final class DataController {
     static let minRangeYears = 1
     static let maxRangeYears = 100
     static let defaultRangeYears = 10
+    private static let resumeToleranceDays = 14
 
     private(set) var startDate: Date = UTCDay.todayAsUTCMidnight()
     private(set) var endDate: Date = UTCDay.todayAsUTCMidnight()
@@ -76,7 +77,15 @@ final class DataController {
             let desiredStart = UTCDay.calendar.date(byAdding: .year, value: -years, to: today),
             let desiredEnd = UTCDay.calendar.date(byAdding: .year, value: years, to: today)
         else { return }
-        if desiredStart < startDate || desiredEnd > endDate {
+        // Both ends are anchored on "today", so the cache naturally falls a few days
+        // behind `desiredEnd` as time passes; only a larger shortfall (e.g. an
+        // interrupted extension) is worth a recompute.
+        let tolerance = Self.resumeToleranceDays
+        guard
+            let toleratedStart = UTCDay.calendar.date(byAdding: .day, value: tolerance, to: desiredStart),
+            let toleratedEnd = UTCDay.calendar.date(byAdding: .day, value: -tolerance, to: desiredEnd)
+        else { return }
+        if toleratedStart < startDate || toleratedEnd > endDate {
             extendRange(toYears: years)
         }
     }
@@ -264,6 +273,9 @@ final class DataController {
         let existingEnd = endDate
         let existingPacked = packedDataCache
         let bytesPerDay = PlanetEngineClient.bytesPerDay
+        // A blob whose size doesn't match its day count can't be sliced by day offset;
+        // treat it like "no overlap" so the range is recomputed rather than spliced.
+        let existingBlobIsConsistent = existingPacked.count == dayCount * bytesPerDay
 
         // The part of the existing blob still wanted: its overlap with `newStart...newEnd`.
         // Normally non-empty, since both ranges are anchored on "today" — but if the app
@@ -274,7 +286,7 @@ final class DataController {
         // the two ranges as well as the target range itself.
         let overlapStart = max(newStart, existingStart)
         let overlapEnd = min(newEnd, existingEnd)
-        let hasOverlap = overlapStart <= overlapEnd
+        let hasOverlap = existingBlobIsConsistent && overlapStart <= overlapEnd
 
         do {
             var beforeData = Data()
@@ -300,9 +312,10 @@ final class DataController {
                 let overlapDayCount = try UTCDay.dayCount(from: overlapStart, to: overlapEnd) + 1
                 let byteStart = existingPacked.startIndex + startOffset * bytesPerDay
                 let byteEnd = byteStart + overlapDayCount * bytesPerDay
-                if byteStart >= existingPacked.startIndex, byteEnd <= existingPacked.endIndex {
-                    keptData = existingPacked.subdata(in: byteStart..<byteEnd)
+                guard byteStart >= existingPacked.startIndex, byteEnd <= existingPacked.endIndex else {
+                    throw DataLayerError(message: "cached planet data does not cover its recorded range")
                 }
+                keptData = existingPacked.subdata(in: byteStart..<byteEnd)
             } else {
                 // No overlap with what's cached — nothing to reuse, so compute the
                 // whole new range fresh (same as a first-time `computeFullRange`).
@@ -332,13 +345,16 @@ final class DataController {
     }
 
     private func apply(_ snapshot: StoreSnapshot) async {
+        // Decode before publishing anything, so `snapshot(for:)` never sees the new
+        // `startDate` paired with the previous range's `snapshots` array.
+        let decoded = await Task.detached(priority: .userInitiated) {
+            Self.decode(snapshot)
+        }.value
         startDate = snapshot.startDate
         endDate = snapshot.endDate
         dayCount = snapshot.dayCount
         packedDataCache = snapshot.packedData
-        snapshots = await Task.detached(priority: .userInitiated) {
-            Self.decode(snapshot)
-        }.value
+        snapshots = decoded
     }
 
     /// Pure decode, safe to run off the main actor. Guards against a truncated/corrupt
