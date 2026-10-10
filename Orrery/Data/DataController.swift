@@ -166,6 +166,13 @@ final class DataController {
         min(max(years, Self.minRangeYears), Self.maxRangeYears)
     }
 
+    /// Delays clearing `isComputing` by 2s so the UI's computing indicator stays visible
+    /// long enough for the user to perceive it, even when the computation itself is fast.
+    private func finishComputing() async {
+        try? await Task.sleep(nanoseconds: 2_000_000_000)
+        isComputing = false
+    }
+
     private func computeFullRange(years: Int) async {
         let today = UTCDay.todayAsUTCMidnight()
         guard
@@ -198,7 +205,7 @@ final class DataController {
             // affordance in Settings rather than crashing or discarding data.
             lastErrorMessage = error.localizedDescription
         }
-        isComputing = false
+        await finishComputing()
     }
 
     private func splice(newStart: Date, newEnd: Date) async {
@@ -241,7 +248,7 @@ final class DataController {
         } catch {
             lastErrorMessage = error.localizedDescription
         }
-        isComputing = false
+        await finishComputing()
     }
 
     /// Like `splice`, but for `setRange`: computes whatever prefix/suffix isn't already
@@ -321,7 +328,7 @@ final class DataController {
         } catch {
             lastErrorMessage = error.localizedDescription
         }
-        isComputing = false
+        await finishComputing()
     }
 
     private func apply(_ snapshot: StoreSnapshot) async {
