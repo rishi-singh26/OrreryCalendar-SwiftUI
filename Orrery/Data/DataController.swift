@@ -31,6 +31,7 @@ final class DataController {
     private var packedDataCache = Data()
     private let io: DataStoreIO
     private var computeTask: Task<Void, Never>?
+    private var bootstrapTask: Task<Void, Never>?
 
     /// Years currently covered on each side of today, rounded down — used to render
     /// e.g. "±10 years" in Settings.
@@ -52,7 +53,22 @@ final class DataController {
     /// version still matches; otherwise computes the default ±10-year range in the
     /// background. Never recomputes an already-valid cached range — a given calendar
     /// date's positions are deterministic and never change.
+    ///
+    /// Every window calls this from its own `.task`, but the controller is shared, so
+    /// only the first call does the work; later calls (including from windows opened
+    /// while it's still running) just wait for that same run to finish. The work runs
+    /// in its own task so closing the window that started it can't cancel it midway.
     func bootstrap() async {
+        if let bootstrapTask {
+            await bootstrapTask.value
+            return
+        }
+        let task = Task { await self.performBootstrap() }
+        bootstrapTask = task
+        await task.value
+    }
+
+    private func performBootstrap() async {
         do {
             if let snapshot = try await io.loadStore() {
                 await apply(snapshot)
