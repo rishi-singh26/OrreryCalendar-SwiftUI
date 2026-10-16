@@ -436,26 +436,30 @@ struct SmallScreenView: View {
     /// equivalent chrome instead, since its title needs the planet's own
     /// (possibly desynced) date rather than the shared `viewModel.selectedDate`.
     @ViewBuilder
-    private func PanelChrome<Content: View>(height: CGFloat? = nil, @ViewBuilder content: () -> Content) -> some View {
-        content()
-            .frame(height: height)
-            .safeAreaPadding(.top, panelTopInset)
-            .overlay(alignment: .top) {
-                LinearGradient(
-                    colors: [
-                        colorScheme == .dark
-                            ? .orange.mix(with: .black, by: 0.4).opacity(0.4)
-                            : .orange.mix(with: .gray, by: 0.3).opacity(0.6),
-                        .clear
-                    ],
-                    startPoint: .top, endPoint: .bottom
-                )
-                .frame(height: 80)
-            }
-            .overlay(alignment: .topTrailing) {
-                BuildCloseOverlayButton()
-            }
-            .transition(panelTransition)
+    private func PanelChrome<Content: View>(height: CGFloat? = nil, @ViewBuilder content: @escaping () -> Content) -> some View {
+        GeometryReader { proxy in
+            let width = proxy.size.width
+            content()
+                .frame(width: width)
+                .safeAreaPadding(.top, panelTopInset)
+                .overlay(alignment: .top) {
+                    LinearGradient(
+                        colors: [
+                            colorScheme == .dark
+                                ? .orange.mix(with: .black, by: 0.4).opacity(0.4)
+                                : .orange.mix(with: .gray, by: 0.3).opacity(0.6),
+                            .clear
+                        ],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                    .frame(height: 80)
+                }
+                .overlay(alignment: .topTrailing) {
+                    BuildCloseOverlayButton()
+                }
+                .transition(panelTransition)
+        }
+        .frame(height: height)
     }
 
     @ViewBuilder
