@@ -33,6 +33,7 @@ struct SavedListView: View {
                         description: Text("Save a date from the main view to see it here.")
                     )
                     .listRowSeparator(.hidden)
+                    .iOS18ListRowBackground()
                 } else {
                     ForEach(savedSnapshots) { entry in
                         row(for: entry, theme: theme, colorScheme: colorScheme)

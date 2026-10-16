@@ -164,6 +164,7 @@ struct PlanetDetailView: View {
                     .foregroundStyle(.primary)
             }
             .padding(.vertical, DeviceType.isMac ? 5 : 0)
+            .iOS18ListRowClearBackground()
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
