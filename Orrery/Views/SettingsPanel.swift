@@ -19,6 +19,10 @@ struct SettingsPanel: View {
     @AppStorage(AppStorageKeys.boundaryTickFrequency) private var boundaryTickFrequency: BoundaryTickFrequency = .defaultFrequency
     @AppStorage(AppStorageKeys.syncPlanetDetailDate) private var syncPlanetDetailDate = true
     @AppStorage(AppStorageKeys.hapticsEnabled) private var hapticsEnabled = true
+    @AppStorage(AppStorageKeys.autoPlayEnabled) private var autoPlayEnabled = true
+    @AppStorage(AppStorageKeys.autoPlayRate) private var autoPlayRate: AutoPlayRate = AutoPlayRate.defaultRate
+    @AppStorage(AppStorageKeys.autoPlayDirection) private var autoPlayDirection: AutoPlayDirection = AutoPlayDirection.defaultDirection
+    @AppStorage(AppStorageKeys.autoPlayManualChange) private var autoPlayManualChange: AutoPlayManualChangeBehavior = AutoPlayManualChangeBehavior.defaultBehavior
 
     #if os(iOS)
     @State private var selectedAppIcon: AppIconOption = .current
@@ -34,20 +38,65 @@ struct SettingsPanel: View {
 
     var body: some View {
         Form {
-            Section("General") {
+            Section("Display") {
                 Toggle("Show Orbits", isOn: $showOrbits)
                 Toggle("Show Labels", isOn: $showLabels)
                 Toggle("Show Sun Halo", isOn: $showSunHalo)
+                Picker(selection: $appearanceMode) {
+                    Label("System", systemImage: "iphone.gen2").tag(AppearanceMode.system)
+                    Label("Light", systemImage: "sun.max").tag(AppearanceMode.light)
+                    Label("Dark", systemImage: "moon.stars").tag(AppearanceMode.dark)
+                } label: {
+                    Label {
+                        Text("Appearance")
+                    } icon: {
+                        AppearanceIconView(size: 24)
+                            .foregroundStyle(.primary)
+                    }
+                }
             }
             .tint(.accentColor)
-            
+
             Section {
+                Toggle("Enable Auto Play", isOn: $autoPlayEnabled)
+                if autoPlayEnabled {
+                    Picker("Speed", selection: $autoPlayRate) {
+                        ForEach(AutoPlayRate.allCases) { rate in
+                            Text(rate.label).tag(rate)
+                        }
+                    }
+                    Picker("Direction", selection: $autoPlayDirection) {
+                        ForEach(AutoPlayDirection.allCases) { direction in
+                            Text(direction.label).tag(direction)
+                        }
+                    }
+                    Picker("When I change the date", selection: $autoPlayManualChange) {
+                        ForEach(AutoPlayManualChangeBehavior.allCases) { behavior in
+                            Text(behavior.label).tag(behavior)
+                        }
+                    }
+                }
+            } header: {
+                Text("Auto Play")
+            } footer: {
+                Text("Shows a Play button that moves the date automatically. Dragging the timeline always pauses; the last option applies to the date picker, Today and saved views. Playback stops at the end of the cached range.")
+            }
+            .tint(.accentColor)
+
+            Section {
+                Picker("Boundary Ticks", selection: $boundaryTickFrequency) {
+                    ForEach(BoundaryTickFrequency.allCases) { frequency in
+                        Text(frequency.label).tag(frequency)
+                    }
+                }
                 Toggle("Haptic Feedback", isOn: $hapticsEnabled)
+            } header: {
+                Text("Scrubber")
             } footer: {
                 Text("Vibration feedback when scrubbing dates and switching tabs.")
             }
             .tint(.accentColor)
-            
+
             Section {
                 Toggle(isOn: $syncPlanetDetailDate) {
                     Text("Sync Planet Detail Date")
@@ -98,41 +147,6 @@ struct SettingsPanel: View {
                 Text("How far before and after today's date to cache planet positions for scrubbing. Larger ranges use more compute and storage.")
             }
 
-            Section("Appearance") {
-                Picker(selection: $appearanceMode) {
-                    Label("System", systemImage: "iphone.gen2").tag(AppearanceMode.system)
-                    Label("Light", systemImage: "sun.max").tag(AppearanceMode.light)
-                    Label("Dark", systemImage: "moon.stars").tag(AppearanceMode.dark)
-                } label: {
-                    Label {
-                        Text("Appearance")
-                    } icon: {
-                        AppearanceIconView(size: 24)
-                            .foregroundStyle(.primary)
-                    }
-                }
-            }
-            
-            Section("Scrubber") {
-                Picker("Boundary Ticks", selection: $boundaryTickFrequency) {
-                    ForEach(BoundaryTickFrequency.allCases) { frequency in
-                        Text(frequency.label).tag(frequency)
-                    }
-                }
-            }
-
-            #if DEBUG
-            Section {
-                Button("Notification Test") {
-                    showNotificationTest = true
-                }
-            } header: {
-                Text("Developer")
-            } footer: {
-                Text("Launch sample in-app notifications and toasts.")
-            }
-            #endif
-
             #if os(iOS)
             Section("App Icon") {
                 HStack(spacing: 20) {
@@ -155,6 +169,18 @@ struct SettingsPanel: View {
                 .padding(.vertical, 4)
             }
             #endif
+            #if DEBUG
+            Section {
+                Button("Notification Test") {
+                    showNotificationTest = true
+                }
+            } header: {
+                Text("Developer")
+            } footer: {
+                Text("Launch sample in-app notifications and toasts.")
+            }
+            #endif
+
         }
         .formStyle(.grouped)
         .frame(minHeight: DeviceType.isIpad ? 450 : 360)

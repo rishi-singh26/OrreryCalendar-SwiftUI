@@ -17,4 +17,8 @@ enum AppStorageKeys {
     static let selectedPlanetIndex = "selectedPlanetIndex"
     static let syncPlanetDetailDate = "syncPlanetDetailDate"
     static let hapticsEnabled = "hapticsEnabled"
+    static let autoPlayEnabled = "autoPlayEnabled"
+    static let autoPlayRate = "autoPlayRate"
+    static let autoPlayDirection = "autoPlayDirection"
+    static let autoPlayManualChange = "autoPlayManualChange"
 }

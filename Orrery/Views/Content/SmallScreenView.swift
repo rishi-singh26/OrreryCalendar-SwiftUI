@@ -13,12 +13,16 @@ struct SmallScreenView: View {
     @Environment(DataController.self) private var dataController
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
 
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
     @AppStorage(AppStorageKeys.showSunHalo) private var showSunHalo = true
     @AppStorage(AppStorageKeys.rangeYears) private var rangeYears = DataController.defaultRangeYears
+    @AppStorage(AppStorageKeys.autoPlayEnabled) private var autoPlayEnabled = true
+    @AppStorage(AppStorageKeys.autoPlayRate) private var autoPlayRate: AutoPlayRate = AutoPlayRate.defaultRate
+    @AppStorage(AppStorageKeys.autoPlayDirection) private var autoPlayDirection: AutoPlayDirection = AutoPlayDirection.defaultDirection
 
     @State private var viewModel = ContentViewModel()
 
@@ -106,6 +110,17 @@ struct SmallScreenView: View {
         .onChange(of: dataController.isReady) { _, ready in
             viewModel.handleReadyChange(isReady: ready, dataController: dataController, rangeYears: rangeYears)
         }
+        .onChange(of: autoPlayEnabled) { _, enabled in
+            if !enabled { viewModel.autoPlay.stop() }
+        }
+        .onChange(of: autoPlayRate, initial: true) { _, newValue in viewModel.autoPlay.rate = newValue }
+        .onChange(of: autoPlayDirection, initial: true) { _, newValue in viewModel.autoPlay.direction = newValue }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { viewModel.autoPlay.stop() }
+        }
+        .onDisappear {
+            viewModel.autoPlay.stop()
+        }
         .onChange(of: dataController.startDate) { _, _ in
             viewModel.handleRangeChange(dataController: dataController)
         }
@@ -166,6 +181,24 @@ struct SmallScreenView: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .offset(y: -180)
             
+            if autoPlayEnabled {
+                let isPlaying = viewModel.autoPlay.isPlaying
+                GlassButton(circular: true, size: 45, useInteractiveGlass: true) {
+                    withAnimation(effectiveAnimation) {
+                        viewModel.toggleAutoPlay(dataController: dataController)
+                    }
+                } label: {
+                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                }
+                .disabled(!dataController.isReady)
+                .help(isPlaying ? "Pause Auto Play" : "Start Auto Play")
+                .accessibilityLabel("Auto play")
+                .accessibilityValue(isPlaying ? "Playing" : "Paused")
+                .padding(.trailing, barOuterPadding)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .offset(y: -160)
+            }
+
             BuildControlsBar(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
                 .glassOrSurface(glass: .tinted(ThemeColors.controlsBarTint), in: .rect(cornerRadius: panelCornerRadius))
                 .clipShape(.rect(cornerRadius: panelCornerRadius))

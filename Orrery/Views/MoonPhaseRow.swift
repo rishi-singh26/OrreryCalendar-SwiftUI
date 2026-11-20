@@ -44,8 +44,8 @@ struct MoonPhaseRow: View {
 
     var body: some View {
         layout {
-            disc(mirrored: false, label: isCompact ? "N" : "NORTHERN HEMISPHERE")
-            disc(mirrored: true, label: isCompact ? "S" : "SOUTHERN HEMISPHERE")
+            disc(mirrored: false, label: "NH")
+            disc(mirrored: true, label: "SH")
         }
         .animation(.easeOut(duration: 0.15), value: sizeMultiplier)
     }
@@ -63,25 +63,13 @@ struct MoonPhaseRow: View {
 
             // Percentage is always shown; compact sizes fold it onto the same
             // line as the abbreviated label instead of stacking it below.
-            if isCompact {
-                HStack(spacing: 4) {
-                    Text(label)
-                    Text("\(illuminatedPercent)%")
-                }
-                .font(.system(size: 10, design: .rounded))
-                .foregroundStyle(theme.muted)
-                .monospaced()
-            } else {
+            HStack(spacing: 4) {
                 Text(label)
-                    .font(.system(size: 10, design: .rounded))
-                    .foregroundStyle(theme.muted)
-                    .monospaced()
-
                 Text("\(illuminatedPercent)%")
-                    .font(.system(size: 12, design: .rounded))
-                    .foregroundStyle(theme.muted)
-                    .monospaced()
             }
+            .font(.system(size: 10, design: .rounded))
+            .foregroundStyle(theme.muted)
+            .monospaced()
         }
     }
 }

@@ -190,6 +190,8 @@ struct ScrubTimelineNoAnimationView: View {
         // Enabling interaction only after the initial setup is done
         .allowsHitTesting(isInitialSetupDone)
         .onChange(of: scrollIndex) { oldValue, newValue in
+            // Only a user scroll may write back; see `ScrollPhase.isUserDriven`.
+            guard scrollPhase.isUserDriven else { return }
             Task {
                 applySelection(forIndex: newValue)
             }
