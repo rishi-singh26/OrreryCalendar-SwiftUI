@@ -13,19 +13,19 @@ struct AutoPlayTests {
     }
 
     @Test func rateCountAndLabels() {
-        #expect(AutoPlayRate.allCases.count == 21)
+        #expect(AutoPlayRate.allCases.count == 11)
         #expect(AutoPlayRate.day1.label == "1 Day per sec")
         #expect(AutoPlayRate.day2.label == "2 Days per sec")
         #expect(AutoPlayRate.week3.label == "3 Weeks per sec")
-        #expect(AutoPlayRate.month11.label == "11 Months per sec")
-        #expect(AutoPlayRate.year1.label == "1 Year per sec")
+        #expect(AutoPlayRate.month1.label == "1 Month per sec")
+        #expect(AutoPlayRate.month2.label == "2 Months per sec")
     }
 
     @Test func rateDaysPerSecond() {
         #expect(AutoPlayRate.day6.daysPerSecond == 6)
         #expect(AutoPlayRate.week2.daysPerSecond == 14)
         #expect(abs(AutoPlayRate.month1.daysPerSecond - 30.436875) < 1e-9)
-        #expect(abs(AutoPlayRate.year1.daysPerSecond - 365.2425) < 1e-9)
+        #expect(abs(AutoPlayRate.month2.daysPerSecond - 2 * 30.436875) < 1e-9)
         let values = AutoPlayRate.allCases.map(\.daysPerSecond)
         #expect(values == values.sorted())
     }
