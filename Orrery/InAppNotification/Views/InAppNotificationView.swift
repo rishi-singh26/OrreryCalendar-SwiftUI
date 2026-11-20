@@ -79,7 +79,10 @@ struct InAppNotificationView: View {
     }
     
     private var gesture: some Gesture {
-        DragGesture()
+        // Measure in the global space: the container moves this view (`.offset`) while it's
+        // dragged, so in the default local space the gesture's own coordinates shift under
+        // the finger on every update and the translation zigzags, making the drag flicker.
+        DragGesture(coordinateSpace: .global)
             .onChanged { value in
                 // Only follow upward drags; downward drags are ignored.
                 let yOffset = value.translation.height < 0 ? value.translation.height : 0
