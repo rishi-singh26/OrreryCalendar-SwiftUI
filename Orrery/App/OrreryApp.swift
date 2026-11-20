@@ -30,6 +30,7 @@ struct OrreryApp: App {
         WindowGroup {
             ContentView()
                 .environment(dataController)
+                .inAppNotificationOverlay()
         }
         .modelContainer(modelContainer)
         #if os (macOS)
