@@ -12,16 +12,19 @@ struct LargeScreenView: View {
     @Environment(DataController.self) private var dataController
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    #if os(macOS)
+    @Environment(\.scenePhase) private var scenePhase
+#if os(macOS)
     @Environment(\.openSettings) private var openSettings
-    #endif
-
+#endif
+    
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
     @AppStorage(AppStorageKeys.showSunHalo) private var showSunHalo = true
     @AppStorage(AppStorageKeys.rangeYears) private var rangeYears = DataController.defaultRangeYears
     @AppStorage(AppStorageKeys.autoPlayEnabled) private var autoPlayEnabled = true
-
+    @AppStorage(AppStorageKeys.autoPlayRate) private var autoPlayRate: AutoPlayRate = AutoPlayRate.defaultRate
+    @AppStorage(AppStorageKeys.autoPlayDirection) private var autoPlayDirection: AutoPlayDirection = AutoPlayDirection.defaultDirection
+    
     /// Persisted, normalized (`0...1`) position of the trailing-edge Moon-size
     /// scrubber — same `AppStorageKeys.moonSizeScrub` key `SmallScreenView` uses, so
     /// the two layouts share one persisted position. Kept here (rather than in
@@ -29,7 +32,7 @@ struct LargeScreenView: View {
     /// view-update machinery when it's declared directly on a `View`; see
     /// `SmallScreenView`'s matching property for the full rationale.
     @AppStorage(AppStorageKeys.moonSizeScrub) private var moonSizeScrub: Double = 0.5
-
+    
     @State private var viewModel = ContentViewModel()
     
     /// `animation`, softened when Reduce Motion is on — used at every call
@@ -37,27 +40,44 @@ struct LargeScreenView: View {
     private var effectiveAnimation: Animation {
         reduceMotion ? viewModel.reducedAnimation : viewModel.animation
     }
-
+    
+    /// Play/Pause for Auto Play. Its settings live in the main Settings panel.
+    private var autoPlayButton: some View {
+        let isPlaying = viewModel.autoPlay.isPlaying
+        
+        return Button {
+            withAnimation(effectiveAnimation) {
+                viewModel.toggleAutoPlay(dataController: dataController)
+            }
+        } label: {
+            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+        }
+        .disabled(!dataController.isReady)
+        .help(isPlaying ? "Pause Auto Play" : "Start Auto Play")
+        .accessibilityLabel("Auto play")
+        .accessibilityValue(isPlaying ? "Playing" : "Paused")
+    }
+    
     /// The overlay panels' open/close transition — `.blurReplace` normally, a
     /// plain fade when Reduce Motion is on to match `effectiveAnimation`.
     private var panelTransition: AnyTransition {
         reduceMotion ? viewModel.reducedTransition : viewModel.transition
     }
-
+    
     private var moonSizeScrubBinding: Binding<CGFloat> {
         Binding(
             get: { CGFloat(moonSizeScrub) },
             set: { moonSizeScrub = Double($0) }
         )
     }
-
+    
     /// The size multiplier `MoonPhaseRow` reads — the actual `moonSizeScrub` →
     /// multiplier mapping is pure business logic, so it lives on `viewModel`
     /// (shared with `SmallScreenView`, not duplicated).
     private var moonSizeMultiplier: CGFloat {
         viewModel.moonSizeMultiplier(forScrub: moonSizeScrub)
     }
-
+    
     /// The trailing-edge notch the Moon-size scrubber is docked in — mirrors
     /// `SmallScreenView`'s matching shape so the two layouts share one tuned look.
     private var moonSizeScrubberNotchShape: WedgedNotchShape {
@@ -70,7 +90,7 @@ struct LargeScreenView: View {
             topCurveDepth: 45
         )
     }
-
+    
     var body: some View {
         // Looked up once per body evaluation and handed to both the main content and
         // the toolbar below, rather than each independently calling
@@ -81,13 +101,13 @@ struct LargeScreenView: View {
                 ZStack {
                     BackgroundView()
                         .cornerRadius(20)
-
+                    
                     GeometryReader { proxy in
                         MainContentBuilder(snapshot: snapshot, theme: theme, colorScheme: colorScheme, size: proxy.size)
                     }
-                    #if os(macOS)
-                    .frame(minWidth: 450, minHeight: 700)
-                    #endif
+#if os(macOS)
+                    .frame(minWidth: 460, minHeight: 700)
+#endif
                 }
                 .padding([.horizontal, .bottom], 5)
                 .toolbar {
@@ -109,6 +129,11 @@ struct LargeScreenView: View {
         .onChange(of: autoPlayEnabled) { _, enabled in
             if !enabled { viewModel.autoPlay.stop() }
         }
+        .onChange(of: autoPlayRate, initial: true) { _, newValue in viewModel.autoPlay.rate = newValue }
+        .onChange(of: autoPlayDirection, initial: true) { _, newValue in viewModel.autoPlay.direction = newValue }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { viewModel.autoPlay.stop() }
+        }
         .onDisappear {
             viewModel.autoPlay.stop()
         }
@@ -122,7 +147,7 @@ struct LargeScreenView: View {
             viewModel.handleRangeChange(dataController: dataController)
         }
     }
-
+    
     @ViewBuilder
     private func MainContentBuilder(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme, size: CGSize) -> some View {
         ZStack(alignment: .bottom) {
@@ -185,16 +210,6 @@ struct LargeScreenView: View {
                 .clipShape(moonSizeScrubberNotchShape)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
             
-            if autoPlayEnabled {
-                AutoPlayNotch(
-                    autoPlay: viewModel.autoPlay,
-                    isEnabled: dataController.isReady,
-                    animation: effectiveAnimation,
-                    onToggle: { viewModel.toggleAutoPlay(dataController: dataController) }
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            }
-
             VStack {
                 if viewModel.isNearRangeEdge(dataController: dataController) {
                     ExtendRangeButton(theme: theme) {
@@ -262,7 +277,12 @@ struct LargeScreenView: View {
     
     @ToolbarContentBuilder
     private func ToolbarBuilder(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme) -> some ToolbarContent {
-        ToolbarItemGroup(placement: .automatic) {
+        // Planets and AutoPlay
+        ToolbarItemGroup(placement: .primaryAction) {
+            if autoPlayEnabled {
+                autoPlayButton
+            }
+            
             if #available(iOS 26.0, macOS 26.0, *) {
                 Button {
                     withAnimation(effectiveAnimation) {
@@ -287,100 +307,104 @@ struct LargeScreenView: View {
                 .buttonStyle(.borderedProminent)
                 .buttonBorderShape(.capsule)
             }
-            
-            ControlGroup {
-                Button {
-                    viewModel.selectToday(dataController: dataController)
-                } label: {
-                    if #available(iOS 26.0, macOS 26.0, *) {
-                        Image(systemName: viewModel.todayCalendarSymbolName(dataController: dataController))
-                    } else {
-                        Image(systemName: "calendar.badge.clock")
-                    }
-                }
-                .disabled(!dataController.isReady || viewModel.isAlreadyOnToday(dataController: dataController))
-                .help("Jump to Today")
-                .accessibilityLabel("Today")
-                
-                
-                Button {
-                    viewModel.showDatePicker = true
-                } label: {
-                    Image(systemName: "calendar")
-                }
-                .disabled(!dataController.isReady)
-                .help("Choose a Date")
-                .accessibilityLabel("Choose Date")
-                .popover(isPresented: $viewModel.showDatePicker) {
-                    VStack(spacing: 8) {
-                        #if os (macOS)
-                        MonthYearSelector(
-                            selection: viewModel.animatedDateBinding(dataController: dataController),
-                            minDate: dataController.startDate,
-                            maxDate: dataController.endDate
-                        )
-
-                        MacCalendarView(
-                            selection: viewModel.animatedDateBinding(dataController: dataController),
-                            minDate: dataController.startDate,
-                            maxDate: dataController.endDate,
-                            today: dataController.todayDate,
-                            theme: theme
-                        )
-                        #else
-                        DatePicker(
-                            "Date",
-                            selection: viewModel.animatedDateBinding(dataController: dataController),
-                            in: dataController.startDate...dataController.endDate,
-                            displayedComponents: .date
-                        )
-                        .datePickerStyle(.graphical)
-                        .labelsHidden()
-                        #endif
-                    }
-                    .padding()
-                    .frame(minWidth: DeviceType.isIpad ? 320 : nil, minHeight: DeviceType.isIpad ? 320 : nil)
-                }
-            }
-            
-            
-            ControlGroup {
-                Button {
-                    viewModel.save(dataController: dataController, modelContext: modelContext)
-                } label: {
-                    Image(systemName: viewModel.justSaved ? "checkmark" : "bookmark")
-                        .foregroundStyle(viewModel.justSaved ? theme.brass : theme.ink)
-                }
-                .disabled(!dataController.isReady)
-                .help(viewModel.justSaved ? "Saved" : "Save This View")
-                .accessibilityLabel(viewModel.justSaved ? "Saved" : "Save")
-
-                if DeviceType.isIpad {
-                    Button {
-                        viewModel.showSavedList.toggle()
-                    } label: {
-                        Image(systemName: "list.bullet")
-                    }
-                    .help("Show Saved Views")
-                    .accessibilityLabel("Saved Views")
-                    .popover(isPresented: $viewModel.showSavedList) {
-                        SavedListView { date in
-                            viewModel.jumpToDate(date, dataController: dataController)
-                        }
-                        .frame(minHeight: DeviceType.isIpad ? 450 : 360)
-                        .frame(minWidth: 320, idealWidth: 360)
-                    }
+        }
+        
+        // Today and Calendar
+        ToolbarItemGroup(placement: .navigation) {
+            Button {
+                viewModel.selectToday(dataController: dataController)
+            } label: {
+                if #available(iOS 26.0, macOS 26.0, *) {
+                    Image(systemName: viewModel.todayCalendarSymbolName(dataController: dataController))
                 } else {
-                    Button {
-                        viewModel.showSavedList.toggle()
-                    } label: {
-                        Image(systemName: "list.bullet")
-                    }
-                    .help("Show Saved Views")
-                    .accessibilityLabel("Saved Views")
+                    Image(systemName: "calendar.badge.clock")
                 }
             }
+            .disabled(!dataController.isReady || viewModel.isAlreadyOnToday(dataController: dataController))
+            .help("Jump to Today")
+            .accessibilityLabel("Today")
             
+            
+            Button {
+                viewModel.showDatePicker = true
+            } label: {
+                Image(systemName: "calendar")
+            }
+            .disabled(!dataController.isReady)
+            .help("Choose a Date")
+            .accessibilityLabel("Choose Date")
+            .popover(isPresented: $viewModel.showDatePicker) {
+                VStack(spacing: 8) {
+#if os (macOS)
+                    MonthYearSelector(
+                        selection: viewModel.animatedDateBinding(dataController: dataController),
+                        minDate: dataController.startDate,
+                        maxDate: dataController.endDate
+                    )
+                    
+                    MacCalendarView(
+                        selection: viewModel.animatedDateBinding(dataController: dataController),
+                        minDate: dataController.startDate,
+                        maxDate: dataController.endDate,
+                        today: dataController.todayDate,
+                        theme: theme
+                    )
+#else
+                    DatePicker(
+                        "Date",
+                        selection: viewModel.animatedDateBinding(dataController: dataController),
+                        in: dataController.startDate...dataController.endDate,
+                        displayedComponents: .date
+                    )
+                    .datePickerStyle(.graphical)
+                    .labelsHidden()
+#endif
+                }
+                .padding()
+                .frame(minWidth: DeviceType.isIpad ? 320 : nil, minHeight: DeviceType.isIpad ? 320 : nil)
+            }
+        }
+        
+        // Save and List
+        ToolbarItemGroup(placement: .secondaryAction) {
+            Button {
+                viewModel.save(dataController: dataController, modelContext: modelContext)
+            } label: {
+                Image(systemName: viewModel.justSaved ? "checkmark" : "bookmark")
+                    .foregroundStyle(viewModel.justSaved ? theme.brass : theme.ink)
+            }
+            .disabled(!dataController.isReady)
+            .help(viewModel.justSaved ? "Saved" : "Save This View")
+            .accessibilityLabel(viewModel.justSaved ? "Saved" : "Save")
+            
+            if DeviceType.isIpad {
+                Button {
+                    viewModel.showSavedList.toggle()
+                } label: {
+                    Image(systemName: "list.bullet")
+                }
+                .help("Show Saved Views")
+                .accessibilityLabel("Saved Views")
+                .popover(isPresented: $viewModel.showSavedList) {
+                    SavedListView { date in
+                        viewModel.jumpToDate(date, dataController: dataController)
+                    }
+                    .frame(minHeight: DeviceType.isIpad ? 450 : 360)
+                    .frame(minWidth: 320, idealWidth: 360)
+                }
+            } else {
+                Button {
+                    viewModel.showSavedList.toggle()
+                } label: {
+                    Image(systemName: "list.bullet")
+                }
+                .help("Show Saved Views")
+                .accessibilityLabel("Saved Views")
+            }
+        }
+        
+        // Share and Settings
+        ToolbarItemGroup(placement: .principal) {
             if let snapshot {
                 PolaroidShareButton(
                     snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, colorScheme: colorScheme

@@ -12,9 +12,10 @@ import Foundation
 enum AutoPlayRate: String, CaseIterable, Identifiable {
     case day1, day2, day3, day4, day5, day6
     case week1, week2, week3
-    case month1, month2, month3, month4, month5, month6
-    case month7, month8, month9, month10, month11
-    case year1
+    case month1, month2
+//    case month3, month4, month5, month6
+//    case month7, month8, month9, month10, month11
+//    case year1
 
     var id: String { rawValue }
 
@@ -38,16 +39,16 @@ enum AutoPlayRate: String, CaseIterable, Identifiable {
         case .week3: (3, .week)
         case .month1: (1, .month)
         case .month2: (2, .month)
-        case .month3: (3, .month)
-        case .month4: (4, .month)
-        case .month5: (5, .month)
-        case .month6: (6, .month)
-        case .month7: (7, .month)
-        case .month8: (8, .month)
-        case .month9: (9, .month)
-        case .month10: (10, .month)
-        case .month11: (11, .month)
-        case .year1: (1, .year)
+        // case .month3: (3, .month)
+        // case .month4: (4, .month)
+        // case .month5: (5, .month)
+        // case .month6: (6, .month)
+        // case .month7: (7, .month)
+        // case .month8: (8, .month)
+        // case .month9: (9, .month)
+        // case .month10: (10, .month)
+        // case .month11: (11, .month)
+        // case .year1: (1, .year)
         }
     }
 
@@ -71,6 +72,19 @@ enum AutoPlayRate: String, CaseIterable, Identifiable {
         case .year: name = "Year"
         }
         return "\(count) \(name)\(count == 1 ? "" : "s") per sec"
+    }
+
+    /// Compact form for tight spaces (e.g. "2D", "1W", "1M"); still unique per case.
+    var shortLabel: String {
+        let (count, unit) = parts
+        let suffix: String
+        switch unit {
+        case .day: suffix = "D"
+        case .week: suffix = "W"
+        case .month: suffix = "M"
+        case .year: suffix = "Y"
+        }
+        return "\(count)\(suffix)"
     }
 
     static var persisted: AutoPlayRate {

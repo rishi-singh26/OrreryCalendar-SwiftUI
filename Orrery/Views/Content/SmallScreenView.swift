@@ -174,15 +174,14 @@ struct SmallScreenView: View {
                 .offset(y: -180)
             
             if autoPlayEnabled {
-                AutoPlayNotch(
-                    autoPlay: viewModel.autoPlay,
-                    isEnabled: dataController.isReady,
-                    animation: effectiveAnimation,
-                    onToggle: { viewModel.toggleAutoPlay(dataController: dataController) }
-                )
-                .padding(.leading, (barOuterPadding / 2))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .offset(y: -180)
+                GlassButton(circular: true, size: 45, useInteractiveGlass: true) {
+                    viewModel.toggleAutoPlay(dataController: dataController)
+                } label: {
+                    Image(systemName: viewModel.autoPlay.isPlaying ? "pause.fill" : "play.fill")
+                }
+                .padding(.trailing, barOuterPadding)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .offset(y: -160)
             }
 
             BuildControlsBar(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
@@ -311,7 +310,7 @@ struct SmallScreenView: View {
     @ViewBuilder
     private func BuildScrubberAndControls(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
         VStack(spacing: 0) {
-            HStack {
+            HStack(spacing: 0) {
                 BuildCalendarCapsule()
                     .glassOrSurface(glass: .interactive, in: .capsule)
 
