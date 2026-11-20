@@ -12,6 +12,9 @@ struct LargeScreenView: View {
     @Environment(DataController.self) private var dataController
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    #if os(macOS)
+    @Environment(\.openSettings) private var openSettings
+    #endif
 
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
@@ -178,7 +181,7 @@ struct LargeScreenView: View {
             VStack {
                 if viewModel.isNearRangeEdge(dataController: dataController) {
                     ExtendRangeButton(theme: theme) {
-                        viewModel.showSettings = true
+                        presentSettings()
                     }
                 }
                 
@@ -370,7 +373,7 @@ struct LargeScreenView: View {
             }
             
             Button {
-                viewModel.showSettings.toggle()
+                presentSettings(toggle: true)
             } label: {
                 Image(systemName: "slider.horizontal.3")
             }
@@ -380,6 +383,17 @@ struct LargeScreenView: View {
                 SettingsPanel()
             }
         }
+    }
+}
+
+private extension LargeScreenView {
+    /// macOS shows Settings in its own window (⌘,); iPad keeps the popover.
+    func presentSettings(toggle: Bool = false) {
+        #if os(macOS)
+        openSettings()
+        #else
+        viewModel.showSettings = toggle ? !viewModel.showSettings : true
+        #endif
     }
 }
 

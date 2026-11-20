@@ -36,5 +36,16 @@ struct OrreryApp: App {
         #if os (macOS)
         .windowStyle(.hiddenTitleBar)
         #endif
+
+        #if os(macOS)
+        Settings {
+            SettingsPanel()
+                .environment(dataController)
+                .inAppNotificationOverlay()
+        }
+        .defaultSize(width: 400, height: 700)
+        .windowResizability(.contentSize)
+        .windowStyle(.titleBar)
+        #endif
     }
 }
