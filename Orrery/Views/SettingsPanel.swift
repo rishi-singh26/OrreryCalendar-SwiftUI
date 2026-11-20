@@ -77,7 +77,7 @@ struct SettingsPanel: View {
                             .font(.footnote)
                             .foregroundStyle(ThemeColors.errorText)
                         Button("Retry") {
-                            dataController.setRange(toYears: rangeYears)
+                            applyRange(toYears: rangeYears)
                         }
                         .disabled(dataController.isComputing)
                     }
@@ -165,12 +165,32 @@ struct SettingsPanel: View {
     }
     #endif
 
+    /// Updates the cached range and, once that has finished successfully, tells the user.
+    /// The wait runs in its own task rather than being tied to this view, so the
+    /// notification still appears if Settings is dismissed while the range is computing.
+    private func applyRange(toYears years: Int) {
+        guard let task = dataController.setRange(toYears: years) else { return }
+        let controller = dataController
+        Task { @MainActor in
+            await task.value
+            // On failure Settings already shows the error (with Retry); don't announce success.
+            guard controller.lastErrorMessage == nil else { return }
+            InAppNotificationManager.shared.showNotification(
+                title: "Date range updated",
+                message: "Planet positions are now cached for ±\(years) years around today.",
+                type: .info,
+                timing: .long,
+                autoDismiss: true
+            )
+        }
+    }
+
     private var rangeSelection: Binding<Int> {
         Binding(
             get: { rangeYears },
             set: { newValue in
                 rangeYears = newValue
-                dataController.setRange(toYears: newValue)
+                applyRange(toYears: newValue)
             }
         )
     }

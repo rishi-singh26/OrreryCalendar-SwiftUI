@@ -168,23 +168,31 @@ final class DataController {
     /// covered. This is what the Settings range picker and its Retry button call, since
     /// "currently cached" in Settings is meant to always reflect the selected preset.
     /// Ignored while a computation is already in flight (see `extendRange`).
-    func setRange(toYears years: Int) {
-        guard !isComputing else { return }
+    ///
+    /// Returns the task doing the work — it finishes once the range has been updated (or
+    /// the update failed, see `lastErrorMessage`) and `isComputing` has cleared — or `nil`
+    /// if nothing was started, so callers can follow up on completion.
+    @discardableResult
+    func setRange(toYears years: Int) -> Task<Void, Never>? {
+        guard !isComputing else { return nil }
         let years = clampedYears(years)
         let today = UTCDay.todayAsUTCMidnight()
         guard
             let requestedStart = UTCDay.calendar.date(byAdding: .year, value: -years, to: today),
             let requestedEnd = UTCDay.calendar.date(byAdding: .year, value: years, to: today)
-        else { return }
+        else { return nil }
 
         guard isReady else {
-            computeTask = Task { await self.computeFullRange(start: requestedStart, end: requestedEnd) }
-            return
+            let task = Task { await self.computeFullRange(start: requestedStart, end: requestedEnd) }
+            computeTask = task
+            return task
         }
 
-        guard requestedStart != startDate || requestedEnd != endDate else { return } // already exactly this range
+        guard requestedStart != startDate || requestedEnd != endDate else { return nil } // already exactly this range
 
-        computeTask = Task { await self.reconcile(newStart: requestedStart, newEnd: requestedEnd) }
+        let task = Task { await self.reconcile(newStart: requestedStart, newEnd: requestedEnd) }
+        computeTask = task
+        return task
     }
 
     private func clampedYears(_ years: Int) -> Int {
