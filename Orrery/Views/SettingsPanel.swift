@@ -25,7 +25,9 @@ struct SettingsPanel: View {
 
     #endif
 
+    #if DEBUG
     @State private var showNotificationTest = false
+    #endif
 
     private static let rangePresets = [5, 10, 15, 20, 50, 100]
 
@@ -111,6 +113,7 @@ struct SettingsPanel: View {
                 }
             }
 
+            #if DEBUG
             Section {
                 Button("Notification Test") {
                     showNotificationTest = true
@@ -120,6 +123,7 @@ struct SettingsPanel: View {
             } footer: {
                 Text("Launch sample in-app notifications and toasts.")
             }
+            #endif
 
             #if os(iOS)
             Section("App Icon") {
@@ -148,9 +152,11 @@ struct SettingsPanel: View {
         .frame(minHeight: DeviceType.isIpad ? 450 : 360)
         .frame(minWidth: 320, idealWidth: 360)
         .scrollIndicators(.hidden)
+        #if DEBUG
         .sheet(isPresented: $showNotificationTest) {
             NotificationTestView()
         }
+        #endif
     }
 
     #if os(iOS)

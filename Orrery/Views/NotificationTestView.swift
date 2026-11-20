@@ -9,6 +9,8 @@
 
 import SwiftUI
 
+#if DEBUG
+
 struct NotificationTestView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var manager = InAppNotificationManager.shared
@@ -110,3 +112,5 @@ struct NotificationTestView: View {
 #Preview {
     NotificationTestView()
 }
+
+#endif
