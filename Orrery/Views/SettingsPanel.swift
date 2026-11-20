@@ -185,7 +185,7 @@ struct SettingsPanel: View {
                 title: "Date range updated",
                 message: "Planet positions are now cached for ±\(years) years around today.",
                 type: .info,
-                timing: .long,
+                timing: .extraLong,
                 autoDismiss: true
             )
         }

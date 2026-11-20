@@ -204,6 +204,7 @@ enum NotificationTime: CGFloat {
     case short = 1.0
     case medium = 2.0
     case long = 3.5
+    case extraLong = 5
 }
 
 enum NotificationType {
