@@ -455,4 +455,8 @@ struct OrreryTests {
         #expect(BoundaryTickFrequency.persisted == .weekly)
     }
 
+    @Test func hapticsEnabled_keyIsStableAndUnsetMeansNoStoredValue() {
+        #expect(AppStorageKeys.hapticsEnabled == "hapticsEnabled")
+    }
+
 }

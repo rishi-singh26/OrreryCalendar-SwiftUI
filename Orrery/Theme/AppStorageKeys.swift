@@ -16,4 +16,5 @@ enum AppStorageKeys {
     static let boundaryTickFrequency = "boundaryTickFrequency"
     static let selectedPlanetIndex = "selectedPlanetIndex"
     static let syncPlanetDetailDate = "syncPlanetDetailDate"
+    static let hapticsEnabled = "hapticsEnabled"
 }

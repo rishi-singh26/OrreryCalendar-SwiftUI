@@ -80,10 +80,21 @@ extension View {
     }
 
     /// `.sensoryFeedback` degrades to a no-op on hardware without haptics
-    /// (e.g. a Mac with no Force Touch trackpad).
+    /// (e.g. a Mac with no Force Touch trackpad). Gated by the "Haptic Feedback"
+    /// setting (`AppStorageKeys.hapticsEnabled`).
     @ViewBuilder
     func hapticTick<T: Equatable>(_ trigger: T) -> some View {
-        self.sensoryFeedback(.impact(weight: .light, intensity: 1), trigger: trigger)
+        hapticFeedback(trigger: trigger) { $0 != $1 }
+    }
+
+    /// The single entry point for app-generated haptics: a light impact when `trigger`
+    /// changes and `condition(old, new)` holds, suppressed when the user has turned off
+    /// "Haptic Feedback" in Settings. Don't call `.sensoryFeedback` directly.
+    func hapticFeedback<T: Equatable>(
+        trigger: T,
+        condition: @escaping (_ oldValue: T, _ newValue: T) -> Bool
+    ) -> some View {
+        modifier(HapticFeedbackModifier(trigger: trigger, condition: condition))
     }
     
     /// Thin-material list row background on iOS 18/macOS 15 (the oldest supported
@@ -105,6 +116,31 @@ extension View {
             self
         } else {
             self.listRowBackground(Rectangle().fill(.clear))
+        }
+    }
+}
+
+/// Applies the app's haptic and checks the Settings toggle when the trigger changes.
+/// The gate lives in the `condition` closure rather than an `if` around the modifier,
+/// so the view's identity (and its `@State`) is unaffected when the setting flips.
+private struct HapticFeedbackModifier<T: Equatable>: ViewModifier {
+    @AppStorage(AppStorageKeys.hapticsEnabled) private var hapticsEnabled = true
+    let trigger: T
+    let condition: (T, T) -> Bool
+
+    /// SwiftUI on macOS only maps `.alignment` and `.levelChange` to the trackpad
+    /// (`NSHapticFeedbackManager`); `.impact` is silently a no-op there.
+    private var feedback: SensoryFeedback {
+        #if os(macOS)
+        .alignment
+        #else
+        .impact(weight: .light, intensity: 1)
+        #endif
+    }
+
+    func body(content: Content) -> some View {
+        content.sensoryFeedback(feedback, trigger: trigger) { oldValue, newValue in
+            hapticsEnabled && condition(oldValue, newValue)
         }
     }
 }
