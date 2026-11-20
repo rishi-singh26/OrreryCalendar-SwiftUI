@@ -56,7 +56,7 @@ struct NotificationContainer: View {
                             .scaleEffect(isExpanded ? 1 : scale(stackIndex), anchor: .top)
                             .offset(y: isExpanded ? 0 : offsetY(stackIndex))
                     }
-                    .zIndex(notification.isDeleting ? 1000 : 1000 - baseZIndex)
+                    .zIndex(1000 + baseZIndex)
                     .transition(.asymmetric(
                         insertion: .move(edge: .top).combined(with: .opacity),
                         removal: .move(edge: .top).combined(with: .opacity)

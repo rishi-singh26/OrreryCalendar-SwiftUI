@@ -52,8 +52,8 @@ struct InAppNotificationView: View {
             .padding()
             .frame(maxWidth: .infinity)
         }
-        .glassOrSurface(in: .rect(cornerRadius: 14, style: .continuous))
-        .contentShape(.rect(cornerRadius: 14))
+        .glassOrSurface(in: .rect(cornerRadius: 18, style: .continuous))
+        .contentShape(.rect(cornerRadius: 18))
         .padding(.horizontal, 10)
         .gesture(gesture)
         .onAppear(perform: createDelayTask)
