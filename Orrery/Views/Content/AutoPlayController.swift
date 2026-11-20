@@ -20,6 +20,10 @@ final class AutoPlayController {
     @ObservationIgnored var rate: AutoPlayRate = AutoPlayRate.defaultRate
     @ObservationIgnored var direction: AutoPlayDirection = AutoPlayDirection.defaultDirection
 
+    /// Called (after playback has stopped) when it stops because it reached the edge of
+    /// the range, with the direction it was moving. Not called for any other stop.
+    @ObservationIgnored var onReachedEdge: (@MainActor (AutoPlayDirection) -> Void)?
+
     @ObservationIgnored private var task: Task<Void, Never>?
 
     /// Target ~15 date updates per second regardless of rate.
@@ -83,7 +87,9 @@ final class AutoPlayController {
                 )
                 apply(result.date)
                 if result.hitEdge {
+                    let direction = self.direction
                     self.stop()
+                    self.onReachedEdge?(direction)
                     return
                 }
             }

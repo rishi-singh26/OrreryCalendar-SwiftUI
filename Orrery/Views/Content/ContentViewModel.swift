@@ -80,6 +80,15 @@ final class ContentViewModel {
     /// Starts/stops auto play, stepping `selectedDate` within the cached range.
     func toggleAutoPlay(dataController: DataController) {
         guard dataController.isReady || autoPlay.isPlaying else { return }
+        autoPlay.onReachedEdge = { direction in
+            InAppNotificationManager.shared.showNotification(
+                title: "Information",
+                message: "Auto Play stopped at the \(direction == .forward ? "end" : "start") of the cached date range",
+                type: .neutral,
+                timing: .long,
+                autoDismiss: false
+            )
+        }
         autoPlay.toggle(
             currentDate: { [weak self] in self?.selectedDate ?? .distantPast },
             range: { dataController.startDate...dataController.endDate },
