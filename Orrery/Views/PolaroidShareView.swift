@@ -58,19 +58,52 @@ struct PolaroidShareView: View {
     }
 }
 
-/// Wraps the rendered PNG bytes and declares them as `.png` to the share sheet's item
-/// provider. Plain `URL` conforms to `Transferable` itself, but exports as a generic
-/// file/URL reference rather than typed image data, and a `FileRepresentation` promise
-/// (the natural-looking alternative) several third-party share extensions — WhatsApp
-/// among them — fail to resolve. Handing over the raw `Data` directly via
-/// `DataRepresentation` sidesteps both: it's typed as an image and needs no file promise.
-struct PolaroidPNGFile: Transferable {
-    let data: Data
-    let date: Date
+/// Everything needed to render the polaroid, exported as a `.png` only when the share
+/// sheet actually asks for the data — i.e. after the user taps Share — so nothing is
+/// rendered while the date is merely being scrubbed or changed.
+///
+/// The PNG bytes are handed over directly via `DataRepresentation` rather than as a
+/// `URL`, a `FileRepresentation` promise, or a SwiftUI `Image`: plain `URL` exports as a
+/// generic file reference rather than typed image data, several third-party share
+/// extensions (WhatsApp among them) fail to resolve a file promise, and `Image`'s
+/// `Transferable` conformance re-renders at display size, losing the extra pixel
+/// density from `renderer.scale`. Raw `Data` is typed as an image, needs no file
+/// promise, and preserves the exact pixels the renderer produced.
+struct PolaroidShareItem: Transferable {
+    let snapshot: DaySnapshot
+    let showOrbits: Bool
+    let showLabels: Bool
+    let showSunHalo: Bool
+    let colorScheme: ColorScheme
+
+    private enum ExportError: Error {
+        case renderFailed
+    }
 
     static var transferRepresentation: some TransferRepresentation {
-        DataRepresentation(exportedContentType: .png) { $0.data }
-            .suggestedFileName { "OrreryCalendar-\(fileNameDateFormatter.string(from: $0.date))" }
+        DataRepresentation(exportedContentType: .png) { item in
+            // `ImageRenderer` must run on the main actor.
+            guard let data = await item.renderPNGData() else { throw ExportError.renderFailed }
+            return data
+        }
+        .suggestedFileName { "OrreryCalendar-\(fileNameDateFormatter.string(from: $0.snapshot.date))" }
+    }
+
+    /// Renders `PolaroidShareView` off-screen at 3× and encodes it as PNG.
+    @MainActor
+    private func renderPNGData() -> Data? {
+        let content = PolaroidShareView(
+            snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, colorScheme: colorScheme
+        )
+        let renderer = ImageRenderer(content: content)
+        renderer.scale = 3
+        guard let cgImage = renderer.cgImage else { return nil }
+
+        #if os(macOS)
+        return NSBitmapImageRep(cgImage: cgImage).representation(using: .png, properties: [:])
+        #else
+        return UIImage(cgImage: cgImage, scale: renderer.scale, orientation: .up).pngData()
+        #endif
     }
 
     /// `yyyy-MM-dd`, fixed to UTC/POSIX like `SelectedDateTitleText`'s formatter — a
@@ -85,9 +118,11 @@ struct PolaroidPNGFile: Transferable {
     }()
 }
 
-/// Renders `PolaroidShareView` to an image and offers it via `ShareLink`. The same view
-/// backs both "share the currently viewed date" and "share a saved list entry" — spec
-/// §7's explicit requirement that both flows share one render path.
+/// Offers `PolaroidShareView` via `ShareLink`. The same button backs both "share the
+/// currently viewed date" and "share a saved list entry" — spec §7's explicit
+/// requirement that both flows share one render path. The render itself is deferred
+/// until the share sheet requests the data (see `PolaroidShareItem`), so this view does
+/// no work when its inputs change.
 struct PolaroidShareButton: View {
     let snapshot: DaySnapshot
     let showOrbits: Bool
@@ -95,73 +130,18 @@ struct PolaroidShareButton: View {
     let showSunHalo: Bool
     let colorScheme: ColorScheme
 
-    @State private var renderedImage: Image?
-    @State private var pngData: Data?
-
     var body: some View {
-        Group {
-            if let renderedImage, let pngData {
-                // Share the full-resolution PNG bytes rather than the SwiftUI `Image` itself:
-                // ShareLink's Transferable conformance for `Image` re-renders at the view's
-                // display size and loses the extra pixel density from `renderer.scale`,
-                // producing a soft, low-quality export. Handing over `pngData` directly
-                // preserves the exact pixels the renderer produced. `renderedImage` is kept
-                // only for the (small) SharePreview thumbnail.
-                ShareLink(item: PolaroidPNGFile(data: pngData, date: snapshot.date), preview: SharePreview(captionText, image: renderedImage)) {
-                    Label("Share", systemImage: "square.and.arrow.up")
-                }
-            } else {
-                Label("Share", systemImage: "square.and.arrow.up")
-                    .foregroundStyle(.secondary)
-            }
+        ShareLink(
+            item: PolaroidShareItem(
+                snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, colorScheme: colorScheme
+            ),
+            preview: SharePreview(captionText)
+        ) {
+            Label("Share", systemImage: "square.and.arrow.up")
         }
-        .task(id: renderKey) {
-            // Drop the previous render immediately so a stale image is never shared
-            // under the new date while the debounce below is pending.
-            renderedImage = nil
-            pngData = nil
-            // Debounce: `renderKey` embeds the selected date, which changes on every
-            // day the scrub timeline's drag/scroll gesture crosses (updated
-            // continuously, not just on release). Without this, each of those days
-            // would trigger a full off-screen render + PNG encode — all synchronous,
-            // uninterruptible main-thread work — competing with the
-            // gesture for every frame. Waiting here for the id to settle means only
-            // the final date (or a deliberate settings change) actually renders;
-            // `Task.sleep` is cancellable, so a superseded id never reaches `render()`.
-            do {
-                try await Task.sleep(for: .milliseconds(250))
-            } catch {
-                return
-            }
-            render()
-        }
-    }
-
-    private var renderKey: String {
-        "\(snapshot.date.timeIntervalSince1970)-\(showOrbits)-\(showLabels)-\(showSunHalo)-\(colorScheme == .dark)"
     }
 
     private var captionText: String {
         SelectedDateTitleText.string(from: snapshot.date)
-    }
-
-    @MainActor
-    private func render() {
-        let content = PolaroidShareView(
-            snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, colorScheme: colorScheme
-        )
-        let renderer = ImageRenderer(content: content)
-        renderer.scale = 3
-        guard let cgImage = renderer.cgImage else { return }
-
-        #if os(macOS)
-        let nsImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
-        renderedImage = Image(nsImage: nsImage)
-        pngData = NSBitmapImageRep(cgImage: cgImage).representation(using: .png, properties: [:])
-        #else
-        let uiImage = UIImage(cgImage: cgImage, scale: renderer.scale, orientation: .up)
-        renderedImage = Image(uiImage: uiImage)
-        pngData = uiImage.pngData()
-        #endif
     }
 }
