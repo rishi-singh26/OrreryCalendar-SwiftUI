@@ -193,6 +193,11 @@ struct ScrubTimelineView: View {
         // Enabling interaction only after the initial setup is done
         .allowsHitTesting(isInitialSetupDone)
         .onChange(of: scrollIndex) { oldValue, newValue in
+            // `scrollIndex` is also set programmatically (`updateScrollPosition`, when
+            // `selectedDate` changes elsewhere, e.g. auto play). Only a user scroll may
+            // write back: the deferred `Task` below would otherwise apply a stale index
+            // after `selectedDate` has already moved on, undoing the change.
+            guard scrollPhase.isUserDriven else { return }
             Task {
                 applySelection(forIndex: newValue)
             }

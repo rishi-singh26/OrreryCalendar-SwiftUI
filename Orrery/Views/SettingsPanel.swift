@@ -19,6 +19,10 @@ struct SettingsPanel: View {
     @AppStorage(AppStorageKeys.boundaryTickFrequency) private var boundaryTickFrequency: BoundaryTickFrequency = .defaultFrequency
     @AppStorage(AppStorageKeys.syncPlanetDetailDate) private var syncPlanetDetailDate = true
     @AppStorage(AppStorageKeys.hapticsEnabled) private var hapticsEnabled = true
+    @AppStorage(AppStorageKeys.autoPlayEnabled) private var autoPlayEnabled = true
+    @AppStorage(AppStorageKeys.autoPlayRate) private var autoPlayRate: AutoPlayRate = AutoPlayRate.defaultRate
+    @AppStorage(AppStorageKeys.autoPlayDirection) private var autoPlayDirection: AutoPlayDirection = AutoPlayDirection.defaultDirection
+    @AppStorage(AppStorageKeys.autoPlayManualChange) private var autoPlayManualChange: AutoPlayManualChangeBehavior = AutoPlayManualChangeBehavior.defaultBehavior
 
     #if os(iOS)
     @State private var selectedAppIcon: AppIconOption = .current
@@ -113,6 +117,32 @@ struct SettingsPanel: View {
                 }
             }
             
+            Section {
+                Toggle("Enable Auto Play", isOn: $autoPlayEnabled)
+                if autoPlayEnabled {
+                    Picker("Speed", selection: $autoPlayRate) {
+                        ForEach(AutoPlayRate.allCases) { rate in
+                            Text(rate.label).tag(rate)
+                        }
+                    }
+                    Picker("Direction", selection: $autoPlayDirection) {
+                        ForEach(AutoPlayDirection.allCases) { direction in
+                            Text(direction.label).tag(direction)
+                        }
+                    }
+                    Picker("When I change the date", selection: $autoPlayManualChange) {
+                        ForEach(AutoPlayManualChangeBehavior.allCases) { behavior in
+                            Text(behavior.label).tag(behavior)
+                        }
+                    }
+                }
+            } header: {
+                Text("Auto Play")
+            } footer: {
+                Text("Shows a Play button that moves the date automatically. Dragging the timeline always pauses; the last option applies to the date picker, Today and saved views. Playback stops at the end of the cached range.")
+            }
+            .tint(.accentColor)
+
             Section("Scrubber") {
                 Picker("Boundary Ticks", selection: $boundaryTickFrequency) {
                     ForEach(BoundaryTickFrequency.allCases) { frequency in

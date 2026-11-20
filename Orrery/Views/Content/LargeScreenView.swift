@@ -20,6 +20,7 @@ struct LargeScreenView: View {
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
     @AppStorage(AppStorageKeys.showSunHalo) private var showSunHalo = true
     @AppStorage(AppStorageKeys.rangeYears) private var rangeYears = DataController.defaultRangeYears
+    @AppStorage(AppStorageKeys.autoPlayEnabled) private var autoPlayEnabled = true
 
     /// Persisted, normalized (`0...1`) position of the trailing-edge Moon-size
     /// scrubber — same `AppStorageKeys.moonSizeScrub` key `SmallScreenView` uses, so
@@ -105,6 +106,12 @@ struct LargeScreenView: View {
         // `initial: true` because the controller is shared across windows: a window
         // opened after it's already ready never sees these values change, so it must
         // seed its selection and range thresholds from the current values on mount.
+        .onChange(of: autoPlayEnabled) { _, enabled in
+            if !enabled { viewModel.autoPlay.stop() }
+        }
+        .onDisappear {
+            viewModel.autoPlay.stop()
+        }
         .onChange(of: dataController.isReady, initial: true) { _, ready in
             viewModel.handleReadyChange(isReady: ready, dataController: dataController, rangeYears: rangeYears)
         }
@@ -178,6 +185,16 @@ struct LargeScreenView: View {
                 .clipShape(moonSizeScrubberNotchShape)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
             
+            if autoPlayEnabled {
+                AutoPlayNotch(
+                    autoPlay: viewModel.autoPlay,
+                    isEnabled: dataController.isReady,
+                    animation: effectiveAnimation,
+                    onToggle: { viewModel.toggleAutoPlay(dataController: dataController) }
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            }
+
             VStack {
                 if viewModel.isNearRangeEdge(dataController: dataController) {
                     ExtendRangeButton(theme: theme) {

@@ -19,6 +19,7 @@ struct SmallScreenView: View {
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
     @AppStorage(AppStorageKeys.showSunHalo) private var showSunHalo = true
     @AppStorage(AppStorageKeys.rangeYears) private var rangeYears = DataController.defaultRangeYears
+    @AppStorage(AppStorageKeys.autoPlayEnabled) private var autoPlayEnabled = true
 
     @State private var viewModel = ContentViewModel()
 
@@ -106,6 +107,12 @@ struct SmallScreenView: View {
         .onChange(of: dataController.isReady) { _, ready in
             viewModel.handleReadyChange(isReady: ready, dataController: dataController, rangeYears: rangeYears)
         }
+        .onChange(of: autoPlayEnabled) { _, enabled in
+            if !enabled { viewModel.autoPlay.stop() }
+        }
+        .onDisappear {
+            viewModel.autoPlay.stop()
+        }
         .onChange(of: dataController.startDate) { _, _ in
             viewModel.handleRangeChange(dataController: dataController)
         }
@@ -166,6 +173,18 @@ struct SmallScreenView: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .offset(y: -180)
             
+            if autoPlayEnabled {
+                AutoPlayNotch(
+                    autoPlay: viewModel.autoPlay,
+                    isEnabled: dataController.isReady,
+                    animation: effectiveAnimation,
+                    onToggle: { viewModel.toggleAutoPlay(dataController: dataController) }
+                )
+                .padding(.leading, (barOuterPadding / 2))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .offset(y: -180)
+            }
+
             BuildControlsBar(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
                 .glassOrSurface(glass: .tinted(ThemeColors.controlsBarTint), in: .rect(cornerRadius: panelCornerRadius))
                 .clipShape(.rect(cornerRadius: panelCornerRadius))

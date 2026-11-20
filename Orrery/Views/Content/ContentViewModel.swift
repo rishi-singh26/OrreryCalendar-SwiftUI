@@ -74,6 +74,19 @@ final class ContentViewModel {
 
     private var hasInitializedSelection = false
 
+    /// Auto play engine. Idle (no task, no observation) unless the user starts it.
+    let autoPlay = AutoPlayController()
+
+    /// Starts/stops auto play, stepping `selectedDate` within the cached range.
+    func toggleAutoPlay(dataController: DataController) {
+        guard dataController.isReady || autoPlay.isPlaying else { return }
+        autoPlay.toggle(
+            currentDate: { [weak self] in self?.selectedDate ?? .distantPast },
+            range: { dataController.startDate...dataController.endDate },
+            apply: { [weak self] in self?.selectedDate = $0 }
+        )
+    }
+
     /// `startDate + 30 days` / `endDate - 30 days` — cached and recomputed only
     /// when the cached range itself changes (see `handleRangeChange`), since
     /// `isNearRangeEdge` is read every time `selectedDate` changes, including
@@ -91,7 +104,10 @@ final class ContentViewModel {
     /// the controller has a cached range to clamp into, then resumes any range extension
     /// that was interrupted (e.g. app terminated mid-extension).
     func handleReadyChange(isReady: Bool, dataController: DataController, rangeYears: Int) {
-        guard isReady else { return }
+        guard isReady else {
+            autoPlay.stop()
+            return
+        }
         if !hasInitializedSelection {
             selectedDate = dataController.clampedDate(dataController.todayDate)
             hasInitializedSelection = true
@@ -117,7 +133,13 @@ final class ContentViewModel {
         Binding(
             get: { self.selectedDate },
             set: {
-                self.selectedDate = dataController.clampedDate($0)
+                let newDate = dataController.clampedDate($0)
+                // A scrub-timeline drag fights playback for control of the date, so it
+                // always pauses auto play (see `AutoPlayManualChangeBehavior`).
+                if self.autoPlay.isPlaying, newDate != self.selectedDate {
+                    self.autoPlay.stop()
+                }
+                self.selectedDate = newDate
             }
         )
     }
@@ -139,6 +161,9 @@ final class ContentViewModel {
     /// unrelated scrub to be mistaken for one that should animate.
     private func setSelectedDateAnimated(_ newDate: Date) {
         guard newDate != selectedDate else { return }
+        if autoPlay.isPlaying, AutoPlayManualChangeBehavior.persisted == .pause {
+            autoPlay.stop()
+        }
         selectedDate = newDate
         dateChangeAnimationTrigger += 1
     }
