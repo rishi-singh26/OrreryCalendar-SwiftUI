@@ -25,6 +25,10 @@ struct SettingsPanel: View {
 
     #endif
 
+    #if DEBUG
+    @State private var showNotificationTest = false
+    #endif
+
     private static let rangePresets = [5, 10, 15, 20, 50, 100]
 
     var body: some View {
@@ -34,6 +38,7 @@ struct SettingsPanel: View {
                 Toggle("Show Labels", isOn: $showLabels)
                 Toggle("Show Sun Halo", isOn: $showSunHalo)
             }
+            .tint(.accentColor)
             
             Section {
                 Toggle(isOn: $syncPlanetDetailDate) {
@@ -44,9 +49,10 @@ struct SettingsPanel: View {
             } footer: {
                 Text("Keep the date shown in the Planet Detail view matched with the main timeline. Turn off to browse a planet's dates on its own, without moving the main timeline.")
             }
+            .tint(.accentColor)
 
 
-            Section("Date range") {
+            Section {
                 if dataController.isReady {
                     Text("Cached: \(rangeDescription)")
                         .foregroundStyle(.secondary)
@@ -73,13 +79,17 @@ struct SettingsPanel: View {
                             .font(.footnote)
                             .foregroundStyle(ThemeColors.errorText)
                         Button("Retry") {
-                            dataController.setRange(toYears: rangeYears)
+                            applyRange(toYears: rangeYears)
                         }
                         .disabled(dataController.isComputing)
                     }
                 }
+            } header: {
+                Text("Date range")
+            } footer: {
+                Text("How far before and after today's date to cache planet positions for scrubbing. Larger ranges use more compute and storage.")
             }
-            
+
             Section("Appearance") {
                 Picker(selection: $appearanceMode) {
                     Label("System", systemImage: "iphone.gen2").tag(AppearanceMode.system)
@@ -102,6 +112,18 @@ struct SettingsPanel: View {
                     }
                 }
             }
+
+            #if DEBUG
+            Section {
+                Button("Notification Test") {
+                    showNotificationTest = true
+                }
+            } header: {
+                Text("Developer")
+            } footer: {
+                Text("Launch sample in-app notifications and toasts.")
+            }
+            #endif
 
             #if os(iOS)
             Section("App Icon") {
@@ -130,6 +152,11 @@ struct SettingsPanel: View {
         .frame(minHeight: DeviceType.isIpad ? 450 : 360)
         .frame(minWidth: 320, idealWidth: 360)
         .scrollIndicators(.hidden)
+        #if DEBUG
+        .sheet(isPresented: $showNotificationTest) {
+            NotificationTestView()
+        }
+        #endif
     }
 
     #if os(iOS)
@@ -144,12 +171,32 @@ struct SettingsPanel: View {
     }
     #endif
 
+    /// Updates the cached range and, once that has finished successfully, tells the user.
+    /// The wait runs in its own task rather than being tied to this view, so the
+    /// notification still appears if Settings is dismissed while the range is computing.
+    private func applyRange(toYears years: Int) {
+        guard let task = dataController.setRange(toYears: years) else { return }
+        let controller = dataController
+        Task { @MainActor in
+            await task.value
+            // On failure Settings already shows the error (with Retry); don't announce success.
+            guard controller.lastErrorMessage == nil else { return }
+            InAppNotificationManager.shared.showNotification(
+                title: "Date range updated",
+                message: "Planet positions are now cached for ±\(years) years around today.",
+                type: .info,
+                timing: .extraLong,
+                autoDismiss: true
+            )
+        }
+    }
+
     private var rangeSelection: Binding<Int> {
         Binding(
             get: { rangeYears },
             set: { newValue in
                 rangeYears = newValue
-                dataController.setRange(toYears: newValue)
+                applyRange(toYears: newValue)
             }
         )
     }

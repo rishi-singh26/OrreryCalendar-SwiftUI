@@ -12,6 +12,9 @@ struct LargeScreenView: View {
     @Environment(DataController.self) private var dataController
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    #if os(macOS)
+    @Environment(\.openSettings) private var openSettings
+    #endif
 
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
@@ -81,7 +84,9 @@ struct LargeScreenView: View {
                     GeometryReader { proxy in
                         MainContentBuilder(snapshot: snapshot, theme: theme, colorScheme: colorScheme, size: proxy.size)
                     }
+                    #if os(macOS)
                     .frame(minWidth: 450, minHeight: 700)
+                    #endif
                 }
                 .padding([.horizontal, .bottom], 5)
                 .toolbar {
@@ -97,13 +102,16 @@ struct LargeScreenView: View {
         .task {
             await dataController.bootstrap()
         }
-        .onChange(of: dataController.isReady) { _, ready in
+        // `initial: true` because the controller is shared across windows: a window
+        // opened after it's already ready never sees these values change, so it must
+        // seed its selection and range thresholds from the current values on mount.
+        .onChange(of: dataController.isReady, initial: true) { _, ready in
             viewModel.handleReadyChange(isReady: ready, dataController: dataController, rangeYears: rangeYears)
         }
-        .onChange(of: dataController.startDate) { _, _ in
+        .onChange(of: dataController.startDate, initial: true) { _, _ in
             viewModel.handleRangeChange(dataController: dataController)
         }
-        .onChange(of: dataController.endDate) { _, _ in
+        .onChange(of: dataController.endDate, initial: true) { _, _ in
             viewModel.handleRangeChange(dataController: dataController)
         }
     }
@@ -173,7 +181,7 @@ struct LargeScreenView: View {
             VStack {
                 if viewModel.isNearRangeEdge(dataController: dataController) {
                     ExtendRangeButton(theme: theme) {
-                        viewModel.showSettings = true
+                        presentSettings()
                     }
                 }
                 
@@ -365,7 +373,7 @@ struct LargeScreenView: View {
             }
             
             Button {
-                viewModel.showSettings.toggle()
+                presentSettings(toggle: true)
             } label: {
                 Image(systemName: "slider.horizontal.3")
             }
@@ -375,6 +383,17 @@ struct LargeScreenView: View {
                 SettingsPanel()
             }
         }
+    }
+}
+
+private extension LargeScreenView {
+    /// macOS shows Settings in its own window (⌘,); iPad keeps the popover.
+    func presentSettings(toggle: Bool = false) {
+        #if os(macOS)
+        openSettings()
+        #else
+        viewModel.showSettings = toggle ? !viewModel.showSettings : true
+        #endif
     }
 }
 

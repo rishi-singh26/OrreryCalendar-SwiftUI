@@ -38,7 +38,7 @@ struct SelectedDateTitleText: View {
     private static let formatter: DateFormatter = {
         let formatter = DateFormatter()
         // formatter.dateFormat = "EEE, d MMM y"
-        formatter.dateFormat = "d MMM y, EEE"
+        formatter.dateFormat = "dd MMM y, EEE"
         formatter.timeZone = TimeZone(identifier: "UTC")
         formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter

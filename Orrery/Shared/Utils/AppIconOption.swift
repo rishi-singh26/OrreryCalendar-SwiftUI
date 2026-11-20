@@ -56,7 +56,10 @@ enum AppIconOption: String, CaseIterable, Identifiable {
             return
         }
         guard UIApplication.shared.supportsAlternateIcons else {
-            completion(nil)
+            completion(NSError(
+                domain: "AppIconOption", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Alternate app icons are not supported on this device."]
+            ))
             return
         }
         UIApplication.shared.setAlternateIconName(iconName) { error in

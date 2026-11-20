@@ -30,10 +30,22 @@ struct OrreryApp: App {
         WindowGroup {
             ContentView()
                 .environment(dataController)
+                .inAppNotificationOverlay()
         }
         .modelContainer(modelContainer)
         #if os (macOS)
         .windowStyle(.hiddenTitleBar)
+        #endif
+
+        #if os(macOS)
+        Settings {
+            SettingsPanel()
+                .environment(dataController)
+                .inAppNotificationOverlay()
+        }
+        .defaultSize(width: 400, height: 700)
+        .windowResizability(.contentSize)
+        .windowStyle(.titleBar)
         #endif
     }
 }

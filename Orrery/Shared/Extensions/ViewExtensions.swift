@@ -85,5 +85,26 @@ extension View {
     func hapticTick<T: Equatable>(_ trigger: T) -> some View {
         self.sensoryFeedback(.impact(weight: .light, intensity: 1), trigger: trigger)
     }
-
+    
+    /// Thin-material list row background on iOS 18/macOS 15 (the oldest supported
+    /// releases, per the project's 18.6/15.6 deployment targets); a no-op on
+    /// iOS 26/macOS 26+, where lists already get the system's Liquid Glass look.
+    @ViewBuilder
+    func iOS18ListRowBackground() -> some View {
+        if #available(iOS 26.0, macOS 26.0, *) {
+            self
+        } else {
+            self.listRowBackground(Rectangle().fill(.thinMaterial))
+        }
+    }
+    
+    /// Clear list row background on iOS 18/macOS 15; a no-op on iOS 26/macOS 26+.
+    @ViewBuilder
+    func iOS18ListRowClearBackground() -> some View {
+        if #available(iOS 26.0, macOS 26.0, *) {
+            self
+        } else {
+            self.listRowBackground(Rectangle().fill(.clear))
+        }
+    }
 }

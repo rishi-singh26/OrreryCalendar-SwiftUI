@@ -138,6 +138,14 @@ struct PlanetDetailView: View {
                 .padding()
             }
         }
+        // `localDate` isn't routed through the caller's clamping, so keep it inside
+        // the cached range if that range changes underneath it.
+        .onChange(of: dataController.startDate) { _, _ in
+            localDate = dataController.clampedDate(localDate)
+        }
+        .onChange(of: dataController.endDate) { _, _ in
+            localDate = dataController.clampedDate(localDate)
+        }
     }
     
     @ViewBuilder
@@ -156,6 +164,7 @@ struct PlanetDetailView: View {
                     .foregroundStyle(.primary)
             }
             .padding(.vertical, DeviceType.isMac ? 5 : 0)
+            .iOS18ListRowClearBackground()
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)

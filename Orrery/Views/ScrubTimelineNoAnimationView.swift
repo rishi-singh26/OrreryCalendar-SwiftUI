@@ -201,6 +201,9 @@ struct ScrubTimelineNoAnimationView: View {
         }
         .onChange(of: minDate) { oldValue, newValue in
             boundaryIndices = computeBoundaryIndices()
+            // Indices are offsets from `minDate`, so a new `minDate` shifts which tick
+            // `selectedDate` sits on even though `selectedDate` itself hasn't changed.
+            updateScrollPosition(for: selectedDate)
         }
         .onChange(of: maxDate) { oldValue, newValue in
             boundaryIndices = computeBoundaryIndices()
