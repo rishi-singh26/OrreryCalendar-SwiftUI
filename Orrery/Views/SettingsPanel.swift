@@ -18,6 +18,7 @@ struct SettingsPanel: View {
     @AppStorage(AppStorageKeys.rangeYears) private var rangeYears = DataController.defaultRangeYears
     @AppStorage(AppStorageKeys.boundaryTickFrequency) private var boundaryTickFrequency: BoundaryTickFrequency = .defaultFrequency
     @AppStorage(AppStorageKeys.syncPlanetDetailDate) private var syncPlanetDetailDate = true
+    @AppStorage(AppStorageKeys.hapticsEnabled) private var hapticsEnabled = true
 
     #if os(iOS)
     @State private var selectedAppIcon: AppIconOption = .current
@@ -37,6 +38,13 @@ struct SettingsPanel: View {
                 Toggle("Show Orbits", isOn: $showOrbits)
                 Toggle("Show Labels", isOn: $showLabels)
                 Toggle("Show Sun Halo", isOn: $showSunHalo)
+            }
+            .tint(.accentColor)
+            
+            Section {
+                Toggle("Haptic Feedback", isOn: $hapticsEnabled)
+            } footer: {
+                Text("Vibration feedback when scrubbing dates and switching tabs.")
             }
             .tint(.accentColor)
             
