@@ -38,7 +38,6 @@ struct SettingsPanel: View {
 
     var body: some View {
         Form {
-            // Appearance of the main view
             Section("Display") {
                 Toggle("Show Orbits", isOn: $showOrbits)
                 Toggle("Show Labels", isOn: $showLabels)
@@ -58,7 +57,6 @@ struct SettingsPanel: View {
             }
             .tint(.accentColor)
 
-            // Playback
             Section {
                 Toggle("Enable Auto Play", isOn: $autoPlayEnabled)
                 if autoPlayEnabled {
@@ -85,7 +83,6 @@ struct SettingsPanel: View {
             }
             .tint(.accentColor)
 
-            // Scrubbing the timeline and the feedback it gives
             Section {
                 Picker("Boundary Ticks", selection: $boundaryTickFrequency) {
                     ForEach(BoundaryTickFrequency.allCases) { frequency in
@@ -96,7 +93,7 @@ struct SettingsPanel: View {
             } header: {
                 Text("Scrubber")
             } footer: {
-                Text("Haptic feedback is vibration when scrubbing dates and switching tabs.")
+                Text("Vibration feedback when scrubbing dates and switching tabs.")
             }
             .tint(.accentColor)
 
@@ -112,7 +109,6 @@ struct SettingsPanel: View {
             .tint(.accentColor)
 
 
-            // Data
             Section {
                 if dataController.isReady {
                     Text("Cached: \(rangeDescription)")

@@ -325,7 +325,7 @@ struct SmallScreenView: View {
     @ViewBuilder
     private func BuildScrubberAndControls(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
         VStack(spacing: 0) {
-            HStack(spacing: 0) {
+            HStack {
                 BuildCalendarCapsule()
                     .glassOrSurface(glass: .interactive, in: .capsule)
 

@@ -162,6 +162,9 @@ enum ScrubTimelineMath {
 extension ScrollPhase {
     /// True while the user's finger is driving the scroll (touch, drag or fling) — as
     /// opposed to `.idle` or `.animating`, the latter being a programmatic scroll.
+    /// The scrub timelines' `scrollIndex` is also set programmatically (when
+    /// `selectedDate` changes elsewhere, e.g. auto play), and a deferred write-back of
+    /// that stale index would undo the new date — so only user-driven scrolls may write back.
     var isUserDriven: Bool {
         self == .tracking || self == .interacting || self == .decelerating
     }
