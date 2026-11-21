@@ -1,6 +1,6 @@
 <p align="center">
   <picture>
-    <img src="Assets/OrbitAndPlanetAny.png" width="140" style="border-radius: 28px;" alt="Orrery app icon">
+    <img src="Assets/Primary.png" width="140" style="border-radius: 28px;" alt="Orrery app icon">
   </picture>
 </p>
 
