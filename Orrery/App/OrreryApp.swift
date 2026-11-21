@@ -14,11 +14,9 @@ struct OrreryApp: App {
     @State private var dataController: DataController
 
     init() {
-        let schema = Schema([PlanetDataStore.self, SavedSnapshot.self])
-        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         let container: ModelContainer
         do {
-            container = try ModelContainer(for: schema, configurations: [configuration])
+            container = try ModelContainerFactory.make()
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
         }
