@@ -25,9 +25,7 @@ struct SettingsPanel: View {
     @AppStorage(AppStorageKeys.autoPlayManualChange) private var autoPlayManualChange: AutoPlayManualChangeBehavior = AutoPlayManualChangeBehavior.defaultBehavior
 
     #if os(iOS)
-    @State private var selectedAppIcon: AppIconOption = .current
-    // @State private var currentIcon = UIApplication.shared.alternateIconName ?? Icon.primary.appIconName
-
+    @State private var showIconPicker: Bool = false
     #endif
 
     #if DEBUG
@@ -56,7 +54,7 @@ struct SettingsPanel: View {
                 }
             }
             .tint(.accentColor)
-
+            
             Section {
                 Toggle("Enable Auto Play", isOn: $autoPlayEnabled)
                 if autoPlayEnabled {
@@ -82,7 +80,7 @@ struct SettingsPanel: View {
                 Text("Shows a Play button that moves the date automatically. Dragging the timeline always pauses; the last option applies to the date picker, Today and saved views. Playback stops at the end of the cached range.")
             }
             .tint(.accentColor)
-
+            
             Section {
                 Picker("Boundary Ticks", selection: $boundaryTickFrequency) {
                     ForEach(BoundaryTickFrequency.allCases) { frequency in
@@ -96,7 +94,7 @@ struct SettingsPanel: View {
                 Text("Vibration feedback when scrubbing dates and switching tabs.")
             }
             .tint(.accentColor)
-
+            
             Section {
                 Toggle(isOn: $syncPlanetDetailDate) {
                     Text("Sync Planet Detail Date")
@@ -107,21 +105,21 @@ struct SettingsPanel: View {
                 Text("Keep the date shown in the Planet Detail view matched with the main timeline. Turn off to browse a planet's dates on its own, without moving the main timeline.")
             }
             .tint(.accentColor)
-
-
+            
+            
             Section {
                 if dataController.isReady {
                     Text("Cached: \(rangeDescription)")
                         .foregroundStyle(.secondary)
                 }
-
+                
                 Picker("Extend range", selection: rangeSelection) {
                     ForEach(Self.rangePresets, id: \.self) { years in
                         Text("±\(years) years").tag(years)
                     }
                 }
                 .disabled(dataController.isComputing)
-
+                
                 if dataController.isComputing {
                     HStack(spacing: 8) {
                         ProgressView()
@@ -129,7 +127,7 @@ struct SettingsPanel: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-
+                
                 if let error = dataController.lastErrorMessage {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(error)
@@ -146,30 +144,38 @@ struct SettingsPanel: View {
             } footer: {
                 Text("How far before and after today's date to cache planet positions for scrubbing. Larger ranges use more compute and storage.")
             }
-
-            #if os(iOS)
+            
+#if os(iOS)
             Section("App Icon") {
-                HStack(spacing: 20) {
-                    ForEach(AppIconOption.allCases) { option in
-                        AppIconOptionButton(
-                            option: option,
-                            isSelected: selectedAppIcon == option
-                        ) {
-                            guard selectedAppIcon != option else { return }
-                            // Only persist the selection once the OS confirms the icon
-                            // actually changed — an optimistic write here would leave
-                            // Settings showing the wrong icon as selected (and that
-                            // option stuck, since the guard above would then skip it)
-                            // if `setAlternateIconName` ever fails.
-                            setIconSelection(to: option)
-                        }
+                Button {
+                    showIconPicker.toggle()
+                } label: {
+                    HStack {
+                        Label("Change App Icon", systemImage: "app.badge.checkmark")
+                        Spacer()
+                        let iconName = UIApplication.shared.alternateIconName ?? "AppIcon"
+                        Image("\(iconName)Preview")
+                            .resizable()
+                            .frame(width: 30, height: 30)
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .strokeBorder(Color.white, lineWidth: 1)
+                            )
                     }
-                    Spacer(minLength: 0)
                 }
-                .padding(.vertical, 4)
+                .buttonStyle(.plain)
+                .appIconPicker(isPresented: $showIconPicker) {
+                    Image("AppIconPreview")
+                } alternateIconThumbnail: { iconName in
+                    Image("\(iconName)Preview")
+                } alternateIconTitle: { iconName in
+                    // Use custom icon title accordingly, if needed.
+                    Text(iconName)
+                }
             }
-            #endif
-            #if DEBUG
+#endif
+#if DEBUG
             Section {
                 Button("Notification Test") {
                     showNotificationTest = true
@@ -179,8 +185,8 @@ struct SettingsPanel: View {
             } footer: {
                 Text("Launch sample in-app notifications and toasts.")
             }
-            #endif
-
+#endif
+            
         }
         .formStyle(.grouped)
         .frame(minHeight: DeviceType.isIpad ? 450 : 360)
@@ -192,18 +198,6 @@ struct SettingsPanel: View {
         }
         #endif
     }
-
-    #if os(iOS)
-    private func setIconSelection(to newValue: AppIconOption) {
-        let previous = selectedAppIcon
-        selectedAppIcon = newValue
-        newValue.apply { error in
-            guard error != nil else { return }
-            // The system couldn't apply the icon (e.g. simulator quirks); roll the picker back.
-            selectedAppIcon = previous
-        }
-    }
-    #endif
 
     /// Updates the cached range and, once that has finished successfully, tells the user.
     /// The wait runs in its own task rather than being tied to this view, so the
