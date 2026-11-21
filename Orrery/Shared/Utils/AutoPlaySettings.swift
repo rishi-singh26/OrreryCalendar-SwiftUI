@@ -71,7 +71,7 @@ enum AutoPlayRate: String, CaseIterable, Identifiable {
         case .month: name = "Month"
         case .year: name = "Year"
         }
-        return "\(count) \(name)\(count == 1 ? "" : "s") per sec"
+        return "\(count) \(name)\(count == 1 ? "" : "s") / Sec"
     }
 
     /// Compact form for tight spaces (e.g. "2D", "1W", "1M"); still unique per case.
@@ -101,6 +101,13 @@ enum AutoPlayDirection: String, CaseIterable, Identifiable {
 
     var sign: Int { self == .forward ? 1 : -1 }
     var label: String { self == .forward ? "Forward" : "Backward" }
+    
+    var systemImage: String {
+        switch self {
+        case .forward: return "arrow.forward.circle"
+        case .backward: return "arrow.backward.circle"
+        }
+    }
 }
 
 /// What a *discrete* manual date change (date picker, Today, saved item) does to a

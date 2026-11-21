@@ -188,7 +188,10 @@ struct SmallScreenView: View {
                         viewModel.toggleAutoPlay(dataController: dataController)
                     }
                 } label: {
-                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                    Image(systemName: isPlaying ? "pause.fill" : "livephoto.play")
+                        .resizable()
+                        .frame(width: isPlaying ? 10 : 30, height: isPlaying ? 10 : 30)
+                        .contentTransition(.symbolEffect(.replace))
                 }
                 .disabled(!dataController.isReady)
                 .help(isPlaying ? "Pause Auto Play" : "Start Auto Play")

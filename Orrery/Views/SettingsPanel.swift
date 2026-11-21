@@ -56,22 +56,33 @@ struct SettingsPanel: View {
             .tint(.accentColor)
             
             Section {
-                Toggle("Enable Auto Play", isOn: $autoPlayEnabled)
+                Toggle(isOn: $autoPlayEnabled) {
+                    Label("Enable Auto Play", systemImage: "livephoto.play")
+                }
+                
                 if autoPlayEnabled {
-                    Picker("Speed", selection: $autoPlayRate) {
+                    Picker(selection: $autoPlayRate) {
                         ForEach(AutoPlayRate.allCases) { rate in
                             Text(rate.label).tag(rate)
                         }
+                    } label: {
+                        Label("Speed", systemImage: "speedometer")
                     }
-                    Picker("Direction", selection: $autoPlayDirection) {
+                    
+                    Picker(selection: $autoPlayDirection) {
                         ForEach(AutoPlayDirection.allCases) { direction in
                             Text(direction.label).tag(direction)
                         }
+                    } label: {
+                        Label("Direction", systemImage: autoPlayDirection.systemImage)
                     }
-                    Picker("When I change the date", selection: $autoPlayManualChange) {
+                    
+                    Picker(selection: $autoPlayManualChange) {
                         ForEach(AutoPlayManualChangeBehavior.allCases) { behavior in
                             Text(behavior.label).tag(behavior)
                         }
+                    } label: {
+                        Label("When I change the date", systemImage: "calendar")
                     }
                 }
             } header: {
@@ -82,12 +93,17 @@ struct SettingsPanel: View {
             .tint(.accentColor)
             
             Section {
-                Picker("Boundary Ticks", selection: $boundaryTickFrequency) {
+                Picker(selection: $boundaryTickFrequency) {
                     ForEach(BoundaryTickFrequency.allCases) { frequency in
                         Text(frequency.label).tag(frequency)
                     }
+                } label: {
+                    Label("Boundary Ticks", systemImage: "lines.measurement.horizontal.aligned.bottom")
                 }
-                Toggle("Haptic Feedback", isOn: $hapticsEnabled)
+                
+                Toggle(isOn: $hapticsEnabled) {
+                    Label("Haptic Feedback", systemImage: "lightspectrum.horizontal")
+                }
             } header: {
                 Text("Scrubber")
             } footer: {
@@ -113,16 +129,19 @@ struct SettingsPanel: View {
                         .foregroundStyle(.secondary)
                 }
                 
-                Picker("Extend range", selection: rangeSelection) {
+                Picker(selection: rangeSelection) {
                     ForEach(Self.rangePresets, id: \.self) { years in
                         Text("±\(years) years").tag(years)
                     }
+                } label: {
+                    Label("Extend range", systemImage: "minus.plus.lines.measurement.horizontal.aligned.bottom")
                 }
                 .disabled(dataController.isComputing)
                 
                 if dataController.isComputing {
                     HStack(spacing: 8) {
                         ProgressView()
+                            .controlSize(.regular)
                         Text("Computing…")
                             .foregroundStyle(.secondary)
                     }
@@ -151,10 +170,16 @@ struct SettingsPanel: View {
                     showIconPicker.toggle()
                 } label: {
                     HStack {
-                        Label("Change App Icon", systemImage: "app.badge.checkmark")
+                        Label {
+                            Text("Change App Icon")
+                        } icon: {
+                            Image(systemName: "app.badge.checkmark")
+                                .foregroundStyle(.accent)
+                        }
+
                         Spacer()
-                        let iconName = UIApplication.shared.alternateIconName ?? "AppIcon"
-                        Image("\(iconName)Preview")
+                        let iconName = UIApplication.shared.alternateIconName ?? "Primary"
+                        Image(iconName)
                             .resizable()
                             .frame(width: 30, height: 30)
                             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -164,11 +189,11 @@ struct SettingsPanel: View {
                             )
                     }
                 }
-                .buttonStyle(.plain)
+                .foregroundStyle(.primary)
                 .appIconPicker(isPresented: $showIconPicker) {
-                    Image("AppIconPreview")
+                    Image("Primary")
                 } alternateIconThumbnail: { iconName in
-                    Image("\(iconName)Preview")
+                    Image(iconName)
                 } alternateIconTitle: { iconName in
                     // Use custom icon title accordingly, if needed.
                     Text(iconName)
@@ -190,7 +215,7 @@ struct SettingsPanel: View {
         }
         .formStyle(.grouped)
         .frame(minHeight: DeviceType.isIpad ? 450 : 360)
-        .frame(minWidth: 320, idealWidth: 360)
+        .frame(minWidth: 350, idealWidth: 400)
         .scrollIndicators(.hidden)
         #if DEBUG
         .sheet(isPresented: $showNotificationTest) {

@@ -50,7 +50,11 @@ struct LargeScreenView: View {
                 viewModel.toggleAutoPlay(dataController: dataController)
             }
         } label: {
-            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+            let size: CGFloat = isPlaying ? 10 : (DeviceType.isMac ? 20 : 30)
+            Image(systemName: isPlaying ? "pause.fill" : "livephoto.play")
+                .resizable()
+                .frame(width: size, height: size)
+                .contentTransition(.symbolEffect(.replace))
         }
         .disabled(!dataController.isReady)
         .help(isPlaying ? "Pause Auto Play" : "Start Auto Play")
@@ -106,7 +110,7 @@ struct LargeScreenView: View {
                         MainContentBuilder(snapshot: snapshot, theme: theme, colorScheme: colorScheme, size: proxy.size)
                     }
 #if os(macOS)
-                    .frame(minWidth: 460, minHeight: 700)
+                    .frame(minWidth: 450, minHeight: 700)
 #endif
                 }
                 .padding([.horizontal, .bottom], 5)
@@ -209,6 +213,7 @@ struct LargeScreenView: View {
                 }
                 .clipShape(moonSizeScrubberNotchShape)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                .offset(y: 150)
             
             VStack {
                 if viewModel.isNearRangeEdge(dataController: dataController) {
@@ -277,12 +282,7 @@ struct LargeScreenView: View {
     
     @ToolbarContentBuilder
     private func ToolbarBuilder(snapshot: DaySnapshot?, theme: ThemeColors, colorScheme: ColorScheme) -> some ToolbarContent {
-        // Planets and AutoPlay
-        ToolbarItemGroup(placement: .primaryAction) {
-            if autoPlayEnabled {
-                autoPlayButton
-            }
-            
+        ToolbarItemGroup(placement: .automatic) {
             if #available(iOS 26.0, macOS 26.0, *) {
                 Button {
                     withAnimation(effectiveAnimation) {
@@ -307,10 +307,11 @@ struct LargeScreenView: View {
                 .buttonStyle(.borderedProminent)
                 .buttonBorderShape(.capsule)
             }
-        }
-        
-        // Today and Calendar
-        ToolbarItemGroup(placement: .navigation) {
+            
+            if autoPlayEnabled {
+                autoPlayButton
+            }
+            
             Button {
                 viewModel.selectToday(dataController: dataController)
             } label: {
@@ -363,10 +364,8 @@ struct LargeScreenView: View {
                 .padding()
                 .frame(minWidth: DeviceType.isIpad ? 320 : nil, minHeight: DeviceType.isIpad ? 320 : nil)
             }
-        }
-        
-        // Save and List
-        ToolbarItemGroup(placement: .secondaryAction) {
+            
+            
             Button {
                 viewModel.save(dataController: dataController, modelContext: modelContext)
             } label: {
@@ -401,10 +400,7 @@ struct LargeScreenView: View {
                 .help("Show Saved Views")
                 .accessibilityLabel("Saved Views")
             }
-        }
-        
-        // Share and Settings
-        ToolbarItemGroup(placement: .principal) {
+            
             if let snapshot {
                 PolaroidShareButton(
                     snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, colorScheme: colorScheme
