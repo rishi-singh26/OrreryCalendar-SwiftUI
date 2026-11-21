@@ -11,6 +11,7 @@
 import SwiftUI
 import SwiftData
 import Observation
+import OSLog
 
 enum ControlPresentationState {
     case settings
@@ -220,14 +221,24 @@ final class ContentViewModel {
         return selectedDate < nearStartThreshold || selectedDate > nearEndThreshold
     }
 
+    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Orrery", category: "Save")
+
     func save(dataController: DataController, modelContext: ModelContext) {
         guard let snapshot = dataController.snapshot(for: selectedDate) else { return }
         // CloudKit can't enforce unique constraints, so avoid creating a second entry for
-        // a day that's already saved on this device (including entries synced from others).
+        // a day that's already in the local store (including entries already synced from
+        // other devices). Two devices saving the same day before either syncs can still
+        // produce a duplicate; that's accepted.
         let day = snapshot.date
-        var existing = FetchDescriptor<SavedSnapshot>(predicate: #Predicate { $0.date == day })
-        existing.fetchLimit = 1
-        let alreadySaved = ((try? modelContext.fetchCount(existing)) ?? 0) > 0
+        let existing = FetchDescriptor<SavedSnapshot>(predicate: #Predicate { $0.date == day })
+        let alreadySaved: Bool
+        do {
+            alreadySaved = try modelContext.fetchCount(existing) > 0
+        } catch {
+            // Can't tell — save anyway rather than lose the user's action; worst case is a duplicate.
+            Self.logger.error("Duplicate check failed: \(error)")
+            alreadySaved = false
+        }
         if !alreadySaved {
             let saved = SavedSnapshot(date: snapshot.date, moonPhaseDeg: snapshot.moonPhaseDeg, planets: snapshot.planets)
             modelContext.insert(saved)

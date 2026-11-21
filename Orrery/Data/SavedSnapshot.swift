@@ -20,7 +20,9 @@ import SwiftData
 @Model
 final class SavedSnapshot {
     var id: UUID = UUID()
-    var date: Date = Date() // UTC midnight of the saved day
+    // UTC midnight of the saved day. The default is a CloudKit-required placeholder that
+    // `init` always overrides; `distantPast` makes a record missing a real date obvious.
+    var date: Date = Date.distantPast
     var savedAt: Date = Date()
     var moonPhaseDeg: Double = 0
     var planetValuesData: Data = Data() // JSON-encoded [PlanetValue]
