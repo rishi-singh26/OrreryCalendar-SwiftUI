@@ -24,13 +24,13 @@ struct SettingsPanel: View {
     @AppStorage(AppStorageKeys.autoPlayDirection) private var autoPlayDirection: AutoPlayDirection = AutoPlayDirection.defaultDirection
     @AppStorage(AppStorageKeys.autoPlayManualChange) private var autoPlayManualChange: AutoPlayManualChangeBehavior = AutoPlayManualChangeBehavior.defaultBehavior
 
-    #if os(iOS)
+#if os(iOS)
     @State private var showIconPicker: Bool = false
-    #endif
+#endif
 
-    #if DEBUG
+#if DEBUG
     @State private var showNotificationTest = false
-    #endif
+#endif
 
     private static let rangePresets = [5, 10, 15, 20, 50, 100]
 
@@ -57,7 +57,7 @@ struct SettingsPanel: View {
             
             Section {
                 Toggle(isOn: $autoPlayEnabled) {
-                    Label("Enable Auto Play", systemImage: "livephoto.play")
+                    Label("Enable Auto Play", systemImage: "play.fill")
                 }
                 
                 if autoPlayEnabled {
@@ -176,28 +176,20 @@ struct SettingsPanel: View {
                             Image(systemName: "app.badge.checkmark")
                                 .foregroundStyle(.accent)
                         }
-
+                        
                         Spacer()
-                        let iconName = UIApplication.shared.alternateIconName ?? "Primary"
-                        Image(iconName)
+                        Image(AppIcon.current.previewImageName)
                             .resizable()
                             .frame(width: 30, height: 30)
                             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                    .strokeBorder(Color.white, lineWidth: 1)
+                                    .strokeBorder(.separator, lineWidth: 1)
                             )
                     }
                 }
                 .foregroundStyle(.primary)
-                .appIconPicker(isPresented: $showIconPicker) {
-                    Image("Primary")
-                } alternateIconThumbnail: { iconName in
-                    Image(iconName)
-                } alternateIconTitle: { iconName in
-                    // Use custom icon title accordingly, if needed.
-                    Text(iconName)
-                }
+                .appIconPicker(isPresented: $showIconPicker)
             }
 #endif
 #if DEBUG
@@ -217,11 +209,11 @@ struct SettingsPanel: View {
         .frame(minHeight: DeviceType.isIpad ? 450 : 360)
         .frame(minWidth: 350, idealWidth: 400)
         .scrollIndicators(.hidden)
-        #if DEBUG
+#if DEBUG
         .sheet(isPresented: $showNotificationTest) {
             NotificationTestView()
         }
-        #endif
+#endif
     }
 
     /// Updates the cached range and, once that has finished successfully, tells the user.

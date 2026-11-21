@@ -50,10 +50,7 @@ struct LargeScreenView: View {
                 viewModel.toggleAutoPlay(dataController: dataController)
             }
         } label: {
-            let size: CGFloat = isPlaying ? 10 : (DeviceType.isMac ? 20 : 30)
-            Image(systemName: isPlaying ? "pause.fill" : "livephoto.play")
-                .resizable()
-                .frame(width: size, height: size)
+            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                 .contentTransition(.symbolEffect(.replace))
         }
         .disabled(!dataController.isReady)
