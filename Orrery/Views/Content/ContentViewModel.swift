@@ -222,8 +222,16 @@ final class ContentViewModel {
 
     func save(dataController: DataController, modelContext: ModelContext) {
         guard let snapshot = dataController.snapshot(for: selectedDate) else { return }
-        let saved = SavedSnapshot(date: snapshot.date, moonPhaseDeg: snapshot.moonPhaseDeg, planets: snapshot.planets)
-        modelContext.insert(saved)
+        // CloudKit can't enforce unique constraints, so avoid creating a second entry for
+        // a day that's already saved on this device (including entries synced from others).
+        let day = snapshot.date
+        var existing = FetchDescriptor<SavedSnapshot>(predicate: #Predicate { $0.date == day })
+        existing.fetchLimit = 1
+        let alreadySaved = ((try? modelContext.fetchCount(existing)) ?? 0) > 0
+        if !alreadySaved {
+            let saved = SavedSnapshot(date: snapshot.date, moonPhaseDeg: snapshot.moonPhaseDeg, planets: snapshot.planets)
+            modelContext.insert(saved)
+        }
         withAnimation {
             justSaved = true
         }

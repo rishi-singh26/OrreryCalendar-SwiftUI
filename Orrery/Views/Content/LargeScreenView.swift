@@ -433,8 +433,5 @@ private extension LargeScreenView {
 
 #Preview {
     ContentView()
-        .environment(DataController(modelContainer: try! ModelContainer(
-            for: PlanetDataStore.self, SavedSnapshot.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-        )))
+        .environment(DataController(modelContainer: try! ModelContainerFactory.make(inMemory: true)))
 }
