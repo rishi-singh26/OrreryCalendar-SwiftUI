@@ -24,15 +24,13 @@ struct SettingsPanel: View {
     @AppStorage(AppStorageKeys.autoPlayDirection) private var autoPlayDirection: AutoPlayDirection = AutoPlayDirection.defaultDirection
     @AppStorage(AppStorageKeys.autoPlayManualChange) private var autoPlayManualChange: AutoPlayManualChangeBehavior = AutoPlayManualChangeBehavior.defaultBehavior
 
-    #if os(iOS)
-    @State private var selectedAppIcon: AppIconOption = .current
-    // @State private var currentIcon = UIApplication.shared.alternateIconName ?? Icon.primary.appIconName
+#if os(iOS)
+    @State private var showIconPicker: Bool = false
+#endif
 
-    #endif
-
-    #if DEBUG
+#if DEBUG
     @State private var showNotificationTest = false
-    #endif
+#endif
 
     private static let rangePresets = [5, 10, 15, 20, 50, 100]
 
@@ -56,24 +54,35 @@ struct SettingsPanel: View {
                 }
             }
             .tint(.accentColor)
-
+            
             Section {
-                Toggle("Enable Auto Play", isOn: $autoPlayEnabled)
+                Toggle(isOn: $autoPlayEnabled) {
+                    Label("Enable Auto Play", systemImage: "play.fill")
+                }
+                
                 if autoPlayEnabled {
-                    Picker("Speed", selection: $autoPlayRate) {
+                    Picker(selection: $autoPlayRate) {
                         ForEach(AutoPlayRate.allCases) { rate in
                             Text(rate.label).tag(rate)
                         }
+                    } label: {
+                        Label("Speed", systemImage: "speedometer")
                     }
-                    Picker("Direction", selection: $autoPlayDirection) {
+                    
+                    Picker(selection: $autoPlayDirection) {
                         ForEach(AutoPlayDirection.allCases) { direction in
                             Text(direction.label).tag(direction)
                         }
+                    } label: {
+                        Label("Direction", systemImage: autoPlayDirection.systemImage)
                     }
-                    Picker("When I change the date", selection: $autoPlayManualChange) {
+                    
+                    Picker(selection: $autoPlayManualChange) {
                         ForEach(AutoPlayManualChangeBehavior.allCases) { behavior in
                             Text(behavior.label).tag(behavior)
                         }
+                    } label: {
+                        Label("When I change the date", systemImage: "calendar")
                     }
                 }
             } header: {
@@ -82,21 +91,26 @@ struct SettingsPanel: View {
                 Text("Shows a Play button that moves the date automatically. Dragging the timeline always pauses; the last option applies to the date picker, Today and saved views. Playback stops at the end of the cached range.")
             }
             .tint(.accentColor)
-
+            
             Section {
-                Picker("Boundary Ticks", selection: $boundaryTickFrequency) {
+                Picker(selection: $boundaryTickFrequency) {
                     ForEach(BoundaryTickFrequency.allCases) { frequency in
                         Text(frequency.label).tag(frequency)
                     }
+                } label: {
+                    Label("Boundary Ticks", systemImage: "lines.measurement.horizontal.aligned.bottom")
                 }
-                Toggle("Haptic Feedback", isOn: $hapticsEnabled)
+                
+                Toggle(isOn: $hapticsEnabled) {
+                    Label("Haptic Feedback", systemImage: "lightspectrum.horizontal")
+                }
             } header: {
                 Text("Scrubber")
             } footer: {
                 Text("Vibration feedback when scrubbing dates and switching tabs.")
             }
             .tint(.accentColor)
-
+            
             Section {
                 Toggle(isOn: $syncPlanetDetailDate) {
                     Text("Sync Planet Detail Date")
@@ -107,29 +121,32 @@ struct SettingsPanel: View {
                 Text("Keep the date shown in the Planet Detail view matched with the main timeline. Turn off to browse a planet's dates on its own, without moving the main timeline.")
             }
             .tint(.accentColor)
-
-
+            
+            
             Section {
                 if dataController.isReady {
                     Text("Cached: \(rangeDescription)")
                         .foregroundStyle(.secondary)
                 }
-
-                Picker("Extend range", selection: rangeSelection) {
+                
+                Picker(selection: rangeSelection) {
                     ForEach(Self.rangePresets, id: \.self) { years in
                         Text("±\(years) years").tag(years)
                     }
+                } label: {
+                    Label("Extend range", systemImage: "minus.plus.lines.measurement.horizontal.aligned.bottom")
                 }
                 .disabled(dataController.isComputing)
-
+                
                 if dataController.isComputing {
                     HStack(spacing: 8) {
                         ProgressView()
+                            .controlSize(.regular)
                         Text("Computing…")
                             .foregroundStyle(.secondary)
                     }
                 }
-
+                
                 if let error = dataController.lastErrorMessage {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(error)
@@ -146,30 +163,36 @@ struct SettingsPanel: View {
             } footer: {
                 Text("How far before and after today's date to cache planet positions for scrubbing. Larger ranges use more compute and storage.")
             }
-
-            #if os(iOS)
+            
+#if os(iOS)
             Section("App Icon") {
-                HStack(spacing: 20) {
-                    ForEach(AppIconOption.allCases) { option in
-                        AppIconOptionButton(
-                            option: option,
-                            isSelected: selectedAppIcon == option
-                        ) {
-                            guard selectedAppIcon != option else { return }
-                            // Only persist the selection once the OS confirms the icon
-                            // actually changed — an optimistic write here would leave
-                            // Settings showing the wrong icon as selected (and that
-                            // option stuck, since the guard above would then skip it)
-                            // if `setAlternateIconName` ever fails.
-                            setIconSelection(to: option)
+                Button {
+                    showIconPicker.toggle()
+                } label: {
+                    HStack {
+                        Label {
+                            Text("Change App Icon")
+                        } icon: {
+                            Image(systemName: "app.badge.checkmark")
+                                .foregroundStyle(.accent)
                         }
+                        
+                        Spacer()
+                        Image(AppIcon.current.previewImageName)
+                            .resizable()
+                            .frame(width: 30, height: 30)
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .strokeBorder(.separator, lineWidth: 1)
+                            )
                     }
-                    Spacer(minLength: 0)
                 }
-                .padding(.vertical, 4)
+                .foregroundStyle(.primary)
+                .appIconPicker(isPresented: $showIconPicker)
             }
-            #endif
-            #if DEBUG
+#endif
+#if DEBUG
             Section {
                 Button("Notification Test") {
                     showNotificationTest = true
@@ -179,31 +202,19 @@ struct SettingsPanel: View {
             } footer: {
                 Text("Launch sample in-app notifications and toasts.")
             }
-            #endif
-
+#endif
+            
         }
         .formStyle(.grouped)
         .frame(minHeight: DeviceType.isIpad ? 450 : 360)
-        .frame(minWidth: 320, idealWidth: 360)
+        .frame(minWidth: 350, idealWidth: 400)
         .scrollIndicators(.hidden)
-        #if DEBUG
+#if DEBUG
         .sheet(isPresented: $showNotificationTest) {
             NotificationTestView()
         }
-        #endif
+#endif
     }
-
-    #if os(iOS)
-    private func setIconSelection(to newValue: AppIconOption) {
-        let previous = selectedAppIcon
-        selectedAppIcon = newValue
-        newValue.apply { error in
-            guard error != nil else { return }
-            // The system couldn't apply the icon (e.g. simulator quirks); roll the picker back.
-            selectedAppIcon = previous
-        }
-    }
-    #endif
 
     /// Updates the cached range and, once that has finished successfully, tells the user.
     /// The wait runs in its own task rather than being tied to this view, so the

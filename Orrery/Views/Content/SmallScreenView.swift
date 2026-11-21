@@ -189,6 +189,7 @@ struct SmallScreenView: View {
                     }
                 } label: {
                     Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                        .contentTransition(.symbolEffect(.replace))
                 }
                 .disabled(!dataController.isReady)
                 .help(isPlaying ? "Pause Auto Play" : "Start Auto Play")
