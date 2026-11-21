@@ -6,10 +6,12 @@
     {
       "layers" : [
         {
+          "fill" : "none",
           "image-name" : "Vector.svg",
           "name" : "Vector"
         },
         {
+          "fill" : "none",
           "image-name" : "Vector-1.svg",
           "name" : "Vector-1",
           "position" : {
@@ -21,10 +23,12 @@
           }
         },
         {
+          "fill" : "none",
           "image-name" : "Group 1.svg",
           "name" : "Group 1"
         },
         {
+          "fill" : "none",
           "image-name" : "Vector 2.svg",
           "name" : "Vector 2",
           "position" : {
