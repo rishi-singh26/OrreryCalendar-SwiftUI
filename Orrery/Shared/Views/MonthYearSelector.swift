@@ -11,18 +11,18 @@ struct MonthYearSelector: View {
     @Binding var selection: Date
     let minDate: Date
     let maxDate: Date
-
+    
     private var calendar: Calendar { UTCDay.calendar }
-
+    
     private var selectedComponents: DateComponents {
         calendar.dateComponents([.year, .month, .day], from: selection)
     }
-
+    
     private var minYear: Int { calendar.component(.year, from: minDate) }
     private var maxYear: Int { calendar.component(.year, from: maxDate) }
-
+    
     private var years: [Int] { Array(minYear...maxYear) }
-
+    
     /// Months available for the currently selected year, clipped to `minDate`/`maxDate`
     /// when that year is the first or last year of the allowed range.
     private var months: [Int] {
@@ -32,7 +32,7 @@ struct MonthYearSelector: View {
         guard lower <= upper else { return [lower] }
         return Array(lower...upper)
     }
-
+    
     /// `UTCDay.calendar` has no `.locale` set (it only fixes `.timeZone` to UTC for
     /// day-keying math), so its own `monthSymbols` falls back to generic placeholders
     /// ("M01", "M02", …) instead of localized names. Ask a locale-aware copy for the
@@ -42,7 +42,7 @@ struct MonthYearSelector: View {
         localizedCalendar.locale = .current
         return localizedCalendar.monthSymbols
     }
-
+    
     var body: some View {
         HStack {
             Picker("Month", selection: monthBinding) {
@@ -51,7 +51,7 @@ struct MonthYearSelector: View {
                 }
             }
             .labelsHidden()
-
+            
             Picker("Year", selection: yearBinding) {
                 ForEach(years, id: \.self) { year in
                     Text(String(year)).tag(year)
@@ -61,21 +61,21 @@ struct MonthYearSelector: View {
         }
         .pickerStyle(.menu)
     }
-
+    
     private var monthBinding: Binding<Int> {
         Binding(
             get: { selectedComponents.month ?? 1 },
             set: { selection = date(forYear: selectedComponents.year ?? minYear, month: $0) }
         )
     }
-
+    
     private var yearBinding: Binding<Int> {
         Binding(
             get: { selectedComponents.year ?? minYear },
             set: { selection = date(forYear: $0, month: selectedComponents.month ?? 1) }
         )
     }
-
+    
     /// Builds a date for the given year/month, keeping the current day-of-month where
     /// possible (clamped to the target month's length), then clamps into
     /// `minDate...maxDate` so an edge-of-range pick can't land outside the cached range.

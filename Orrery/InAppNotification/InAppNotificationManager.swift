@@ -96,55 +96,6 @@ class InAppNotificationManager: ObservableObject {
         notificationQueue.append(notification)
     }
     
-//    func copiedToClipboardToast() {
-//        showToast(title: "Copied to clipboard")
-//    }
-//    
-//    @discardableResult
-//    func showAudioController(title: String) -> UUID {
-//        Task { @MainActor in
-//            SpeechManager.shared.stop()
-//        }
-//        notificationQueue.removeAll(where: { $0.mode == .audioContoll })
-//        let id = UUID()
-//        let notification = InAppNotification(
-//            id: id,
-//            title: title,
-//            message: nil,
-//            type: .neutral,
-//            mode: .audioContoll,
-//            timing: .long
-//        )
-//        
-//        // Add to queue
-//        notificationQueue.append(notification)
-//        return id
-//    }
-//    
-//    @discardableResult
-//    func showCoordsToPinConverter() -> UUID {
-//        Task { @MainActor in
-//            SpeechManager.shared.stop()
-//        }
-//        let openConverter = notificationQueue.first(where: { $0.mode == .coordsToPinConverter })
-//        
-//        guard openConverter == nil else { return openConverter!.id }
-//        
-//        let id = UUID()
-//        let notification = InAppNotification(
-//            id: id,
-//            title: nil,
-//            message: nil,
-//            type: .neutral,
-//            mode: .coordsToPinConverter,
-//            timing: .long
-//        )
-//        
-//        // Add to queue
-//        notificationQueue.append(notification)
-//        return id
-//    }
-    
     // Clear all notifications (current and queued)
     func clearAllNotifications() {
         notificationQueue.removeAll()
@@ -161,7 +112,7 @@ class InAppNotificationManager: ObservableObject {
     
     /// Distance (in points, including a velocity projection) an upward swipe must cover to dismiss.
     static let swipeDismissDistance: CGFloat = 50
-
+    
     /// Updates the vertical swipe offset of the notification with `id`, if it's still queued.
     /// Negative values move the notification up.
     func setOffset(_ id: UUID, to offsetY: CGFloat) {

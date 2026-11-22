@@ -13,19 +13,19 @@ enum AutoPlayRate: String, CaseIterable, Identifiable {
     case day1, day2, day3, day4, day5, day6
     case week1, week2, week3
     case month1, month2
-//    case month3, month4, month5, month6
-//    case month7, month8, month9, month10, month11
-//    case year1
-
+    //    case month3, month4, month5, month6
+    //    case month7, month8, month9, month10, month11
+    //    case year1
+    
     var id: String { rawValue }
-
+    
     static let defaultRate: AutoPlayRate = .week1
-
+    
     static let averageDaysPerMonth = 30.436875
     static let averageDaysPerYear = 365.2425
-
+    
     private enum Unit { case day, week, month, year }
-
+    
     private var parts: (count: Int, unit: Unit) {
         switch self {
         case .day1: (1, .day)
@@ -39,19 +39,19 @@ enum AutoPlayRate: String, CaseIterable, Identifiable {
         case .week3: (3, .week)
         case .month1: (1, .month)
         case .month2: (2, .month)
-        // case .month3: (3, .month)
-        // case .month4: (4, .month)
-        // case .month5: (5, .month)
-        // case .month6: (6, .month)
-        // case .month7: (7, .month)
-        // case .month8: (8, .month)
-        // case .month9: (9, .month)
-        // case .month10: (10, .month)
-        // case .month11: (11, .month)
-        // case .year1: (1, .year)
+            // case .month3: (3, .month)
+            // case .month4: (4, .month)
+            // case .month5: (5, .month)
+            // case .month6: (6, .month)
+            // case .month7: (7, .month)
+            // case .month8: (8, .month)
+            // case .month9: (9, .month)
+            // case .month10: (10, .month)
+            // case .month11: (11, .month)
+            // case .year1: (1, .year)
         }
     }
-
+    
     var daysPerSecond: Double {
         let (count, unit) = parts
         switch unit {
@@ -61,7 +61,7 @@ enum AutoPlayRate: String, CaseIterable, Identifiable {
         case .year: return Double(count) * Self.averageDaysPerYear
         }
     }
-
+    
     var label: String {
         let (count, unit) = parts
         let name: String
@@ -73,7 +73,7 @@ enum AutoPlayRate: String, CaseIterable, Identifiable {
         }
         return "\(count) \(name)\(count == 1 ? "" : "s") per Sec"
     }
-
+    
     /// Compact form for tight spaces (e.g. "2D", "1W", "1M"); still unique per case.
     var shortLabel: String {
         let (count, unit) = parts
@@ -102,7 +102,7 @@ enum AutoPlayRate: String, CaseIterable, Identifiable {
         case .month2: return "gauge.with.dots.needle.100percent"
         }
     }
-
+    
     static var persisted: AutoPlayRate {
         UserDefaults.standard.string(forKey: AppStorageKeys.autoPlayRate)
             .flatMap(AutoPlayRate.init(rawValue:)) ?? defaultRate
@@ -111,10 +111,10 @@ enum AutoPlayRate: String, CaseIterable, Identifiable {
 
 enum AutoPlayDirection: String, CaseIterable, Identifiable {
     case forward, backward
-
+    
     var id: String { rawValue }
     static let defaultDirection: AutoPlayDirection = .forward
-
+    
     var sign: Int { self == .forward ? 1 : -1 }
     var label: String { self == .forward ? "Forward" : "Backward" }
     
@@ -130,12 +130,12 @@ enum AutoPlayDirection: String, CaseIterable, Identifiable {
 /// running auto play. Dragging the scrub timeline always pauses, regardless.
 enum AutoPlayManualChangeBehavior: String, CaseIterable, Identifiable {
     case pause, keepPlaying
-
+    
     var id: String { rawValue }
     static let defaultBehavior: AutoPlayManualChangeBehavior = .pause
-
+    
     var label: String { self == .pause ? "Pause" : "Keep Playing" }
-
+    
     static var persisted: AutoPlayManualChangeBehavior {
         UserDefaults.standard.string(forKey: AppStorageKeys.autoPlayManualChange)
             .flatMap(AutoPlayManualChangeBehavior.init(rawValue:)) ?? defaultBehavior

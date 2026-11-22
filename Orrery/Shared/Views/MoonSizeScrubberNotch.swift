@@ -18,14 +18,14 @@ struct MoonSizeScrubberNotch: View {
     let theme: ThemeColors
     /// Whether the notch is shown (animated; see `ScrubberNotchContainer`).
     var isPresented: Bool = true
-
+    
     private var scrubBinding: Binding<CGFloat> {
         Binding(
             get: { CGFloat(scrub) },
             set: { scrub = Double($0) }
         )
     }
-
+    
     var body: some View {
         ScrubberNotchContainer(side: .leading, isPresented: isPresented) {
             VerticalScrubber(

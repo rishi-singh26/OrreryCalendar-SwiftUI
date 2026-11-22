@@ -14,9 +14,9 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
     case system
     case light
     case dark
-
+    
     var id: String { rawValue }
-
+    
     var label: String {
         switch self {
         case .system: return "System"
@@ -24,7 +24,7 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
         case .dark: return "Dark"
         }
     }
-
+    
     /// The concrete `ColorScheme` to force via `.preferredColorScheme(_:)`, or `nil` to
     /// follow the environment (device) appearance live.
     var colorScheme: ColorScheme? {
@@ -46,7 +46,7 @@ struct OrreryPalette {
     let saturnBody: Color
     let sunHalo: Color
     let sunHaloOpacity: Double
-
+    
     static let light = OrreryPalette(
         orbitStroke: Color(hex: 0x4E4238),
         orbitOpacity: 0.30,
@@ -55,7 +55,7 @@ struct OrreryPalette {
         sunHalo: Color(hex: 0xFF9658),
         sunHaloOpacity: 0.22
     )
-
+    
     static let dark = OrreryPalette(
         orbitStroke: Color(hex: 0xDBC7AC),
         orbitOpacity: 0.28,
@@ -79,7 +79,7 @@ struct ThemeColors {
     let tickMinor: Color
     let tickLabel: Color
     let orrery: OrreryPalette
-
+    
     static let dark = ThemeColors(
         background: Color(hex: 0x0A0A0A),
         ink: Color(hex: 0xEAE6DA),
@@ -93,7 +93,7 @@ struct ThemeColors {
         tickLabel: Color(hex: 0xEAE6DA, opacity: 0.60),
         orrery: .dark
     )
-
+    
     static let light = ThemeColors(
         background: Color(hex: 0xF1EDE3),
         ink: Color(hex: 0x221F19),
@@ -107,20 +107,20 @@ struct ThemeColors {
         tickLabel: Color(hex: 0x221F19, opacity: 0.60),
         orrery: .light
     )
-
+    
     /// The Moon disc's lit/shadowed surface colors. Fixed regardless of app appearance —
     /// unlike UI tokens such as `ink`/`moonDark`, which intentionally invert between
     /// light and dark mode, the Moon's illuminated fraction is a physical rendering and
     /// must always read as bright-lit-side/dark-shadow-side, never the reverse.
     static let moonLit = Color(hex: 0xEAE6DA)
     static let moonShadow = Color(hex: 0x17171B)
-
+    
     // MARK: - Fixed accent colors (scheme-independent)
     // Colors below don't invert between light/dark mode — either they're a physical
     // rendering (the Sun always reads as warm-lit, like the Moon colors above), or a
     // fixed-chrome element (the polaroid frame is deliberately theme-independent, per
     // spec §7), or a conventional semantic (errors read red regardless of appearance).
-
+    
     /// The Sun's core radial gradient — warm gold center to ember edge (spec §1),
     /// with an off-center focal point applied by the caller.
     static let sunCoreGradient = Gradient(stops: [
@@ -135,7 +135,7 @@ struct ThemeColors {
     static let polaroidStroke = Color.black.opacity(0.08)
     /// The polaroid's date caption text color.
     static let polaroidCaption = Color.black.opacity(0.75)
-
+    
     /// Soft drop shadow used behind material surfaces (`withSurface(with:in:)`).
     static let surfaceShadow = Color.black.opacity(0.06)
     /// Warm glass tint behind the small-screen controls bar.
@@ -144,7 +144,7 @@ struct ThemeColors {
     static let disabledForeground = Color.secondary.opacity(0.7)
     /// Inline error/destructive text (e.g. settings panel data errors).
     static let errorText = Color.red
-
+    
     // MARK: - Background mesh gradient
     // Precomputed static tables for BackgroundView's MeshGradient — no per-frame or
     // per-launch construction, just a lookup. Grid points are normalized 0...1,
@@ -154,7 +154,7 @@ struct ThemeColors {
     //   warm oklch(... 46) at 88% 4%,  fades to transparent at 58%
     //   pale oklch(... 88) at  6% 40%, fades to transparent at 55%
     //   gold oklch(... 96) at 34% 108%, fades to transparent at 66%
-
+    
     static let meshGridPoints: [SIMD2<Float>] = [
         SIMD2<Float>(0.0, 0.0), SIMD2<Float>(0.2, 0.0), SIMD2<Float>(0.4, 0.0), SIMD2<Float>(0.6, 0.0), SIMD2<Float>(0.8, 0.0), SIMD2<Float>(1.0, 0.0),
         SIMD2<Float>(0.0, 0.2), SIMD2<Float>(0.2, 0.2), SIMD2<Float>(0.4, 0.2), SIMD2<Float>(0.6, 0.2), SIMD2<Float>(0.8, 0.2), SIMD2<Float>(1.0, 0.2),
@@ -163,12 +163,12 @@ struct ThemeColors {
         SIMD2<Float>(0.0, 0.8), SIMD2<Float>(0.2, 0.8), SIMD2<Float>(0.4, 0.8), SIMD2<Float>(0.6, 0.8), SIMD2<Float>(0.8, 0.8), SIMD2<Float>(1.0, 0.8),
         SIMD2<Float>(0.0, 1.0), SIMD2<Float>(0.2, 1.0), SIMD2<Float>(0.4, 1.0), SIMD2<Float>(0.6, 1.0), SIMD2<Float>(0.8, 1.0), SIMD2<Float>(1.0, 1.0),
     ]
-
+    
     /// Base color behind the mesh (matches the ZStack's base fill) — light mode.
     static let meshLightBase = Color(red: 0.9411, green: 0.7333, blue: 0.5490) // oklch(0.88 0.07 68)
     /// Base color behind the mesh (matches the ZStack's base fill) — dark mode.
     static let meshDarkBase = Color(red: 0.1216, green: 0.0863, blue: 0.0627) // oklch(0.16 0.02 60)
-
+    
     static let meshLightColors: [Color] = [
         Color(red: 0.9685, green: 0.8140, blue: 0.6523), Color(red: 0.9691, green: 0.8114, blue: 0.6499), Color(red: 0.9781, green: 0.7733, blue: 0.6145), Color(red: 0.9870, green: 0.7354, blue: 0.5794), Color(red: 0.9955, green: 0.6996, blue: 0.5463), Color(red: 0.9939, green: 0.7062, blue: 0.5524),
         Color(red: 0.9771, green: 0.8759, blue: 0.7437), Color(red: 0.9764, green: 0.8706, blue: 0.7360), Color(red: 0.9783, green: 0.8214, blue: 0.6761), Color(red: 0.9833, green: 0.7512, blue: 0.5941), Color(red: 0.9886, green: 0.7290, blue: 0.5735), Color(red: 0.9879, green: 0.7319, blue: 0.5762),
@@ -177,7 +177,7 @@ struct ThemeColors {
         Color(red: 0.9217, green: 0.7914, blue: 0.5461), Color(red: 0.9074, green: 0.7845, blue: 0.5138), Color(red: 0.9047, green: 0.7832, blue: 0.5077), Color(red: 0.9149, green: 0.7882, blue: 0.5308), Color(red: 0.9337, green: 0.7972, blue: 0.5732), Color(red: 0.9566, green: 0.8083, blue: 0.6252),
         Color(red: 0.8977, green: 0.7798, blue: 0.4916), Color(red: 0.8724, green: 0.7677, blue: 0.4345), Color(red: 0.8652, green: 0.7642, blue: 0.4179), Color(red: 0.8871, green: 0.7747, blue: 0.4676), Color(red: 0.9140, green: 0.7877, blue: 0.5287), Color(red: 0.9418, green: 0.8011, blue: 0.5917),
     ]
-
+    
     static let meshDarkColors: [Color] = [
         Color(red: 0.0770, green: 0.0439, blue: 0.0204), Color(red: 0.0851, green: 0.0467, blue: 0.0202), Color(red: 0.2063, green: 0.0893, blue: 0.0177), Color(red: 0.3266, green: 0.1315, blue: 0.0153), Color(red: 0.4402, green: 0.1714, blue: 0.0129), Color(red: 0.4194, green: 0.1641, blue: 0.0133),
         Color(red: 0.1495, green: 0.1021, blue: 0.0346), Color(red: 0.1434, green: 0.0972, blue: 0.0334), Color(red: 0.1874, green: 0.0990, blue: 0.0259), Color(red: 0.2764, green: 0.1139, blue: 0.0163), Color(red: 0.3470, green: 0.1386, blue: 0.0148), Color(red: 0.3376, green: 0.1354, blue: 0.0150),
@@ -198,15 +198,15 @@ struct ThemeReader<Content: View>: View {
     @AppStorage(AppStorageKeys.appearanceMode) private var appearanceMode: AppearanceMode = .system
     @Environment(\.colorScheme) private var systemColorScheme
     let content: (ThemeColors, ColorScheme) -> Content
-
+    
     init(@ViewBuilder content: @escaping (ThemeColors, ColorScheme) -> Content) {
         self.content = content
     }
-
+    
     private var resolvedScheme: ColorScheme {
         appearanceMode.colorScheme ?? systemColorScheme
     }
-
+    
     var body: some View {
         content(resolvedScheme == .dark ? .dark : .light, resolvedScheme)
             .preferredColorScheme(appearanceMode.colorScheme)

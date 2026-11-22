@@ -28,11 +28,11 @@ struct StoreSnapshot: Sendable {
 
 actor DataStoreIO {
     private let container: ModelContainer
-
+    
     init(container: ModelContainer) {
         self.container = container
     }
-
+    
     /// Loads the single cached `PlanetDataStore` record, if one exists and its
     /// `formatVersion` matches the current layout. A version mismatch is treated the
     /// same as "no store" — the caller recomputes from scratch rather than misreading
@@ -42,11 +42,11 @@ actor DataStoreIO {
         let descriptor = FetchDescriptor<PlanetDataStore>()
         let records = try context.fetch(descriptor)
         guard let record = records.first else { return nil }
-
+        
         guard record.formatVersion == PlanetDataStore.currentFormatVersion else {
             return nil
         }
-
+        
         return StoreSnapshot(
             startDate: record.startDate,
             endDate: record.endDate,
@@ -60,7 +60,7 @@ actor DataStoreIO {
             formatVersion: record.formatVersion
         )
     }
-
+    
     /// Atomically replaces the cached store: the new blob is fully computed in memory
     /// by the caller before this is invoked, and this method deletes any existing
     /// record(s) and inserts the new one within a single `save()` call. If `save()`

@@ -78,7 +78,7 @@ fileprivate struct SemicirclePreview: View {
         .topLeading, .topTrailing,
         .bottomLeading, .bottomTrailing
     ]
-
+    
     var body: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 16) {
             ForEach(cases.indices, id: \.self) { i in

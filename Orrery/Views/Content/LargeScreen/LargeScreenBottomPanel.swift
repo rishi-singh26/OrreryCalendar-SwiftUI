@@ -10,12 +10,12 @@ import SwiftUI
 struct LargeScreenBottomPanel: View {
     @Environment(DataController.self) private var dataController
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
+    
     let viewModel: ContentViewModel
     let snapshot: DaySnapshot?
     let theme: ThemeColors
     let presentSettings: () -> Void
-
+    
     var body: some View {
         VStack {
             if viewModel.isNearRangeEdge(dataController: dataController) {
@@ -23,7 +23,7 @@ struct LargeScreenBottomPanel: View {
                     presentSettings()
                 }
             }
-
+            
             ZStack {
                 if viewModel.showPlanetsView {
                     PlanetDetailView(
@@ -37,7 +37,7 @@ struct LargeScreenBottomPanel: View {
                     )
                     .transition(viewModel.effectiveTransition(reduceMotion: reduceMotion))
                 }
-
+                
                 // Kept mounted only once `snapshot` exists — same as `SmallScreenView`'s
                 // scrub timeline — so its one-shot initial-position setup (see
                 // `ScrubTimelineView`/`ScrubTimelineNoAnimationView`) always sees the

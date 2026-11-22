@@ -40,23 +40,23 @@ enum OrreryGeometry {
     static let referenceHalfSize = 220.0
     static let rMinFraction = 34.0 / referenceHalfSize
     static let rMaxFraction = 186.0 / referenceHalfSize
-
+    
     /// Ecliptic longitude every planet sits at in `OrreryView`'s loading pose — 180°
     /// puts each one directly left of the Sun (`cos(180°) == -1`, `sin(180°) == 0` in
     /// `position(orbitIndex:count:angleDeg:center:halfSize:)`), i.e. one straight line
     /// running left from the Sun, each planet on its own orbit radius.
     static let loadingAngleDeg: Double = 180
-
+    
     static func halfSize(for viewSize: CGSize) -> Double {
         min(viewSize.width, viewSize.height) / 2
     }
-
+    
     /// Scale factor for reference-canvas pixel constants (dot sizes, label offsets,
     /// stroke widths) at the current `halfSize`.
     static func scale(halfSize: Double) -> Double {
         halfSize / referenceHalfSize
     }
-
+    
     /// Screen-space radius for the `index`-th orbit out of `count` total, evenly spaced
     /// from `rMin` (innermost, index 0) to `rMax` (outermost, index `count - 1`) —
     /// orbits are drawn equidistant rather than scaled to any real distance.
@@ -67,7 +67,7 @@ enum OrreryGeometry {
         let t = Double(index) / Double(count - 1)
         return rMin + (rMax - rMin) * t
     }
-
+    
     /// Screen position for a body on the `index`-th of `count` orbits, at `angleDeg`
     /// (ecliptic longitude), centered on `center`. `angleDeg` increases counter-clockwise,
     /// the direction planets actually orbit as seen from ecliptic north; the `y` term is
@@ -78,7 +78,7 @@ enum OrreryGeometry {
         let rad = angleDeg * .pi / 180
         return CGPoint(x: center.x + r * cos(rad), y: center.y - r * sin(rad))
     }
-
+    
     /// Which way an interpolated angle sweeps on screen — see `position`'s doc comment
     /// for why increasing `angleDeg` reads as counter-clockwise once the y-axis negation
     /// is accounted for.
@@ -86,7 +86,7 @@ enum OrreryGeometry {
         case clockwise
         case counterClockwise
     }
-
+    
     /// Interpolates from `start` to `end` (both ecliptic-longitude degrees), sweeping in
     /// the given `direction` regardless of which way is the shorter arc — `OrreryView`
     /// picks `.clockwise` for the launch entrance (always) and forward/backward-in-time
@@ -107,11 +107,11 @@ enum OrreryGeometry {
         }
         return start + delta * progress
     }
-
+    
     enum LabelAlignment {
         case leading, trailing, center
     }
-
+    
     /// Which side of the Sun the label falls on, so labels don't run off the chart edge.
     static func labelAlignment(angleDeg: Double) -> LabelAlignment {
         let c = cos(angleDeg * .pi / 180)
@@ -119,7 +119,7 @@ enum OrreryGeometry {
         if c < -0.35 { return .trailing }
         return .center
     }
-
+    
     /// Label anchor point: along the same radial line as the dot, just past it.
     /// `dotSize` is the already-scaled on-screen dot radius. `y` is negated for the same
     /// reason as in `position(orbitIndex:count:angleDeg:center:halfSize:)`, so the label
@@ -132,7 +132,7 @@ enum OrreryGeometry {
         let rad = angleDeg * .pi / 180
         return CGPoint(x: center.x + r * cos(rad), y: center.y - r * sin(rad))
     }
-
+    
     /// Saturn's ring: a thin stroked ellipse layered on the dot, the one intentional
     /// "boldness" flourish besides the Sun/brass accent. `angleDeg` gives it a subtle
     /// day-to-day tilt rather than a fixed orientation.

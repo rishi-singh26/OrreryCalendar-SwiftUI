@@ -27,7 +27,7 @@ import UIKit
 
 private struct InAppNotificationOverlayModifier: ViewModifier {
     @State private var controller = OverlayWindowController()
-
+    
     func body(content: Content) -> some View {
         content.background(
             WindowSceneFinder { scene in
@@ -40,23 +40,23 @@ private struct InAppNotificationOverlayModifier: ViewModifier {
 /// Resolves the `UIWindowScene` hosting this view once UIKit places it in a window.
 private struct WindowSceneFinder: UIViewRepresentable {
     var onResolve: (UIWindowScene) -> Void
-
+    
     func makeUIView(context: Context) -> FinderView {
         let view = FinderView()
         view.onResolve = onResolve
         return view
     }
-
+    
     func updateUIView(_ uiView: FinderView, context: Context) {
         uiView.onResolve = onResolve
         if let scene = uiView.window?.windowScene {
             onResolve(scene)
         }
     }
-
+    
     final class FinderView: UIView {
         var onResolve: ((UIWindowScene) -> Void)?
-
+        
         override func didMoveToWindow() {
             super.didMoveToWindow()
             if let scene = window?.windowScene {
@@ -75,19 +75,19 @@ private final class OverlayWindowController {
     /// Identifies this scene's overlay in `InAppNotificationManager`, which routes each
     /// notification to a single window.
     private let windowID = UUID()
-
+    
     func attach(to scene: UIWindowScene) {
         // Already attached to this scene (body re-evaluated): nothing to do.
         guard attachedScene !== scene || overlayWindow == nil else { return }
         detach()
         attachedScene = scene
-
+        
         let manager = InAppNotificationManager.shared
         manager.registerWindow(windowID)
         if scene.activationState == .foregroundActive {
             manager.markWindowActive(windowID)
         }
-
+        
         let window = PassthroughWindow(windowScene: scene)
         window.backgroundColor = .clear
         // Any touch in this scene reaches the overlay's hit test first, so it doubles as a
@@ -104,7 +104,7 @@ private final class OverlayWindowController {
         window.isHidden = false
         window.isUserInteractionEnabled = true
         overlayWindow = window
-
+        
         disconnectObserver = NotificationCenter.default.addObserver(
             forName: UIScene.didDisconnectNotification,
             object: scene,
@@ -123,7 +123,7 @@ private final class OverlayWindowController {
             }
         }
     }
-
+    
     func detach() {
         overlayWindow?.isHidden = true
         overlayWindow = nil
@@ -141,12 +141,12 @@ private final class OverlayWindowController {
 private final class PassthroughWindow: UIWindow {
     /// Called whenever a touch is hit-tested in this window's scene.
     var onTouch: (() -> Void)?
-
+    
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         if event?.type == .touches { onTouch?() }
         guard let hitView = super.hitTest(point, with: event),
               let rootView = rootViewController?.view else { return nil }
-
+        
         if #available(iOS 26.0, *) {
             // On iOS 26 the SwiftUI hierarchy is opaque to UIKit: the hosting view no
             // longer exposes its content as hit-testable subviews, so the subview walk
@@ -177,7 +177,7 @@ import AppKit
 
 private struct InAppNotificationOverlayModifier: ViewModifier {
     @State private var controller = OverlayWindowController()
-
+    
     func body(content: Content) -> some View {
         content.background(
             WindowFinder { window in
@@ -190,23 +190,23 @@ private struct InAppNotificationOverlayModifier: ViewModifier {
 /// Resolves the `NSWindow` hosting this view once AppKit places it in a window.
 private struct WindowFinder: NSViewRepresentable {
     var onResolve: (NSWindow) -> Void
-
+    
     func makeNSView(context: Context) -> FinderView {
         let view = FinderView()
         view.onResolve = onResolve
         return view
     }
-
+    
     func updateNSView(_ nsView: FinderView, context: Context) {
         nsView.onResolve = onResolve
         if let window = nsView.window {
             onResolve(window)
         }
     }
-
+    
     final class FinderView: NSView {
         var onResolve: ((NSWindow) -> Void)?
-
+        
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             if let window {
@@ -225,19 +225,19 @@ private final class OverlayWindowController {
     /// Identifies this window's overlay in `InAppNotificationManager`, which routes each
     /// notification to a single window.
     private let windowID = UUID()
-
+    
     func attach(to window: NSWindow) {
         // Already attached to this window (body re-evaluated): nothing to do.
         guard hostWindow !== window || panel == nil else { return }
         detach()
         hostWindow = window
-
+        
         let manager = InAppNotificationManager.shared
         manager.registerWindow(windowID)
         if window.isKeyWindow {
             manager.markWindowActive(windowID)
         }
-
+        
         let newPanel = OverlayPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         newPanel.isOpaque = false
         newPanel.backgroundColor = .clear
@@ -252,15 +252,15 @@ private final class OverlayWindowController {
                 .environmentObject(InAppNotificationManager.shared)
         )
         panel = newPanel
-
+        
         window.addChildWindow(newPanel, ordered: .above)
         syncFrame()
-
+        
         // The toolbar can appear or change height without the window being resized.
         layoutObservation = window.observe(\.contentLayoutRect) { [weak self] _, _ in
             MainActor.assumeIsolated { self?.syncFrame() }
         }
-
+        
         let center = NotificationCenter.default
         observers = [
             center.addObserver(forName: NSWindow.didResizeNotification, object: window, queue: .main) { [weak self] _ in
@@ -283,7 +283,7 @@ private final class OverlayWindowController {
             },
         ]
     }
-
+    
     /// Child windows don't reliably track their parent's size, so re-derive the panel's
     /// frame from the host window's content layout area (excluding the title bar and
     /// toolbar) on every resize/move/screen change, and when that area itself changes.
@@ -293,7 +293,7 @@ private final class OverlayWindowController {
         // notifications sit under them instead of covering them.
         panel.setFrame(hostWindow.convertToScreen(hostWindow.contentLayoutRect), display: true)
     }
-
+    
     func detach() {
         if let hostWindow, let panel {
             hostWindow.removeChildWindow(panel)
@@ -317,16 +317,16 @@ private final class OverlayWindowController {
 private final class OverlayPanel: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
-
+    
     /// True between a mouse-down that missed the content and the matching mouse-up, so the
     /// drag/up events of that gesture are also forwarded to the host.
     private var forwardingGesture = false
-
+    
     private func hitsContent(_ event: NSEvent) -> Bool {
         guard let contentView, let container = contentView.superview else { return false }
         return contentView.hitTest(container.convert(event.locationInWindow, from: nil)) != nil
     }
-
+    
     override func sendEvent(_ event: NSEvent) {
         guard let parent else {
             super.sendEvent(event)
@@ -353,7 +353,7 @@ private final class OverlayPanel: NSPanel {
         }
         parent.sendEvent(forwarded)
     }
-
+    
     private func translated(_ event: NSEvent, to parent: NSWindow) -> NSEvent? {
         if event.type == .scrollWheel {
             guard let cgEvent = event.cgEvent?.copy() else { return nil }

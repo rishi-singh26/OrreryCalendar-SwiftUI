@@ -90,7 +90,7 @@ struct InAppNotificationView: View {
                 cancelDelayTask()
             }.onEnded { value in
                 let yOffset = value.translation.height + (value.velocity.height / 2)
-
+                
                 if -yOffset > InAppNotificationManager.swipeDismissDistance {
                     // Remove notification
                     notificationManager.removeNotification(notification.id)

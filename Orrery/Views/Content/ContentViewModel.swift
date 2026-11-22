@@ -32,40 +32,40 @@ final class ContentViewModel {
     let transition: AnyTransition = AnyTransition(.blurReplace)
     let reducedAnimation: Animation = .linear(duration: 0.1)
     let reducedTransition: AnyTransition = .opacity
-
+    
     /// `animation`, softened when Reduce Motion is on — use at every call site that
     /// changes `controlPresentationState`.
     func effectiveAnimation(reduceMotion: Bool) -> Animation {
         reduceMotion ? reducedAnimation : animation
     }
-
+    
     /// The overlay panels' open/close transition — `.blurReplace` normally, a plain
     /// fade when Reduce Motion is on to match `effectiveAnimation(reduceMotion:)`.
     func effectiveTransition(reduceMotion: Bool) -> AnyTransition {
         reduceMotion ? reducedTransition : transition
     }
-
+    
     /// Single source of truth for which control surface `SmallScreenView` presents in its
     /// bottom control bar — that bar has one slot, so these are mutually exclusive by
     /// construction. `SmallScreenView`-only; do not read/write this from `LargeScreenView`,
     /// which uses the independent `show*` flags below instead since its popovers/inspector
     /// aren't confined to a single slot and can be presented independently of one another.
     var controlPresentationState: ControlPresentationState = .none
-
+    
     /// Toggles `controlPresentationState`: switches to `state`, unless it's already showing,
     /// in which case it dismisses back to `.none`. `SmallScreenView`-only, mirroring the
     /// `Bool.toggle()` call sites used for `LargeScreenView`'s independent flags below.
     func toggleControlPresentation(_ state: ControlPresentationState) {
         controlPresentationState = controlPresentationState == state ? .none : state
     }
-
+    
     /// Range the leading-edge Moon-size scrubber's normalized (`0...1`) position
     /// maps onto — symmetric around the scrubber's default midpoint so a scrub of
     /// `0.5` reproduces `MoonPhaseRow`'s normal size (`1.0`) exactly; the low end
     /// scales the Moon discs down to 75%, the high end up to 125%. Shared by
     /// `SmallScreenView` and `LargeScreenView`.
     private let moonSizeMultiplierRange: ClosedRange<CGFloat> = 0.75...1.25
-
+    
     /// Maps the Moon-size scrubber's persisted `0...1` position (kept in
     /// each screen view, since it's `@AppStorage`-backed UI state) onto the size
     /// multiplier `MoonPhaseRow` reads.
@@ -73,7 +73,7 @@ final class ContentViewModel {
         let range = moonSizeMultiplierRange
         return range.lowerBound + CGFloat(scrub) * (range.upperBound - range.lowerBound)
     }
-
+    
     /// Independent presentation flags for `LargeScreenView`'s toolbar popovers and inspector.
     /// Deliberately plain, unlinked `Bool`s (not derived from `controlPresentationState`)
     /// because that layout can show more than one of these surfaces at once — e.g. the saved
@@ -83,12 +83,12 @@ final class ContentViewModel {
     var showSavedList = false
     var showDatePicker = false
     var showPlanetsView = false
-
+    
     private var hasInitializedSelection = false
-
+    
     /// Auto play engine. Idle (no task, no observation) unless the user starts it.
     let autoPlay = AutoPlayController()
-
+    
     /// Starts/stops auto play, stepping `selectedDate` within the cached range.
     func toggleAutoPlay(dataController: DataController) {
         guard dataController.isReady || autoPlay.isPlaying else { return }
@@ -107,7 +107,7 @@ final class ContentViewModel {
             apply: { [weak self] in self?.selectedDate = $0 }
         )
     }
-
+    
     /// `startDate + 30 days` / `endDate - 30 days` — cached and recomputed only
     /// when the cached range itself changes (see `handleRangeChange`), since
     /// `isNearRangeEdge` is read every time `selectedDate` changes, including
@@ -120,7 +120,7 @@ final class ContentViewModel {
     /// triggering `handleRangeChange`, before `isReady` is set).
     private var nearStartThreshold: Date = .distantPast
     private var nearEndThreshold: Date = .distantFuture
-
+    
     /// Call from `.onChange(of: dataController.isReady)`. Seeds the initial selection once
     /// the controller has a cached range to clamp into, then resumes any range extension
     /// that was interrupted (e.g. app terminated mid-extension).
@@ -135,7 +135,7 @@ final class ContentViewModel {
         }
         dataController.resumeRangeIfNeeded(desiredYears: rangeYears)
     }
-
+    
     /// Call from `.onChange(of: dataController.startDate)` / `.onChange(of: dataController.endDate)`.
     /// Re-clamps the selection whenever the cached range itself changes shape — needed
     /// because `DataController.setRange` (unlike `extendRange`, which only ever grows)
@@ -147,7 +147,7 @@ final class ContentViewModel {
         nearStartThreshold = UTCDay.calendar.date(byAdding: .day, value: 30, to: dataController.startDate) ?? .distantPast
         nearEndThreshold = UTCDay.calendar.date(byAdding: .day, value: -30, to: dataController.endDate) ?? .distantFuture
     }
-
+    
     /// Binding that routes every write through `DataController.clampedDate`, so the scrub
     /// timeline and date pickers can never select a day outside the cached range.
     func dateBinding(dataController: DataController) -> Binding<Date> {
@@ -164,7 +164,7 @@ final class ContentViewModel {
             }
         )
     }
-
+    
     /// Bumped once for every *actual* change `setSelectedDateAnimated` makes to
     /// `selectedDate` — read by `OrreryView` (via its `dateChangeAnimationTrigger`
     /// parameter) to tell an explicit "jump to a date" apart from a `snapshot`
@@ -172,7 +172,7 @@ final class ContentViewModel {
     /// to the new position exactly as before. Plain `Int` rather than a `Date`/`UUID`
     /// so equality is trivial and it survives `Observable` diffing cheaply.
     var dateChangeAnimationTrigger = 0
-
+    
     /// Sets `selectedDate` to `newDate` (already clamped by the caller), bumping
     /// `dateChangeAnimationTrigger` iff it's an actual change — shared by every
     /// explicit "jump to a date" action (`animatedDateBinding`, `selectToday`) so
@@ -188,7 +188,7 @@ final class ContentViewModel {
         selectedDate = newDate
         dateChangeAnimationTrigger += 1
     }
-
+    
     /// Like `dateBinding`, but for date pickers: routes through
     /// `setSelectedDateAnimated` instead of writing `selectedDate` directly, so
     /// `OrreryView` eases the chart into the new positions instead of snapping.
@@ -198,11 +198,11 @@ final class ContentViewModel {
             set: { self.setSelectedDateAnimated(dataController.clampedDate($0)) }
         )
     }
-
+    
     func selectToday(dataController: DataController) {
         setSelectedDateAnimated(dataController.clampedDate(dataController.todayDate))
     }
-
+    
     /// Jumps `selectedDate` to `date` (clamped into the cached range), animating
     /// `OrreryView` into the new positions the same way `animatedDateBinding`/
     /// `selectToday` do. Used when a saved snapshot is picked from `SavedListView`,
@@ -210,18 +210,18 @@ final class ContentViewModel {
     func jumpToDate(_ date: Date, dataController: DataController) {
         setSelectedDateAnimated(dataController.clampedDate(date))
     }
-
+    
     func isAlreadyOnToday(dataController: DataController) -> Bool {
         UTCDay.midnight(of: selectedDate) == dataController.clampedDate(dataController.todayDate)
     }
-
+    
     /// SF Symbol name for the "jump to today" toolbar button, e.g. "2.calendar" on the
     /// 2nd of the month — mirrors the day-of-month shown on the device's physical calendar.
     func todayCalendarSymbolName(dataController: DataController) -> String {
         let day = UTCDay.calendar.component(.day, from: dataController.todayDate)
         return "\(day).calendar"
     }
-
+    
     /// Within 30 days of either edge of the cached range — a reasonable trigger to surface
     /// the "extend range" affordance rather than silently auto-extending (spec §5 allows
     /// either; this keeps compute triggers explicit/user-visible). Compares against
@@ -231,9 +231,9 @@ final class ContentViewModel {
         guard dataController.isReady else { return false }
         return selectedDate < nearStartThreshold || selectedDate > nearEndThreshold
     }
-
+    
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Orrery", category: "Save")
-
+    
     func save(dataController: DataController, modelContext: ModelContext) {
         guard let snapshot = dataController.snapshot(for: selectedDate) else { return }
         // CloudKit can't enforce unique constraints, so avoid creating a second entry for

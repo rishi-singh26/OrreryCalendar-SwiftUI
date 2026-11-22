@@ -38,7 +38,7 @@ struct VerticalScrubber: View {
     /// `1` the top — updated continuously as the scroll progresses, not just when
     /// it ends, same as `ScrubTimelineView`.
     @Binding var value: CGFloat
-
+    
     /// Total number of ticks in the ruler (the full scrollable range).
     var tickCount: Int
     /// How many ticks are visible in the control's height at once — the rest
@@ -51,24 +51,24 @@ struct VerticalScrubber: View {
     var accentColor: Color
     /// Accessibility label announced for the control, e.g. "Moon size".
     var accessibilityLabel: String
-
+    
     private let animation: Animation = .interpolatingSpring(duration: 0.3, bounce: 0, initialVelocity: 0)
-
+    
     @State private var scrollIndex: Int
     @State private var scrollPosition: Int?
     @State private var scrollPhase: ScrollPhase = .idle
     @State private var animationRange: ClosedRange<Int>
     @State private var isInitialSetupDone = false
-
+    
     /// Height available to lay the ruler out in — measured via `.onGeometryChange`
     /// rather than wrapping the `ScrollView` in a `GeometryReader` (which greedily
     /// claims all proposed space and adds a separate layout pass of its own).
     @State private var containerHeight: CGFloat = 0
-
+    
     /// Bumped on every tick the scroll settles on, applied via `.hapticTick(_:)`
     /// (a no-op on hardware without haptics).
     @State private var hapticTick = 0
-
+    
     /// Seeds the scroll position at `value` synchronously — rather than leaving
     /// `scrollIndex`/`scrollPosition`/`animationRange` at placeholder defaults for
     /// `.task` to correct asynchronously after the first frame — so the ruler
@@ -94,24 +94,24 @@ struct VerticalScrubber: View {
         self.dimColor = dimColor
         self.accentColor = accentColor
         self.accessibilityLabel = accessibilityLabel
-
+        
         let safeIndex = Self.displayIndex(forValue: value.wrappedValue, tickCount: tickCount)
         _scrollIndex = State(initialValue: safeIndex)
         _scrollPosition = State(initialValue: safeIndex)
         _animationRange = State(initialValue: safeIndex...safeIndex)
     }
-
+    
     /// The highest valid tick index — ticks run `0...maxIndex`.
     private var maxIndex: Int {
         max(tickCount - 1, 1)
     }
-
+    
     /// Vertical space each tick occupies — sized so exactly `visibleTickCount`
     /// ticks fill `containerHeight`, the rest scrolling into view.
     private var tickSlotHeight: CGFloat {
         containerHeight > 0 ? containerHeight / CGFloat(visibleTickCount) : 0
     }
-
+    
     /// Converts a normalized `0...1` value into a display index — ticks are laid
     /// out top (index `0`, value `1`) to bottom (index `maxIndex`, value `0`),
     /// matching `value`'s bottom-is-0/top-is-1 convention.
@@ -120,22 +120,22 @@ struct VerticalScrubber: View {
         let valueIndex = Int((min(max(v, 0), 1) * CGFloat(maxIndex)).rounded())
         return maxIndex - valueIndex
     }
-
+    
     private func displayIndex(forValue v: CGFloat) -> Int {
         Self.displayIndex(forValue: v, tickCount: tickCount)
     }
-
+    
     private func value(forDisplayIndex index: Int) -> CGFloat {
         let valueIndex = maxIndex - index
         return CGFloat(valueIndex) / CGFloat(maxIndex)
     }
-
+    
     private var accessibilityValueText: String {
         let clamped = min(max(value, 0), 1)
         let percent = Int(clamped * 100)
         return "\(percent) percent"
     }
-
+    
     var body: some View {
         ScrollView(.vertical) {
             LazyVStack(spacing: 0) {
@@ -156,7 +156,7 @@ struct VerticalScrubber: View {
             let isFirstMeasurement = containerHeight == 0 && newHeight > 0
             containerHeight = newHeight
             guard isFirstMeasurement else { return }
-
+            
             // `scrollPosition` was seeded to `scrollIndex` back in `init`, before
             // `containerHeight` (and the centering `safeAreaPadding` derived from
             // it) was known — the scroll view resolved that initial position
@@ -177,7 +177,7 @@ struct VerticalScrubber: View {
             let index = max(min(Int((newValue / tickSlotHeight).rounded()), maxIndex), 0)
             let previousScrollIndex = scrollIndex
             scrollIndex = index
-
+            
             let isGreater = scrollIndex > previousScrollIndex
             let leadingBound = isGreater ? previousScrollIndex : scrollIndex
             let trailingBound = !isGreater ? previousScrollIndex : scrollIndex
@@ -186,7 +186,7 @@ struct VerticalScrubber: View {
         .onScrollPhaseChange { oldPhase, newPhase in
             scrollPhase = newPhase
             animationRange = scrollIndex...scrollIndex
-
+            
             // In some rare instances the view aligned target behaviour will not
             // center the item; this works it out.
             if newPhase == .idle && scrollPosition != scrollIndex {
@@ -198,7 +198,7 @@ struct VerticalScrubber: View {
         .frame(width: tickLength)
         .task {
             guard !isInitialSetupDone else { return }
-
+            
             // Initial scroll position is seeded synchronously in `init` (see its
             // doc comment) — this just holds interaction off for a beat so the
             // view-aligned scroll target settles before it's hit-testable.
@@ -230,26 +230,26 @@ struct VerticalScrubber: View {
         }
         .hapticTick(hapticTick)
     }
-
+    
     @ViewBuilder
     private func tickView(_ index: Int) -> some View {
         let isInside = animationRange.contains(index)
         let lengthProgress: CGFloat = isInside ? 1 : minorLengthProgress
-
+        
         Rectangle()
             .fill(isInside ? accentColor : dimColor)
             .frame(width: tickLength * lengthProgress, height: tickThickness)
             .frame(width: tickLength, height: tickSlotHeight)
             .animation(isInside || !isInitialSetupDone ? .none : animation, value: isInside)
     }
-
+    
     private func updateScrollPosition(for newValue: CGFloat) {
         let safeIndex = displayIndex(forValue: newValue)
         scrollPosition = safeIndex
         scrollIndex = safeIndex
         animationRange = safeIndex...safeIndex
     }
-
+    
     /// Applies a scroll-driven index change to `value`, clamped implicitly by the
     /// ruler only ever containing indices `0...maxIndex`.
     private func applySelection(forDisplayIndex newIndex: Int) {

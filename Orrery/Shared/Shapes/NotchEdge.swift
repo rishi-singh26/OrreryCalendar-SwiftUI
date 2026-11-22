@@ -9,7 +9,7 @@
 /// sits flush against this edge and the body protrudes inward from it.
 enum NotchEdge: CaseIterable, Hashable {
     case top, bottom, leading, trailing
-
+    
     var title: String {
         switch self {
         case .top: return "Top"

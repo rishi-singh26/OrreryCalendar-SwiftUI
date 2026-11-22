@@ -15,30 +15,30 @@ struct LargeScreenView: View {
 #if os(macOS)
     @Environment(\.openSettings) private var openSettings
 #endif
-
+    
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
     @AppStorage(AppStorageKeys.showSunHalo) private var showSunHalo = true
     @AppStorage(AppStorageKeys.autoPlayEnabled) private var autoPlayEnabled = true
     @AppStorage(AppStorageKeys.showMoonSizeScrubber) private var showMoonSizeScrubber = true
     @AppStorage(AppStorageKeys.autoPlayRate) private var autoPlayRate: AutoPlayRate = AutoPlayRate.defaultRate
-
+    
     /// Persisted, normalized (`0...1`) position of the leading-edge Moon-size
     /// scrubber — same `AppStorageKeys.moonSizeScrub` key `SmallScreenView` uses, so
     /// the two layouts share one persisted position. Kept here (rather than in
     /// `ContentViewModel`) since `@AppStorage` only integrates with SwiftUI's
     /// view-update machinery when it's declared directly on a `View`.
     @AppStorage(AppStorageKeys.moonSizeScrub) private var moonSizeScrub: Double = 0.5
-
+    
     @State private var viewModel = ContentViewModel()
-
+    
     /// The size multiplier `MoonPhaseRow` reads — the actual `moonSizeScrub` →
     /// multiplier mapping is pure business logic, so it lives on `viewModel`
     /// (shared with `SmallScreenView`, not duplicated).
     private var moonSizeMultiplier: CGFloat {
         viewModel.moonSizeMultiplier(forScrub: moonSizeScrub)
     }
-
+    
     var body: some View {
         // Looked up once per body evaluation and handed to both the main content and
         // the toolbar below, rather than each independently calling
@@ -49,7 +49,7 @@ struct LargeScreenView: View {
                 ZStack {
                     BackgroundView()
                         .cornerRadius(20)
-
+                    
                     GeometryReader { proxy in
                         MainContentBuilder(snapshot: snapshot, theme: theme, size: proxy.size)
                     }
@@ -86,7 +86,7 @@ struct LargeScreenView: View {
         // seed its selection and range thresholds from the current values on mount.
         .contentLifecycle(viewModel: viewModel, observing: .includingCurrentState)
     }
-
+    
     @ViewBuilder
     private func MainContentBuilder(snapshot: DaySnapshot?, theme: ThemeColors, size: CGSize) -> some View {
         ZStack(alignment: .bottom) {
@@ -95,18 +95,18 @@ struct LargeScreenView: View {
                 showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo,
                 moonSizeMultiplier: moonSizeMultiplier
             )
-
+            
             // Drives `moonSizeMultiplier` (via `moonSizeScrub`), which `MoonPhaseRow`
             // animates into on change.
             MoonSizeScrubberNotch(scrub: $moonSizeScrub, theme: theme, isPresented: showMoonSizeScrubber)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 .offset(y: 150)
-
+            
             // Only shown while Auto Play is playing.
             AutoPlaySpeedNotch(rate: $autoPlayRate, isPresented: autoPlayEnabled && viewModel.autoPlay.isPlaying)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
                 .offset(y: 150)
-
+            
             LargeScreenBottomPanel(
                 viewModel: viewModel, snapshot: snapshot, theme: theme,
                 presentSettings: { presentSettings() }
@@ -121,11 +121,11 @@ struct LargeScreenView: View {
 private extension LargeScreenView {
     /// macOS shows Settings in its own window (⌘,); iPad keeps the popover.
     func presentSettings(toggle: Bool = false) {
-        #if os(macOS)
+#if os(macOS)
         openSettings()
-        #else
+#else
         viewModel.showSettings = toggle ? !viewModel.showSettings : true
-        #endif
+#endif
     }
 }
 

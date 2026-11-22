@@ -21,20 +21,20 @@ import SwiftUI
 struct SelectedDateTitleText: View {
     let date: Date
     var font: Font = .title2.bold().monospaced()
-
+    
     var body: some View {
         Text(Self.string(from: date))
             .font(font)
             .kerning(-1)
             .foregroundStyle(.primary)
     }
-
+    
     /// The plain formatted string, for callers that need text rather than a `View` —
     /// e.g. `PolaroidShareButton`'s `SharePreview` caption.
     static func string(from date: Date) -> String {
         formatter.string(from: date)
     }
-
+    
     private static let formatter: DateFormatter = {
         let formatter = DateFormatter()
         // formatter.dateFormat = "EEE, d MMM y"

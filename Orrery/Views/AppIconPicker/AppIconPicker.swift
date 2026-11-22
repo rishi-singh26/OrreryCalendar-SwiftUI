@@ -19,17 +19,17 @@ enum AppIcon: String, CaseIterable {
     case saturn = "Saturn"
     case tics = "Tics"
     case ticsGray = "TicsGray"
-
+    
     /// Name passed to `UIApplication.setAlternateIconName(_:)`. `nil` selects the primary icon.
     var alternateIconName: String? {
         self == .primary ? nil : rawValue
     }
-
+    
     /// Flat image used to preview the icon (app icon assets can't be rendered directly).
     var previewImageName: String { rawValue }
-
+    
     var title: String { rawValue }
-
+    
     /// The icon the app is currently showing.
     static var current: AppIcon {
         guard let name = UIApplication.shared.alternateIconName else { return .primary }
@@ -55,13 +55,13 @@ struct AppIconPicker: View {
     @State private var currentIcon: AppIcon
     @State private var isApplying = false
     @State private var scrollOffset: CGFloat = 0
-
+    
     init() {
         let current = AppIcon.current
         _currentIcon = State(initialValue: current)
         _activeIcon = State(initialValue: current)
     }
-
+    
     var body: some View {
         GeometryReader {
             let size = $0.size
@@ -127,7 +127,7 @@ struct AppIconPicker: View {
                     .scaleEffect(1 - (progress * 0.3))
                     .blur(radius: progress * 4)
                     .offset(x: minX / 2)
-                    // Adjust the angle, according to your own liking
+                // Adjust the angle, according to your own liking
                     .rotationEffect(.init(degrees: progress * -angle))
             }
     }
@@ -231,7 +231,7 @@ struct AppIconPicker: View {
             }
         }
     }
-
+    
     private enum AppIconError: Error {
         case unsupported
     }
@@ -247,7 +247,7 @@ fileprivate extension View {
             self.buttonStyle(.borderedProminent)
         }
     }
-
+    
     /// Uses `safeAreaBar` on iOS 26+, falling back to `safeAreaInset` on earlier versions.
     @ViewBuilder
     func bottomSafeAreaBar<Content: View>(@ViewBuilder content: () -> Content) -> some View {

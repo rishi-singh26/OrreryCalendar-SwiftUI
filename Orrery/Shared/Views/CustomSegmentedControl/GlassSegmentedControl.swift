@@ -215,7 +215,7 @@ fileprivate extension [GlassSegmentedControl.Tab] {
             snapPoints.append(x + tab.viewSize.width / 2)
             x += tab.viewSize.width
         }
-
+        
         return snapPoints
     }
 }
@@ -226,7 +226,7 @@ fileprivate extension [CGFloat] {
             abs($0 - offset) < abs($1 - offset)
         }) ?? offset
     }
-
+    
     func closestSnapPointIndex(_ offset: CGFloat) -> Int? {
         if let (index, _) = self.enumerated().min(by: {
             abs($0.element - offset) < abs($1.element - offset)
@@ -241,16 +241,16 @@ fileprivate struct CustomScrollTarget: ScrollTargetBehavior {
     var snapPoints: [CGFloat]
     func updateTarget(_ target: inout ScrollTarget, context: TargetContext) {
         let offset = target.rect.origin.x
-
+        
         target.rect.origin.x = snapPoints.closestSnapPoint(offset)
     }
     
     // Optional: For fast declaration!
     func properties(context: PropertiesContext) -> Properties {
         var properties = Properties()
-        #if !os(macOS)
+#if !os(macOS)
         properties.limitsScrolls = true
-        #endif
+#endif
         return properties
     }
 }

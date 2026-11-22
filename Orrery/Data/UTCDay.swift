@@ -18,13 +18,13 @@ nonisolated enum UTCDay {
         cal.timeZone = TimeZone(identifier: "UTC")!
         return cal
     }()
-
+    
     /// The UTC-midnight instant for the UTC calendar day containing `date`.
     static func midnight(of date: Date) -> Date {
         let comps = calendar.dateComponents([.year, .month, .day], from: date)
         return calendar.date(from: comps) ?? date
     }
-
+    
     /// Whole UTC calendar days from `start` to `end` (both are UTC-midnight-normalized
     /// first, so callers don't have to remember to do it themselves).
     static func dayCount(from start: Date, to end: Date) throws -> Int {
@@ -35,17 +35,17 @@ nonisolated enum UTCDay {
         }
         return days
     }
-
+    
     /// One UTC calendar day after `date` (UTC-midnight-normalized).
     static func nextDay(after date: Date) -> Date {
         calendar.date(byAdding: .day, value: 1, to: midnight(of: date)) ?? date
     }
-
+    
     /// One UTC calendar day before `date` (UTC-midnight-normalized).
     static func previousDay(before date: Date) -> Date {
         calendar.date(byAdding: .day, value: -1, to: midnight(of: date)) ?? date
     }
-
+    
     /// "Today" resolved from the *device's local* calendar day, then mapped onto the
     /// UTC-keyed index space stored data uses. This is deliberately not the same as
     /// `midnight(of: Date())` — a user in e.g. UTC+13 or UTC-11 must see "today" match

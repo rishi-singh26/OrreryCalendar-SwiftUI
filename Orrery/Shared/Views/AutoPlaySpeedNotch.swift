@@ -15,7 +15,7 @@ struct AutoPlaySpeedNotch: View {
     @Binding var rate: AutoPlayRate
     /// Whether the notch is shown (animated; see `ScrubberNotchContainer`).
     var isPresented: Bool = true
-
+    
     var body: some View {
         ScrubberNotchContainer(side: .trailing, isPresented: isPresented) {
             VerticalGlassSegmentedControl(

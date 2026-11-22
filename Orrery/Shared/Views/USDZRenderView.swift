@@ -20,20 +20,20 @@ struct USDZRenderView: View {
     @State var modelEntity: Entity?
     @State var baseScale: Float = 1.0
     @State var userScale: Float = 1.0
-
+    
     @State var orientation = simd_quatf(angle: 0, axis: [0, 1, 0])
     @State var rotationSpeed: Float = .pi / 15
     @State var rotateLeft: Bool = false
-
+    
     @State var lastDragTranslation: CGSize = .zero
     @State var isDragging = false
     let dragSensitivity: Float = 0.01
-
+    
     // User-driven zoom via pinch (touch) or trackpad magnify (laptop).
     @State var scaleAtGestureStart: Float?
     let minUserScale: Float = 0.4
     let maxUserScale: Float = 4.0
-
+    
     /// True while the reset-triggered `entity.move(to:)` animation is playing.
     /// Held off from the auto-rotate timer below so it doesn't fight
     /// RealityKit's own per-frame interpolation by setting
@@ -42,23 +42,23 @@ struct USDZRenderView: View {
     /// outright, so direct manipulation always wins.
     @State var isResetting = false
     let resetAnimationDuration: TimeInterval = 0.4
-
+    
     static let timer = Timer.publish(every: 1.0/60.0, on: .main, in: .common).autoconnect()
-
+    
     // Fixed camera parameters — tweak these two to change zoom/margin.
     let cameraFOVDegrees: Float = 28
     let cameraDistance: Float = 0.32
-
+    
     var body: some View {
         RealityView { content in
             // Opt out of the tightly-fit "automatic" camera and take control.
             content.camera = .virtual
-
+            
             let camera = PerspectiveCamera()
             camera.camera.fieldOfViewInDegrees = cameraFOVDegrees
             camera.look(at: [0, 0, 0], from: [0, 0, cameraDistance], relativeTo: nil)
             content.add(camera)
-
+            
             // A virtual camera opts out of the AR session, so RealityKit no
             // longer supplies automatic environment lighting. Without lights,
             // the USDZ's PBR materials render black. Add explicit lights.
@@ -66,12 +66,12 @@ struct USDZRenderView: View {
             keyLight.light.intensity = 5000
             keyLight.look(at: [0, 0, 0], from: [1, 1, 1], relativeTo: nil)
             content.add(keyLight)
-
+            
             let fillLight = DirectionalLight()
             fillLight.light.intensity = 2000
             fillLight.look(at: [0, 0, 0], from: [-1, 0.5, 0.5], relativeTo: nil)
             content.add(fillLight)
-
+            
             // Add a persistent root so the model can be swapped out when the
             // selected planet changes without tearing down camera and lights.
             content.add(rootEntity)
@@ -129,7 +129,7 @@ struct USDZRenderView: View {
                 }
         )
     }
-
+    
     private func loadModel(named name: String) async {
         do {
             let loaded = try await Entity(named: name)
@@ -137,7 +137,7 @@ struct USDZRenderView: View {
             let radius = max(bounds.boundingRadius, 0.0001)
             let targetRadius: Float = 0.08
             baseScale = targetRadius / radius
-
+            
             // The USDZ's geometry can be offset from its local origin. Wrap
             // it in a pivot container and shift the model so its visual
             // center sits on the origin — otherwise scaling flings it off
@@ -147,7 +147,7 @@ struct USDZRenderView: View {
             container.addChild(loaded)
             container.transform.scale = SIMD3(repeating: baseScale * userScale)
             container.transform.rotation = orientation
-
+            
             // Swap the previous planet's model out of the shared root.
             rootEntity.children.removeAll()
             rootEntity.addChild(container)
@@ -156,7 +156,7 @@ struct USDZRenderView: View {
             print("Failed to load entity:", error)
         }
     }
-
+    
     private func applyRotation() {
         guard let entity = modelEntity else { return }
         // Only update rotation here. Scale is set once at load time; resetting
@@ -164,12 +164,12 @@ struct USDZRenderView: View {
         // the model up so large the camera ends up inside it.
         entity.transform.rotation = orientation
     }
-
+    
     private func applyScale() {
         guard let entity = modelEntity else { return }
         entity.transform.scale = SIMD3(repeating: baseScale * userScale)
     }
-
+    
     private func resetTransform() {
         // Clears any in-flight pinch's cached start scale, so if a reset lands
         // mid-gesture the pinch recomputes its baseline from the freshly-reset
@@ -178,7 +178,7 @@ struct USDZRenderView: View {
         scaleAtGestureStart = nil
         orientation = simd_quatf(angle: 0, axis: [0, 1, 0])
         userScale = 1.0
-
+        
         // SwiftUI's `withAnimation` has no effect on RealityKit entities — they
         // need to be told to animate directly via `move(to:)`. `applyRotation`/
         // `applyScale` are left for the timer/gesture call sites, which need an
@@ -188,10 +188,10 @@ struct USDZRenderView: View {
         var target = entity.transform
         target.rotation = orientation
         target.scale = SIMD3(repeating: baseScale * userScale)
-
+        
         isResetting = true
         entity.move(to: target, relativeTo: entity.parent, duration: resetAnimationDuration, timingFunction: .easeInOut)
-
+        
         // Tagged with the trigger value that started this wait: if reset is
         // tapped again before this animation finishes, only the *latest*
         // reset's wait should clear `isResetting`. Without this check, this
@@ -204,7 +204,7 @@ struct USDZRenderView: View {
             isResetting = false
         }
     }
-
+    
     /// Called when a drag/pinch gesture begins — if a reset animation is still
     /// playing, direct manipulation should win outright rather than fight
     /// RealityKit's own per-frame interpolation for control of the transform.

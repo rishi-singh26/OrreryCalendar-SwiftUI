@@ -22,11 +22,11 @@ struct LargeScreenToolbar: ToolbarContent {
     /// `viewModel.effectiveAnimation(reduceMotion:)`, resolved by the caller.
     let animation: Animation
     let toggleSettings: () -> Void
-
+    
     /// Play/Pause for Auto Play. Its settings live in the main Settings panel.
     private var autoPlayButton: some View {
         let isPlaying = viewModel.autoPlay.isPlaying
-
+        
         return Button {
             withAnimation(animation) {
                 viewModel.toggleAutoPlay(dataController: dataController)
@@ -40,7 +40,7 @@ struct LargeScreenToolbar: ToolbarContent {
         .accessibilityLabel("Auto play")
         .accessibilityValue(isPlaying ? "Playing" : "Paused")
     }
-
+    
     var body: some ToolbarContent {
         ToolbarItemGroup(placement: .automatic) {
             if #available(iOS 26.0, macOS 26.0, *) {
@@ -67,11 +67,11 @@ struct LargeScreenToolbar: ToolbarContent {
                 .buttonStyle(.borderedProminent)
                 .buttonBorderShape(.capsule)
             }
-
+            
             if autoPlayEnabled {
                 autoPlayButton
             }
-
+            
             Button {
                 viewModel.selectToday(dataController: dataController)
             } label: {
@@ -84,8 +84,8 @@ struct LargeScreenToolbar: ToolbarContent {
             .disabled(!dataController.isReady || viewModel.isAlreadyOnToday(dataController: dataController))
             .help("Jump to Today")
             .accessibilityLabel("Today")
-
-
+            
+            
             Button {
                 viewModel.showDatePicker = true
             } label: {
@@ -97,8 +97,8 @@ struct LargeScreenToolbar: ToolbarContent {
             .popover(isPresented: $viewModel.showDatePicker) {
                 DatePickerPopoverContent(viewModel: viewModel, dataController: dataController, theme: theme)
             }
-
-
+            
+            
             Button {
                 viewModel.save(dataController: dataController, modelContext: modelContext)
             } label: {
@@ -108,7 +108,7 @@ struct LargeScreenToolbar: ToolbarContent {
             .disabled(!dataController.isReady)
             .help(viewModel.justSaved ? "Saved" : "Save This View")
             .accessibilityLabel(viewModel.justSaved ? "Saved" : "Save")
-
+            
             if DeviceType.isIpad {
                 Button {
                     viewModel.showSavedList.toggle()
@@ -133,7 +133,7 @@ struct LargeScreenToolbar: ToolbarContent {
                 .help("Show Saved Views")
                 .accessibilityLabel("Saved Views")
             }
-
+            
             if let snapshot {
                 PolaroidShareButton(
                     snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, colorScheme: colorScheme
@@ -141,7 +141,7 @@ struct LargeScreenToolbar: ToolbarContent {
                 .labelStyle(.iconOnly)
                 .help("Share This View")
             }
-
+            
             Button {
                 toggleSettings()
             } label: {
@@ -162,7 +162,7 @@ private struct DatePickerPopoverContent: View {
     let viewModel: ContentViewModel
     let dataController: DataController
     let theme: ThemeColors
-
+    
     var body: some View {
         VStack(spacing: 8) {
 #if os (macOS)
@@ -171,7 +171,7 @@ private struct DatePickerPopoverContent: View {
                 minDate: dataController.startDate,
                 maxDate: dataController.endDate
             )
-
+            
             MacCalendarView(
                 selection: viewModel.animatedDateBinding(dataController: dataController),
                 minDate: dataController.startDate,

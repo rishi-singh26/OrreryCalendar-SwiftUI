@@ -14,9 +14,9 @@ import SwiftUI
 struct NotificationTestView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var manager = InAppNotificationManager.shared
-
+    
     private let longMessage = "This is a much longer message used to check how the notification wraps across several lines and whether the dismiss button stays aligned."
-
+    
     var body: some View {
         NavigationStack {
             Form {
@@ -30,7 +30,7 @@ struct NotificationTestView: View {
                         manager.showNotification(title: "Long message", message: longMessage, type: .info)
                     }
                 }
-
+                
                 Section("Notifications (auto-dismiss)") {
                     Button("Short (1s)") {
                         manager.showNotification(title: "Short", message: "Dismisses after 1 second.", type: .success, timing: .short, autoDismiss: true)
@@ -42,7 +42,7 @@ struct NotificationTestView: View {
                         manager.showNotification(title: "Long", message: "Dismisses after 3.5 seconds.", type: .warning, timing: .long, autoDismiss: true)
                     }
                 }
-
+                
                 Section("Toasts") {
                     ForEach(Self.types, id: \.name) { item in
                         Button("\(item.name) toast") {
@@ -59,7 +59,7 @@ struct NotificationTestView: View {
                         manager.showToast(title: longMessage, type: .info)
                     }
                 }
-
+                
                 Section("Stacking") {
                     Button("Mixed burst (4)") {
                         manager.showNotification(title: "One", message: "First of the burst.", type: .info, autoDismiss: true)
@@ -77,7 +77,7 @@ struct NotificationTestView: View {
                         manager.clearAllNotifications()
                     }
                 }
-
+                
                 Section {
                     LabeledContent("In queue", value: "\(manager.queueCount)")
                 } footer: {
@@ -86,20 +86,20 @@ struct NotificationTestView: View {
             }
             .formStyle(.grouped)
             .navigationTitle("Notification Test")
-            #if os(iOS)
+#if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
-            #endif
+#endif
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                 }
             }
         }
-        #if os(macOS)
+#if os(macOS)
         .frame(minWidth: 400, minHeight: 500)
-        #endif
+#endif
     }
-
+    
     private static let types: [(name: String, type: NotificationType)] = [
         ("Success", .success),
         ("Error", .error),

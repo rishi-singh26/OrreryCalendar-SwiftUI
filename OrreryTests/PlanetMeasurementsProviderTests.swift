@@ -17,7 +17,7 @@ import Foundation
 /// seasons are driven by axial tilt, not solar distance. `referenceValues_2026_01_04` in
 /// OrreryTests.swift already pins Earth at 0.9833 AU on 2026-01-04, consistent with that.
 struct PlanetMeasurementsProviderTests {
-
+    
     private static func utcDate(year: Int, month: Int, day: Int) -> Date {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC")!
@@ -27,7 +27,7 @@ struct PlanetMeasurementsProviderTests {
         components.day = day
         return calendar.date(from: components)!
     }
-
+    
     /// Converts a formatted distance value (e.g. "147.14 million km", "4.47 billion km",
     /// "389 thousand km") back into a plain km `Double`, so tests can compare against
     /// values computed directly from `AstronomyEngine` without duplicating
@@ -41,20 +41,20 @@ struct PlanetMeasurementsProviderTests {
         if value.contains("thousand") { return (numberPart * 1_000, 0.5 * 1_000) }
         return (numberPart, 0.5)
     }
-
+    
     private static func distanceRow(_ rows: [PlanetMeasurement], bodyId: String) -> PlanetMeasurement? {
         rows.first { $0.id == "distance-\(bodyId)" }
     }
-
+    
     // MARK: - Row structure
-
+    
     /// Earth's row set: orbital period, a distance row for every other body (Sun + the 7
     /// other planets) with no self-distance row, and — since the underlying engine rejects
     /// "illumination as seen from Earth" of Earth itself — no apparent-magnitude row either.
     @Test func earth_rowStructure_excludesSelfDistanceAndMagnitude() throws {
         let earth = try #require(PlanetConfig.config(named: "earth"))
         let rows = PlanetMeasurementsProvider.measurements(for: earth, on: Self.utcDate(year: 2026, month: 1, day: 4))
-
+        
         #expect(rows.first?.id == "orbital-period")
         #expect(Self.distanceRow(rows, bodyId: "earth") == nil, "should not list Earth's distance from itself")
         #expect(Self.distanceRow(rows, bodyId: "sun") != nil)
@@ -64,7 +64,7 @@ struct PlanetMeasurementsProviderTests {
         #expect(!rows.contains { $0.id == "apparent-magnitude" }, "Earth has no apparent magnitude (undefined as seen from itself)")
         #expect(rows.count == 9, "orbital period + 8 distance rows (Sun + 7 other planets), no magnitude")
     }
-
+    
     /// Every non-Earth planet gets the same shape as Earth, plus a trailing apparent
     /// magnitude row, since illumination is only undefined for Earth.
     @Test func nonEarthPlanets_rowStructure_includesMagnitudeAndExcludesSelfDistance() throws {
@@ -77,7 +77,7 @@ struct PlanetMeasurementsProviderTests {
             #expect(rows.count == 10, "\(planet.name): orbital period + 8 distance rows + magnitude")
         }
     }
-
+    
     /// Distance rows must stay in Sun-then-Mercury→Neptune order with the selected planet
     /// skipped in place (not shifted or reordered around the gap).
     @Test func distanceRows_orderedSunThenOutwardSkippingSelf() throws {
@@ -90,7 +90,7 @@ struct PlanetMeasurementsProviderTests {
             "distance-uranus", "distance-neptune",
         ])
     }
-
+    
     /// Labels must read "Distance from <Sun/display name>", using the Sun's special-cased
     /// label and each planet's `PlanetConfig.displayName` (not its lowercase engine name).
     @Test func distanceRowLabels_useDisplayNames() throws {
@@ -101,7 +101,7 @@ struct PlanetMeasurementsProviderTests {
         #expect(Self.distanceRow(rows, bodyId: "earth")?.label == "Distance from Earth")
         #expect(Self.distanceRow(rows, bodyId: "neptune")?.label == "Distance from Neptune")
     }
-
+    
     /// An unrecognized planet name (one with no matching `CelestialBody` case) must yield
     /// an empty result rather than crashing or fabricating rows.
     @Test func unknownPlanetName_returnsEmptyRows() throws {
@@ -109,9 +109,9 @@ struct PlanetMeasurementsProviderTests {
         let rows = PlanetMeasurementsProvider.measurements(for: bogus, on: Self.utcDate(year: 2026, month: 1, day: 4))
         #expect(rows.isEmpty)
     }
-
+    
     // MARK: - Value correctness against the engine
-
+    
     /// Every "Distance from X" row's displayed km value must match a direct
     /// `AstronomyEngine.distance` computation for the same pair/date, across both the
     /// million-km and billion-km formatting buckets that real planet pairs actually land in
@@ -120,7 +120,7 @@ struct PlanetMeasurementsProviderTests {
         let date = Self.utcDate(year: 2026, month: 1, day: 4)
         let time = AstronomyEngine.time(for: date)
         let kmPerAU = 149_597_870.7
-
+        
         for planet in PlanetConfig.all {
             guard let selectedBody = CelestialBody(rawValue: planet.name) else { continue }
             let rows = PlanetMeasurementsProvider.measurements(for: planet, on: date)
@@ -136,7 +136,7 @@ struct PlanetMeasurementsProviderTests {
             }
         }
     }
-
+    
     /// `distance(from: .sun, to: body)` (what every "Distance from Sun" row uses) must agree
     /// with the engine's own dedicated heliocentric-distance function — if these ever
     /// diverged, the Sun row would be quietly wrong for every planet.
@@ -148,7 +148,7 @@ struct PlanetMeasurementsProviderTests {
             #expect(abs(viaVectors - viaHelio) < 1e-6, "\(body): distance-from-sun (\(viaVectors)) should match helioDistance (\(viaHelio))")
         }
     }
-
+    
     /// Orbital period row must reflect `AstronomyEngine.orbitalPeriodDays` formatted as
     /// "<days> days (<years> years)", for every planet.
     @Test func orbitalPeriodRow_matchesEngineValue() throws {
@@ -161,7 +161,7 @@ struct PlanetMeasurementsProviderTests {
             #expect(rows.first { $0.id == "orbital-period" }?.value == expected, "\(planet.name) orbital period mismatch")
         }
     }
-
+    
     /// Apparent magnitude row (non-Earth planets) must match `AstronomyEngine.illumination`
     /// formatted to 2 decimal places.
     @Test func apparentMagnitudeRow_matchesEngineValue() throws {
@@ -174,9 +174,9 @@ struct PlanetMeasurementsProviderTests {
             #expect(rows.first { $0.id == "apparent-magnitude" }?.value == expected, "\(planet.name) magnitude mismatch")
         }
     }
-
+    
     // MARK: - Seasonal distance trend (the reported concern)
-
+    
     /// Earth's Sun-distance must trace real orbital mechanics: it keeps *decreasing*
     /// through Northern-Hemisphere autumn/winter into a January perihelion, then
     /// *increasing* through spring into a July aphelion, then decreasing again back toward
@@ -186,14 +186,14 @@ struct PlanetMeasurementsProviderTests {
     /// regression that flipped or scrambled the distance computation would be caught here.
     @Test func earthDistanceFromSun_perihelionInJanuary_aphelionInJuly() throws {
         let earth = try #require(PlanetConfig.config(named: "earth"))
-
+        
         func sunDistanceKm(_ year: Int, _ month: Int, _ day: Int) -> Double {
             let date = Self.utcDate(year: year, month: month, day: day)
             let rows = PlanetMeasurementsProvider.measurements(for: earth, on: date)
             let value = Self.distanceRow(rows, bodyId: "sun")?.value ?? ""
             return Self.kmValue(fromFormatted: value).km
         }
-
+        
         let samples: [(label: String, km: Double)] = [
             ("2025-11-01", sunDistanceKm(2025, 11, 1)),
             ("2025-12-01", sunDistanceKm(2025, 12, 1)),
@@ -203,19 +203,19 @@ struct PlanetMeasurementsProviderTests {
             ("2026-07-05 (aphelion)", sunDistanceKm(2026, 7, 5)),
             ("2026-09-01", sunDistanceKm(2026, 9, 1)),
         ]
-
+        
         // Decreasing into perihelion.
         #expect(samples[0].km > samples[1].km, "Nov -> Dec should move closer to the Sun, not farther")
         #expect(samples[1].km > samples[2].km, "Dec -> early Jan perihelion should move closer still")
-
+        
         // Increasing out of perihelion toward aphelion.
         #expect(samples[2].km < samples[3].km, "early Jan -> Feb should move away from the Sun")
         #expect(samples[3].km < samples[4].km, "Feb -> Apr should keep moving away from the Sun")
         #expect(samples[4].km < samples[5].km, "Apr -> early Jul aphelion should move away from the Sun")
-
+        
         // Decreasing again after aphelion, back toward the following winter.
         #expect(samples[5].km > samples[6].km, "early Jul aphelion -> Sep should move back toward the Sun")
-
+        
         // The January sample is the overall minimum and the July sample the overall maximum.
         let minSample = samples.min { $0.km < $1.km }!
         let maxSample = samples.max { $0.km < $1.km }!

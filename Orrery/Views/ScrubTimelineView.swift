@@ -35,7 +35,7 @@ struct ScrubTimelineView: View {
     let minDate: Date
     let maxDate: Date
     let theme: ThemeColors
-
+    
     private let tickWidth: CGFloat = 2
     private let tickHeight: CGFloat = 30
     private let tickHPadding: CGFloat = 3
@@ -43,31 +43,31 @@ struct ScrubTimelineView: View {
     private let majorHeightProgress: CGFloat = 0.85
     private let interactionHeight: CGFloat = 64
     private let animation: Animation = .interpolatingSpring(duration: 0.3, bounce: 0, initialVelocity: 0)
-
+    
     /// User-facing cadence for boundary ticks (see `BoundaryTickFrequency`), persisted
     /// across launches. Declared directly on this view — rather than threaded in via
     /// `init` — since it's only ever consumed here and in
     /// `ScrubTimelineNoAnimationView`, matching this app's convention of declaring
     /// `@AppStorage` directly on whichever view(s) actually need a setting.
     @AppStorage(AppStorageKeys.boundaryTickFrequency) private var boundaryTickFrequency: BoundaryTickFrequency = .defaultFrequency
-
+    
     @State private var scrollIndex: Int
     @State private var scrollPosition: Int?
     @State private var scrollPhase: ScrollPhase = .idle
     @State private var animationRange: ClosedRange<Int>
     @State private var isInitialSetupDone = false
-
+    
     /// Width available to lay the row out in — measured via `.onGeometryChange`
     /// rather than wrapping the `ScrollView` in a `GeometryReader` (which greedily
     /// claims all proposed space and adds a separate layout pass of its own).
     @State private var containerWidth: CGFloat = 0
-
+    
     /// Tick indices (day offsets from `minDate`) that count as a boundary tick under
     /// `boundaryTickFrequency` — precomputed once (see performance note above) rather
     /// than checked per-tick with `Calendar`, and recomputed whenever `minDate`,
     /// `maxDate`, or `boundaryTickFrequency` changes.
     @State private var boundaryIndices: Set<Int>
-
+    
     /// Bumped when scrolling steps `selectedDate` across a boundary tick — not on
     /// every day, and not on changes made elsewhere — `selectedDate` is a `Binding`
     /// also written by the toolbar's "today" button and date picker, so triggering
@@ -75,7 +75,7 @@ struct ScrubTimelineView: View {
     /// `hapticTick(_:)`, which degrades to a no-op on hardware without haptics (e.g. a
     /// Mac with no Force Touch trackpad).
     @State private var hapticTick = 0
-
+    
     /// Seeds the scroll position at `selectedDate` synchronously — rather than
     /// leaving `scrollIndex`/`scrollPosition`/`animationRange` at placeholder
     /// defaults for `.task` to correct asynchronously after the first frame — so
@@ -94,7 +94,7 @@ struct ScrubTimelineView: View {
         self.minDate = minDate
         self.maxDate = maxDate
         self.theme = theme
-
+        
         let dayCount = ScrubTimelineMath.dayCount(minDate: minDate, maxDate: maxDate)
         let safeIndex = ScrubTimelineMath.index(for: selectedDate.wrappedValue, minDate: minDate, dayCount: dayCount)
         _scrollIndex = State(initialValue: safeIndex)
@@ -102,18 +102,18 @@ struct ScrubTimelineView: View {
         _animationRange = State(initialValue: safeIndex...safeIndex)
         _boundaryIndices = State(initialValue: ScrubTimelineMath.boundaryIndices(minDate: minDate, maxDate: maxDate, frequency: .persisted))
     }
-
+    
     /// Whole UTC days spanned by `minDate...maxDate`; the row holds `dayCount + 1`
     /// ticks, one per day, inclusive of both ends.
     private var dayCount: Int {
         ScrubTimelineMath.dayCount(minDate: minDate, maxDate: maxDate)
     }
-
+    
     /// Width one day occupies in the row: the tick itself plus padding on both sides.
     private var tickSlotWidth: CGFloat {
         tickWidth + tickHPadding * 2
     }
-
+    
     var body: some View {
         ScrollView(.horizontal) {
             LazyHStack(spacing: 0) {
@@ -138,7 +138,7 @@ struct ScrubTimelineView: View {
             let isFirstMeasurement = containerWidth == 0 && newWidth > 0
             containerWidth = newWidth
             guard isFirstMeasurement else { return }
-
+            
             // `scrollPosition` was seeded to `scrollIndex` back in `init`,
             // before `containerWidth` (and the centering `safeAreaPadding`
             // derived from it) was known — the row resolved that initial
@@ -162,7 +162,7 @@ struct ScrubTimelineView: View {
             let index = max(min(Int((newValue / tickSlotWidth).rounded()), dayCount), 0)
             let previousScrollIndex = scrollIndex
             scrollIndex = index
-
+            
             let isGreater = scrollIndex > previousScrollIndex
             let leadingBound = isGreater ? previousScrollIndex : scrollIndex
             let trailingBound = !isGreater ? previousScrollIndex : scrollIndex
@@ -171,7 +171,7 @@ struct ScrubTimelineView: View {
         .onScrollPhaseChange { oldPhase, newPhase in
             scrollPhase = newPhase
             animationRange = scrollIndex...scrollIndex
-
+            
             // In some rare instances the view aligned target behaviour will not
             // center the item; this works it out.
             if newPhase == .idle && scrollPosition != scrollIndex {
@@ -183,7 +183,7 @@ struct ScrubTimelineView: View {
         .frame(height: interactionHeight)
         .task {
             guard !isInitialSetupDone else { return }
-
+            
             // Initial scroll position and month-tick lookup are seeded synchronously
             // in `init` (see its doc comment) — this just holds interaction off for a
             // beat so the view-aligned scroll target settles before it's hit-testable.
@@ -218,7 +218,7 @@ struct ScrubTimelineView: View {
         }
         .hapticTick(hapticTick)
     }
-
+    
     // Tick View
     @ViewBuilder
     private func tickView(_ index: Int) -> some View {
@@ -226,7 +226,7 @@ struct ScrubTimelineView: View {
         let isBoundary = boundaryIndices.contains(index)
         let fillColor: Color = isInside ? .accentColor : theme.ink.opacity(isBoundary ? 0.6 : 0.35)
         let heightProgress: CGFloat = isInside ? 1 : (isBoundary ? majorHeightProgress : minorHeightProgress)
-
+        
         Rectangle()
             .fill(fillColor)
             .frame(
@@ -236,14 +236,14 @@ struct ScrubTimelineView: View {
             .frame(width: tickSlotWidth, height: tickHeight, alignment: .bottom)
             .animation(isInside || !isInitialSetupDone ? .none : animation, value: isInside)
     }
-
+    
     private func updateScrollPosition(for date: Date) {
         let safeIndex = index(for: date)
         scrollPosition = safeIndex
         scrollIndex = safeIndex
         animationRange = safeIndex...safeIndex
     }
-
+    
     /// Applies a scroll-driven index change to `selectedDate`, clamped implicitly by
     /// the row only ever containing `minDate...maxDate` (index 0...`dayCount`).
     private func applySelection(forIndex newIndex: Int) {
@@ -255,15 +255,15 @@ struct ScrubTimelineView: View {
             hapticTick += 1
         }
     }
-
+    
     private func index(for date: Date) -> Int {
         ScrubTimelineMath.index(for: date, minDate: minDate, dayCount: dayCount)
     }
-
+    
     private func date(forIndex index: Int) -> Date {
         ScrubTimelineMath.date(forIndex: index, minDate: minDate)
     }
-
+    
     private func computeBoundaryIndices() -> Set<Int> {
         ScrubTimelineMath.boundaryIndices(minDate: minDate, maxDate: maxDate, frequency: boundaryTickFrequency)
     }

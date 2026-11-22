@@ -16,27 +16,27 @@ import Observation
 @Observable
 final class AutoPlayController {
     private(set) var isPlaying = false
-
+    
     @ObservationIgnored var rate: AutoPlayRate = AutoPlayRate.defaultRate
     @ObservationIgnored var direction: AutoPlayDirection = AutoPlayDirection.defaultDirection
-
+    
     /// Called (after playback has stopped) when it stops because it reached the edge of
     /// the range, with the direction it was moving. Not called for any other stop.
     @ObservationIgnored var onReachedEdge: (@MainActor (AutoPlayDirection) -> Void)?
-
+    
     @ObservationIgnored private var task: Task<Void, Never>?
-
+    
     /// Target ~15 date updates per second regardless of rate.
     private static let tickInterval: Duration = .milliseconds(66)
     /// Caps the elapsed time credited to one tick so a stall can't cause a big jump.
     private static let maxElapsed: Double = 0.25
-
+    
     /// Result of one stepping computation.
     struct Step: Equatable {
         var date: Date
         var hitEdge: Bool
     }
-
+    
     /// Moves `date` by `days` (signed by `sign`) and clamps into `min...max`.
     /// `hitEdge` is true when the result sits on the edge it was moving toward.
     nonisolated static func step(from date: Date, days: Int, sign: Int, min: Date, max: Date) -> Step {
@@ -45,7 +45,7 @@ final class AutoPlayController {
         if moved <= min, sign < 0 { return Step(date: min, hitEdge: true) }
         return Step(date: moved, hitEdge: false)
     }
-
+    
     func toggle(
         currentDate: @escaping @MainActor () -> Date,
         range: @escaping @MainActor () -> ClosedRange<Date>,
@@ -57,7 +57,7 @@ final class AutoPlayController {
             start(currentDate: currentDate, range: range, apply: apply)
         }
     }
-
+    
     func start(
         currentDate: @escaping @MainActor () -> Date,
         range: @escaping @MainActor () -> ClosedRange<Date>,
@@ -79,7 +79,7 @@ final class AutoPlayController {
                 let whole = Int(accumulatedDays.rounded(.down))
                 guard whole >= 1 else { continue }
                 accumulatedDays -= Double(whole)
-
+                
                 let bounds = range()
                 let result = Self.step(
                     from: currentDate(), days: whole, sign: self.direction.sign,
@@ -95,7 +95,7 @@ final class AutoPlayController {
             }
         }
     }
-
+    
     func stop() {
         task?.cancel()
         task = nil

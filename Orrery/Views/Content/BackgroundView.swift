@@ -12,7 +12,7 @@ import SwiftUI
 /// per-frame or per-launch construction, just a lookup.
 struct BackgroundView: View {
     @Environment(\.colorScheme) private var colorScheme
-
+    
     var body: some View {
         MeshGradient(
             width: 6,

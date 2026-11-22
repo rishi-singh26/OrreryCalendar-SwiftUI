@@ -10,46 +10,46 @@ import SwiftUI
 /// A generic animatable vector of Doubles, used to animate arrays of values (like point lists)
 struct AnimatableVector: VectorArithmetic {
     var values: [Double]
-
+    
     static func + (lhs: AnimatableVector, rhs: AnimatableVector) -> AnimatableVector {
         AnimatableVector(values: zip(lhs.values, rhs.values).map(+))
     }
-
+    
     static func - (lhs: AnimatableVector, rhs: AnimatableVector) -> AnimatableVector {
         AnimatableVector(values: zip(lhs.values, rhs.values).map(-))
     }
-
+    
     mutating func scale(by rhs: Double) {
         values = values.map { $0 * rhs }
     }
-
+    
     var magnitudeSquared: Double {
         values.reduce(0) { $0 + $1 * $1 }
     }
-
+    
     static var zero: AnimatableVector { AnimatableVector(values: []) }
 }
 
 struct RoundedPolygon: Shape {
     var relativePoints: [CGPoint]
     var cornerRadius: CGFloat
-
+    
     func path(in rect: CGRect) -> Path {
         let points = relativePoints.map {
             CGPoint(x: rect.minX + $0.x * rect.width,
                     y: rect.minY + $0.y * rect.height)
         }
         guard points.count > 2 else { return Path() }
-
+        
         let cgPath = CGMutablePath()
         cgPath.move(to: points[points.count - 1])
-
+        
         for i in 0..<points.count {
             let next = points[(i + 1) % points.count]
             cgPath.addArc(tangent1End: points[i], tangent2End: next, radius: cornerRadius)
         }
         cgPath.closeSubpath()
-
+        
         return Path(cgPath)
     }
 }
@@ -65,15 +65,15 @@ struct StepShape: Shape {
     ]
     
     static let defaultCornerRadius: CGFloat = 24
-
+    
     var points: [CGPoint]
     var cornerRadius: CGFloat
-
+    
     init(points: [CGPoint]? = nil, cornerRadius: CGFloat? = nil) {
         self.points = points ?? StepShape.defaultPoints
         self.cornerRadius = cornerRadius ?? StepShape.defaultCornerRadius
     }
-
+    
     var animatableData: AnimatableVector {
         get {
             AnimatableVector(values: points.flatMap { [Double($0.x), Double($0.y)] })
@@ -89,7 +89,7 @@ struct StepShape: Shape {
             points = newPoints
         }
     }
-
+    
     func path(in rect: CGRect) -> Path {
         RoundedPolygon(relativePoints: points, cornerRadius: cornerRadius).path(in: rect)
     }

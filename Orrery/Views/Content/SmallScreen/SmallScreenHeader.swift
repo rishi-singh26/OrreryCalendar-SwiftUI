@@ -10,13 +10,13 @@ import SwiftUI
 struct SmallScreenHeader: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let viewModel: ContentViewModel
-
+    
     var body: some View {
         HStack {
             SelectedDateTitleText(date: viewModel.selectedDate)
-
+            
             Spacer()
-
+            
             PlanetsButton {
                 withAnimation(viewModel.effectiveAnimation(reduceMotion: reduceMotion)) {
                     viewModel.toggleControlPresentation(.planets)
@@ -30,7 +30,7 @@ struct SmallScreenHeader: View {
 
 private struct PlanetsButton: View {
     let action: () -> Void
-
+    
     private var button: some View {
         Button(action: action) {
             Text("Planets")
@@ -38,7 +38,7 @@ private struct PlanetsButton: View {
                 .monospaced()
         }
     }
-
+    
     var body: some View {
         if #available(iOS 26.0, *) {
             button

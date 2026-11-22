@@ -10,11 +10,15 @@
 ---
 
 <p align="center">
-  <img src="Assets/AppLook-1.png" alt="Orrery app screenshots" width="100%">
+  <img src="Assets/AppLook-2.png" alt="Orrery app screenshots" width="100%">
 </p>
 
 <p align="center">
   <img src="Assets/AppLook.png" alt="Orrery app screenshots" width="100%">
+</p>
+
+<p align="center">
+  <img src="Assets/AppLook-1.png" alt="Orrery app screenshots" width="100%">
 </p>
 
 ## About
@@ -26,12 +30,15 @@ All positions are computed locally with a vendored copy of [Astronomy Engine](ht
 ## Features
 
 - **Live orrery chart** — the Sun and 8 planets plotted by true orbital distance and ecliptic longitude, redrawn as you move through time.
-- **Moon phase discs** — Northern and Southern hemisphere views with illumination percentage.
-- **Scrub timeline** — drag, scroll, or use the trackpad/scroll wheel to glide through days, with month/year tick marks and a graphical date picker for jumping straight to a date.
-- **Save & share** — bookmark interesting dates and share them as a polaroid-style card.
-- **Customizable display** — toggle orbit rings, planet labels, and a compact Moon view; switch between system, light, and dark appearance.
-- **Adjustable date range** — cache anywhere from ±5 to ±100 years of positions, computed once and stored locally.
-- **Universal SwiftUI app** — one codebase adapting across iPhone, iPad, Mac, and Apple Vision Pro.
+- **Planet detail** — tap into any planet for an interactive 3D model you can rotate and zoom, with an optional date that stays synced to the main timeline.
+- **Moon phase discs** — Northern and Southern hemisphere views with illumination percentage, plus an optional Moon size control.
+- **Scrub timeline** — drag, scroll, or use the trackpad/scroll wheel to glide through days, with month/year tick marks (adjustable boundary ticks), haptic feedback, and a graphical date picker for jumping straight to a date.
+- **Auto Play** — let the date advance on its own, with adjustable speed (days, weeks, or months per second), direction, and control over what happens when you change the date manually.
+- **Save & share** — bookmark interesting dates, sync them across your devices via iCloud, and share them as a polaroid-style card.
+- **Customizable display** — toggle orbit rings, planet labels, the Sun halo, and the Moon size control; switch between system, light, and dark appearance.
+- **Alternate app icons** — pick from several icon styles (iOS / iPadOS).
+- **Adjustable date range** — cache anywhere from ±5 to ±100 years of positions, computed once and stored locally, and extend the range on demand.
+- **Adaptive SwiftUI app** — one codebase with layouts tuned for iPhone, iPad, and Mac.
 
 ## Built with
 
@@ -42,7 +49,7 @@ All positions are computed locally with a vendored copy of [Astronomy Engine](ht
 ## Requirements
 
 - Xcode 26 or later
-- iOS / iPadOS 18.6+ or macOS 14.6+
+- iOS / iPadOS 18.6+ or macOS 15.6+
 
 ## Getting started
 

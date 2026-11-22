@@ -33,13 +33,13 @@ import SwiftUI
 struct MoonPhaseShape: Shape {
     var fraction: Double
     var sampleCount: Int = 48
-
+    
     nonisolated func path(in rect: CGRect) -> Path {
         let r = min(rect.width, rect.height) / 2
         let center = CGPoint(x: rect.midX, y: rect.midY)
         let points = Self.vertices(fraction: fraction, radius: r, sampleCount: sampleCount)
         guard let first = points.first else { return Path() }
-
+        
         var path = Path()
         path.move(to: CGPoint(x: center.x + first.x, y: center.y + first.y))
         for point in points.dropFirst() {
@@ -48,7 +48,7 @@ struct MoonPhaseShape: Shape {
         path.closeSubpath()
         return path
     }
-
+    
     /// The boundary polygon in shape-local coordinates, centered at the origin
     /// (positive y downward, matching SwiftUI/Core Graphics).
     nonisolated static func vertices(fraction: Double, radius r: Double, sampleCount: Int) -> [CGPoint] {
@@ -57,13 +57,13 @@ struct MoonPhaseShape: Shape {
         let f = wrapped < 0 ? wrapped + 1 : wrapped
         let theta = f * 2 * .pi
         let xRadius = abs(cos(theta)) * r
-
+        
         let outerSign: Double = f < 0.5 ? 1 : -1
         let innerSign: Double = (f < 0.25 || f > 0.75) ? outerSign : -outerSign
-
+        
         var points: [CGPoint] = []
         points.reserveCapacity((sampleCount + 1) * 2)
-
+        
         // Outer boundary: half-circle, parametrized by angle phi in [-π/2, π/2]
         // so phi = -π/2 is the top pole (y = -r) and phi = π/2 is the bottom pole (y = r).
         for i in 0...sampleCount {
@@ -73,7 +73,7 @@ struct MoonPhaseShape: Shape {
             let x = outerSign * r * cos(phi)
             points.append(CGPoint(x: x, y: y))
         }
-
+        
         // Inner boundary (terminator): half-ellipse, same angle parametrization,
         // traversed bottom back to top to close the polygon.
         for i in 0...sampleCount {

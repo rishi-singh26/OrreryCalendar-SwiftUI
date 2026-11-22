@@ -16,15 +16,15 @@ struct LargeScreenChartArea: View {
     let showLabels: Bool
     let showSunHalo: Bool
     let moonSizeMultiplier: CGFloat
-
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             SelectedDateTitleText(date: viewModel.selectedDate)
                 .padding([.top, .leading])
-
+            
             let isWide = size.width > size.height
             let layout: AnyLayout = isWide ? AnyLayout(HStackLayout()) : AnyLayout(VStackLayout())
-
+            
             layout {
                 if isWide {
                     Spacer()
@@ -37,13 +37,13 @@ struct LargeScreenChartArea: View {
                     snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, theme: theme,
                     aspectRatio: 1, dateChangeAnimationTrigger: viewModel.dateChangeAnimationTrigger
                 )
-
+                
                 Spacer()
-
+                
                 if let snapshot {
                     MoonPhaseRow(moonPhaseDeg: snapshot.moonPhaseDeg, theme: theme, sizeMultiplier: moonSizeMultiplier, horizontal: !isWide)
                 }
-
+                
                 if isWide {
                     Spacer()
                 }
