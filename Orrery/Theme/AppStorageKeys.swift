@@ -11,6 +11,7 @@ enum AppStorageKeys {
     static let showLabels = "showLabels"
     static let showSunHalo = "showSunHalo"
     static let moonSizeScrub = "moonSizeScrub"
+    static let showMoonSizeScrubber = "showMoonSizeScrubber"
     static let appearanceMode = "appearanceMode"
     static let rangeYears = "rangeYears"
     static let boundaryTickFrequency = "boundaryTickFrequency"

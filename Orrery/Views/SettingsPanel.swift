@@ -14,6 +14,7 @@ struct SettingsPanel: View {
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
     @AppStorage(AppStorageKeys.showSunHalo) private var showSunHalo = true
+    @AppStorage(AppStorageKeys.showMoonSizeScrubber) private var showMoonSizeScrubber = true
     @AppStorage(AppStorageKeys.appearanceMode) private var appearanceMode: AppearanceMode = .system
     @AppStorage(AppStorageKeys.rangeYears) private var rangeYears = DataController.defaultRangeYears
     @AppStorage(AppStorageKeys.boundaryTickFrequency) private var boundaryTickFrequency: BoundaryTickFrequency = .defaultFrequency
@@ -41,10 +42,13 @@ struct SettingsPanel: View {
                     Label("Show Orbits", systemImage: "circle.circle")
                 }
                 Toggle(isOn: $showLabels) {
-                    Label("Show Planet Labels", systemImage: "circle")
+                    Label("Planet Labels", systemImage: "circle")
                 }
                 Toggle(isOn: $showSunHalo) {
-                    Label("Show Sun Halo", systemImage: "sun.max.circle")
+                    Label("Sun Halo", systemImage: "sun.max.circle")
+                }
+                Toggle(isOn: $showMoonSizeScrubber) {
+                    Label("Moon Size Control", systemImage: "moonphase.first.quarter")
                 }
                 Picker(selection: $appearanceMode) {
                     Label("System", systemImage: "iphone.gen2").tag(AppearanceMode.system)

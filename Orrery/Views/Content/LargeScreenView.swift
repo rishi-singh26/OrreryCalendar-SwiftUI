@@ -20,8 +20,9 @@ struct LargeScreenView: View {
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
     @AppStorage(AppStorageKeys.showSunHalo) private var showSunHalo = true
     @AppStorage(AppStorageKeys.autoPlayEnabled) private var autoPlayEnabled = true
+    @AppStorage(AppStorageKeys.showMoonSizeScrubber) private var showMoonSizeScrubber = true
 
-    /// Persisted, normalized (`0...1`) position of the trailing-edge Moon-size
+    /// Persisted, normalized (`0...1`) position of the leading-edge Moon-size
     /// scrubber — same `AppStorageKeys.moonSizeScrub` key `SmallScreenView` uses, so
     /// the two layouts share one persisted position. Kept here (rather than in
     /// `ContentViewModel`) since `@AppStorage` only integrates with SwiftUI's
@@ -96,8 +97,8 @@ struct LargeScreenView: View {
 
             // Drives `moonSizeMultiplier` (via `moonSizeScrub`), which `MoonPhaseRow`
             // animates into on change.
-            MoonSizeScrubberNotch(scrub: $moonSizeScrub, theme: theme)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+            MoonSizeScrubberNotch(scrub: $moonSizeScrub, theme: theme, isPresented: showMoonSizeScrubber)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 .offset(y: 150)
 
             LargeScreenBottomPanel(

@@ -59,7 +59,7 @@ final class ContentViewModel {
         controlPresentationState = controlPresentationState == state ? .none : state
     }
 
-    /// Range the trailing-edge Moon-size scrubber's normalized (`0...1`) position
+    /// Range the left-edge Moon-size scrubber's normalized (`0...1`) position
     /// maps onto — symmetric around the scrubber's default midpoint so a scrub of
     /// `0.5` reproduces `MoonPhaseRow`'s normal size (`1.0`) exactly; the low end
     /// scales the Moon discs down to 75%, the high end up to 125%. `SmallScreenView`-
