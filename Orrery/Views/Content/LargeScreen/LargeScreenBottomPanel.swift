@@ -11,8 +11,6 @@ struct LargeScreenBottomPanel: View {
     @Environment(DataController.self) private var dataController
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    @AppStorage(AppStorageKeys.rangeYears) private var rangeYears = DataController.defaultRangeYears
-
     let viewModel: ContentViewModel
     let snapshot: DaySnapshot?
     let theme: ThemeColors
@@ -50,16 +48,17 @@ struct LargeScreenBottomPanel: View {
                         selectedDate: viewModel.dateBinding(dataController: dataController),
                         minDate: dataController.startDate,
                         maxDate: dataController.endDate,
-                        theme: theme,
-                        useAnimatedTicks: rangeYears <= viewModel.rangeYearsForAnimatedScrubber
+                        theme: theme
                     )
                     .opacity(!viewModel.showPlanetsView ? 1 : 0)
                     .allowsHitTesting(!viewModel.showPlanetsView)
                     .accessibilityHidden(viewModel.showPlanetsView)
                     .padding(.vertical, 8)
                 } else {
-                    EmptyView()
-                        .frame(height: 64)
+                    VStack {
+                        
+                    }
+                    .frame(height: 64)
                 }
             }
         }

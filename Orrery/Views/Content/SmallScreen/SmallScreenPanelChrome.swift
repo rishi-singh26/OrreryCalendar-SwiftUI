@@ -1,5 +1,5 @@
 //
-//  OverlayPanelChrome.swift
+//  SmallScreenPanelChrome.swift
 //  Orrery
 //
 
@@ -11,7 +11,7 @@ import SwiftUI
 /// close button itself, and the panel's open/close transition. The Planets panel
 /// (`PlanetDetailView`) builds its own equivalent chrome instead, since its title needs the
 /// planet's own (possibly desynced) date rather than the shared `viewModel.selectedDate`.
-struct OverlayPanelChrome<Content: View>: View {
+struct SmallScreenPanelChrome<Content: View>: View {
     /// Top inset the panel reserves for its content, keeping it clear of the close button
     /// overlaid at `.topTrailing` — that button is a 45pt `GlassButton` plus its own
     /// `.padding()`.

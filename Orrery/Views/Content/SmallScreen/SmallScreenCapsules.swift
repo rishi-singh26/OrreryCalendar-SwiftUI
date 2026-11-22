@@ -8,7 +8,7 @@ import SwiftUI
 import SwiftData
 
 /// "Today" and "Choose a Date" buttons at the leading edge of `SmallScreenView`'s controls bar.
-struct CalendarCapsule: View {
+struct SmallScreenCalendarCapsule: View {
     @Environment(DataController.self) private var dataController
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let viewModel: ContentViewModel
@@ -52,7 +52,7 @@ struct CalendarCapsule: View {
 }
 
 /// Save, saved list, share and settings buttons at the trailing edge of `SmallScreenView`'s controls bar.
-struct ButtonsCapsule: View {
+struct SmallScreenButtonsCapsule: View {
     @Environment(DataController.self) private var dataController
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion

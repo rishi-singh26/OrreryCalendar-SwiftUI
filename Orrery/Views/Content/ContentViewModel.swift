@@ -24,7 +24,6 @@ enum ControlPresentationState {
 @MainActor
 @Observable
 final class ContentViewModel {
-    let rangeYearsForAnimatedScrubber = 10
     var selectedDate = UTCDay.todayAsUTCMidnight()
     var justSaved = false
     @ObservationIgnored private var justSavedResetTask: Task<Void, Never>?

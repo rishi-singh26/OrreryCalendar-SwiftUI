@@ -12,7 +12,6 @@ import SwiftData
 struct SmallScreenView: View {
     @Environment(DataController.self) private var dataController
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.colorScheme) private var colorScheme
 
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
@@ -48,9 +47,9 @@ struct SmallScreenView: View {
     }
 
     var body: some View {
-        // Looked up once per body evaluation and handed to both the main content and
-        // the toolbar below, rather than each independently calling
-        // `dataController.snapshot(for:)` (a `UTCDay` calendar-based lookup).
+        // Looked up once per body evaluation and handed down to the main content, rather
+        // than each child independently calling `dataController.snapshot(for:)` (a
+        // `UTCDay` calendar-based lookup).
         let snapshot = dataController.snapshot(for: viewModel.selectedDate)
         ThemeReader { theme, colorScheme in
             ZStack {
@@ -63,7 +62,7 @@ struct SmallScreenView: View {
                 MainContentBuilder(snapshot: snapshot, theme: theme, colorScheme: colorScheme)
             }
         }
-        .contentLifecycle(viewModel: viewModel, seedsFromCurrentState: false)
+        .contentLifecycle(viewModel: viewModel, observing: .changesOnly)
     }
 
     @ViewBuilder
@@ -118,10 +117,7 @@ struct SmallScreenView: View {
                 .offset(y: -160)
             }
 
-            SmallScreenControlsBar(
-                viewModel: viewModel, snapshot: snapshot, theme: theme, colorScheme: colorScheme,
-                panelColorScheme: self.colorScheme
-            )
+            SmallScreenControlsBar(viewModel: viewModel, snapshot: snapshot, theme: theme, colorScheme: colorScheme)
             .glassOrSurface(glass: .tinted(ThemeColors.controlsBarTint), in: .rect(cornerRadius: panelCornerRadius))
             .clipShape(.rect(cornerRadius: panelCornerRadius))
             .padding(.horizontal, barOuterPadding)

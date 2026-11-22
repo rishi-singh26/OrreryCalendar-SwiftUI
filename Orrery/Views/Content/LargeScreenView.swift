@@ -79,10 +79,10 @@ struct LargeScreenView: View {
                 }
             }
         }
-        // `seedsFromCurrentState` because the controller is shared across windows: a window
+        // `.includingCurrentState` because the controller is shared across windows: a window
         // opened after it's already ready never sees these values change, so it must
         // seed its selection and range thresholds from the current values on mount.
-        .contentLifecycle(viewModel: viewModel, seedsFromCurrentState: true)
+        .contentLifecycle(viewModel: viewModel, observing: .includingCurrentState)
     }
 
     @ViewBuilder
