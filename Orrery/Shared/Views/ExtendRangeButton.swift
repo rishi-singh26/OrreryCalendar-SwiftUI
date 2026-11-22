@@ -11,7 +11,7 @@ import SwiftUI
 struct ExtendRangeButton: View {
     var theme: ThemeColors
     var action: () -> Void
-
+    
     var body: some View {
         Button("Extend the cached range in Settings", action: action)
             .font(.system(.footnote, design: .rounded))

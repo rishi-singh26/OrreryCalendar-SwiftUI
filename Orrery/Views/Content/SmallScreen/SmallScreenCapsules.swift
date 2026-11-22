@@ -12,7 +12,7 @@ struct SmallScreenCalendarCapsule: View {
     @Environment(DataController.self) private var dataController
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let viewModel: ContentViewModel
-
+    
     var body: some View {
         let isTodayButtonDisabled = !dataController.isReady || viewModel.isAlreadyOnToday(dataController: dataController)
         HStack(spacing: 20) {
@@ -32,7 +32,7 @@ struct SmallScreenCalendarCapsule: View {
             .help("Jump to Today")
             .accessibilityLabel("Today")
             .foregroundStyle(isTodayButtonDisabled ? .tertiary : .primary)
-
+            
             Button {
                 withAnimation(viewModel.effectiveAnimation(reduceMotion: reduceMotion)) {
                     viewModel.toggleControlPresentation(.datePicker)
@@ -56,16 +56,16 @@ struct SmallScreenButtonsCapsule: View {
     @Environment(DataController.self) private var dataController
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
+    
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
     @AppStorage(AppStorageKeys.showSunHalo) private var showSunHalo = true
-
+    
     let viewModel: ContentViewModel
     let snapshot: DaySnapshot?
     let theme: ThemeColors
     let colorScheme: ColorScheme
-
+    
     var body: some View {
         let animation = viewModel.effectiveAnimation(reduceMotion: reduceMotion)
         HStack(spacing: 20) {
@@ -79,7 +79,7 @@ struct SmallScreenButtonsCapsule: View {
             .disabled(!dataController.isReady)
             .help(viewModel.justSaved ? "Saved" : "Save This View")
             .accessibilityLabel(viewModel.justSaved ? "Saved" : "Save")
-
+            
             Button {
                 withAnimation(animation) {
                     viewModel.toggleControlPresentation(.savedItems)
@@ -91,10 +91,10 @@ struct SmallScreenButtonsCapsule: View {
             .help("Show Saved Views")
             .accessibilityLabel("Saved Views")
             .foregroundStyle(.primary)
-
+            
             Divider()
                 .frame(height: 25)
-
+            
             if let snapshot {
                 PolaroidShareButton(
                     snapshot: snapshot, showOrbits: showOrbits, showLabels: showLabels, showSunHalo: showSunHalo, colorScheme: colorScheme
@@ -105,7 +105,7 @@ struct SmallScreenButtonsCapsule: View {
             } else {
                 Image(systemName: "square.and.arrow.up")
             }
-
+            
             Button {
                 withAnimation(animation) {
                     viewModel.toggleControlPresentation(.settings)

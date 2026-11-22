@@ -25,10 +25,10 @@ struct VerticalGlassSegmentedControl<Value: Hashable>: View {
     var accessibilityValue: (Value) -> String
     /// Total height of the control; `visibleCount` slots fill it exactly.
     var height: CGFloat
-
+    
     private let visibleCount = 5
     private let pillWidth: CGFloat = 26
-
+    
     /// Index of the slot currently under the capsule — follows the scroll live.
     @State private var activeIndex: Int
     @State private var scrollPosition: Int?
@@ -39,7 +39,7 @@ struct VerticalGlassSegmentedControl<Value: Hashable>: View {
     /// other slots — notably the initial scroll starts at offset 0 — and must not be read
     /// as the user landing on them. Cleared when the user takes over or the scroll settles.
     @State private var isProgrammaticScroll = true
-
+    
     init(
         options: [Value],
         selection: Binding<Value>,
@@ -54,22 +54,22 @@ struct VerticalGlassSegmentedControl<Value: Hashable>: View {
         self.accessibilityLabel = accessibilityLabel
         self.accessibilityValue = accessibilityValue ?? title
         self.height = height
-
+        
         // Seed the initial slot. The scroll view doesn't honor `scrollPosition` on its first
         // layout, so the `.task` below re-applies it once laid out.
         let index = options.firstIndex(of: selection.wrappedValue) ?? 0
         _activeIndex = State(initialValue: index)
         _scrollPosition = State(initialValue: index)
     }
-
+    
     private var slotHeight: CGFloat { height / CGFloat(visibleCount) }
-
+    
     var body: some View {
         ZStack {
             pill
                 .frame(width: pillWidth, height: slotHeight - 4)
                 .allowsHitTesting(false)
-
+            
             ScrollView(.vertical) {
                 VStack(spacing: 0) {
                     ForEach(options.indices, id: \.self) { index in
@@ -156,7 +156,7 @@ struct VerticalGlassSegmentedControl<Value: Hashable>: View {
             }
         }
     }
-
+    
     @ViewBuilder
     private var pill: some View {
         if #available(iOS 26, macOS 26, *) {
@@ -168,11 +168,11 @@ struct VerticalGlassSegmentedControl<Value: Hashable>: View {
                 .fill(Color.accentColor)
         }
     }
-
+    
     private func clamped(_ index: Int) -> Int {
         max(min(index, options.count - 1), 0)
     }
-
+    
     /// Selects the slot at `index` and scrolls it under the capsule.
     private func select(_ index: Int) {
         guard options.indices.contains(index) else { return }

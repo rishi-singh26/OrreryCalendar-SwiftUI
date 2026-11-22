@@ -19,9 +19,9 @@ enum BoundaryTickFrequency: String, CaseIterable, Identifiable {
     case every10Days
     case every15Days
     case monthly
-
+    
     var id: String { rawValue }
-
+    
     var label: String {
         switch self {
         case .weekly: return "Weekly"
@@ -30,13 +30,13 @@ enum BoundaryTickFrequency: String, CaseIterable, Identifiable {
         case .monthly: return "Monthly"
         }
     }
-
+    
     /// The single source of truth for the setting's default — used both as the
     /// `@AppStorage` default (in `ScrubTimelineView`, `ScrubTimelineNoAnimationView`,
     /// and `SettingsPanel`) and as `persisted`'s fallback below, so the two can't drift
     /// apart.
     static let defaultFrequency: BoundaryTickFrequency = .monthly
-
+    
     /// Reads the persisted frequency straight from `UserDefaults`, bypassing the
     /// `@AppStorage` property-wrapper accessor. Needed in `ScrubTimelineView`'s and
     /// `ScrubTimelineNoAnimationView`'s custom `init`s: a struct's custom initializer
@@ -54,18 +54,18 @@ enum ScrubTimelineMath {
     static func dayCount(minDate: Date, maxDate: Date) -> Int {
         max((try? UTCDay.dayCount(from: minDate, to: maxDate)) ?? 0, 0)
     }
-
+    
     /// Day-offset index for `date` relative to `minDate`, clamped to `0...dayCount`.
     static func index(for date: Date, minDate: Date, dayCount: Int) -> Int {
         let days = (try? UTCDay.dayCount(from: minDate, to: date)) ?? 0
         return max(min(days, dayCount), 0)
     }
-
+    
     /// The `Date` `index` whole days after `minDate`.
     static func date(forIndex index: Int, minDate: Date) -> Date {
         UTCDay.calendar.date(byAdding: .day, value: index, to: minDate) ?? minDate
     }
-
+    
     /// All tick indices (day offsets from `minDate`) that count as a "boundary" tick
     /// under `frequency` — the dispatcher `tickView(_:)` and `applySelection(forIndex:)`
     /// go through, so rendering and haptics always agree on the same set of indices.
@@ -81,7 +81,7 @@ enum ScrubTimelineMath {
             return fixedCadenceIndices(minDate: minDate, maxDate: maxDate, intervalDays: 15)
         }
     }
-
+    
     /// All tick indices (day offsets from `minDate`) that land on the 1st of a
     /// month, found by stepping a cursor month-by-month across `minDate...maxDate`
     /// — a few hundred `Calendar` calls at most, regardless of the day-count of
@@ -91,7 +91,7 @@ enum ScrubTimelineMath {
         let calendar = UTCDay.calendar
         var indices = Set<Int>()
         var cursor = calendar.date(from: calendar.dateComponents([.year, .month], from: minDate)) ?? minDate
-
+        
         while cursor <= maxDate {
             if cursor >= minDate, let idx = try? UTCDay.dayCount(from: minDate, to: cursor) {
                 indices.insert(idx)
@@ -101,7 +101,7 @@ enum ScrubTimelineMath {
         }
         return indices
     }
-
+    
     /// All tick indices (day offsets from `minDate`) that land on a calendar week
     /// start (`UTCDay.calendar.firstWeekday`, always Sunday since that calendar is
     /// locale-independent). Unlike `monthStartIndices` (months vary in length, so that
@@ -120,7 +120,7 @@ enum ScrubTimelineMath {
         let offsetIntoWeek = (try? UTCDay.dayCount(from: weekStart, to: minDate)) ?? 0
         let firstIndex = offsetIntoWeek == 0 ? 0 : 7 - offsetIntoWeek
         let totalDays = dayCount(minDate: minDate, maxDate: maxDate)
-
+        
         var indices = Set<Int>()
         var index = firstIndex
         while index <= totalDays {
@@ -129,7 +129,7 @@ enum ScrubTimelineMath {
         }
         return indices
     }
-
+    
     /// All tick indices (day offsets from `minDate`) on a fixed `intervalDays` cadence
     /// counted from `minDate` itself (index `0`, always a boundary) — used for cadences
     /// with no natural calendar unit (e.g. every 10 or 15 days), so unlike
@@ -146,7 +146,7 @@ enum ScrubTimelineMath {
         }
         return indices
     }
-
+    
     /// Whether stepping from `fromIndex` to `toIndex` (in either direction) passes
     /// over a boundary tick, per the already-computed `boundaryIndices`. `fromIndex`
     /// itself is not checked — its tick, if any, already triggered feedback when the

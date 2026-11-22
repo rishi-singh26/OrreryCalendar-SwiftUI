@@ -12,16 +12,16 @@ import SwiftUI
 
 struct DateScrubTimeline: View {
     @AppStorage(AppStorageKeys.rangeYears) private var rangeYears = DataController.defaultRangeYears
-
+    
     /// Largest cached range, in years either side of today (±), for which the animated tick
     /// fade is still smooth. Compared against the `rangeYears` setting.
     private static let maxRangeYearsForAnimatedTicks = 20
-
+    
     @Binding var selectedDate: Date
     let minDate: Date
     let maxDate: Date
     let theme: ThemeColors
-
+    
     var body: some View {
         if rangeYears > Self.maxRangeYearsForAnimatedTicks {
             ScrubTimelineNoAnimationView(selectedDate: $selectedDate, minDate: minDate, maxDate: maxDate, theme: theme)

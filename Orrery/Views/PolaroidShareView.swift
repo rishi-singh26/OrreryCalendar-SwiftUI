@@ -129,7 +129,7 @@ struct PolaroidShareButton: View {
     let showLabels: Bool
     let showSunHalo: Bool
     let colorScheme: ColorScheme
-
+    
     var body: some View {
         ShareLink(
             item: PolaroidShareItem(
@@ -140,7 +140,7 @@ struct PolaroidShareButton: View {
             Label("Share", systemImage: "square.and.arrow.up")
         }
     }
-
+    
     private var captionText: String {
         SelectedDateTitleText.string(from: snapshot.date)
     }

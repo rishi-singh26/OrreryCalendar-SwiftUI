@@ -10,7 +10,7 @@ import SwiftUI
 struct InAppToastView: View {
     @EnvironmentObject private var notificationManager:  InAppNotificationManager
     @State private var delayTask: DispatchWorkItem?
-
+    
     let notification: InAppNotification
     
     var body: some View {
@@ -26,7 +26,7 @@ struct InAppToastView: View {
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.leading)
-                                
+                
                 Button {
                     if let delayTask {
                         delayTask.cancel()
@@ -79,7 +79,7 @@ struct InAppToastView: View {
                 cancelDelayTask()
             }.onEnded { value in
                 let yOffset = value.translation.height + (value.velocity.height / 2)
-
+                
                 if -yOffset > InAppNotificationManager.swipeDismissDistance {
                     // Remove notification
                     notificationManager.removeNotification(notification.id)

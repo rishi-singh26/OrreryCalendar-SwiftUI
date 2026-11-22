@@ -29,12 +29,12 @@ struct ScrubberNotchContainer<Content: View>: View {
     /// notch, so it never travels into the flared top/bottom corners; any horizontal
     /// padding is up to the content itself.
     @ViewBuilder let content: Content
-
+    
     private let notchDepth: CGFloat = 35
-
+    
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.layoutDirection) private var layoutDirection
-
+    
     private var notchShape: WedgedNotchShape {
         let isLeftToRight = layoutDirection == .leftToRight
         let docksLeft = (side == .leading) == isLeftToRight
@@ -47,7 +47,7 @@ struct ScrubberNotchContainer<Content: View>: View {
             topCurveDepth: 45
         )
     }
-
+    
     var body: some View {
         notchShape
             .fill(.background)
@@ -55,8 +55,8 @@ struct ScrubberNotchContainer<Content: View>: View {
             .overlay {
                 content
                     .frame(height: ScrubberNotchMetrics.contentHeight)
-                    // The content fades with the collapse and, once hidden, is neither
-                    // touchable nor exposed to VoiceOver.
+                // The content fades with the collapse and, once hidden, is neither
+                // touchable nor exposed to VoiceOver.
                     .opacity(isPresented ? 1 : 0)
                     .allowsHitTesting(isPresented)
                     .accessibilityHidden(!isPresented)

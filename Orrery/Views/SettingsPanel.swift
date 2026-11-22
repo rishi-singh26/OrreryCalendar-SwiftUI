@@ -10,7 +10,7 @@ import SwiftUI
 
 struct SettingsPanel: View {
     @Environment(DataController.self) private var dataController
-
+    
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
     @AppStorage(AppStorageKeys.showSunHalo) private var showSunHalo = true
@@ -24,17 +24,17 @@ struct SettingsPanel: View {
     @AppStorage(AppStorageKeys.autoPlayRate) private var autoPlayRate: AutoPlayRate = AutoPlayRate.defaultRate
     @AppStorage(AppStorageKeys.autoPlayDirection) private var autoPlayDirection: AutoPlayDirection = AutoPlayDirection.defaultDirection
     @AppStorage(AppStorageKeys.autoPlayManualChange) private var autoPlayManualChange: AutoPlayManualChangeBehavior = AutoPlayManualChangeBehavior.defaultBehavior
-
+    
 #if os(iOS)
     @State private var showIconPicker: Bool = false
 #endif
-
+    
 #if DEBUG
     @State private var showNotificationTest = false
 #endif
-
+    
     private static let rangePresets = [5, 10, 15, 20, 50, 100]
-
+    
     var body: some View {
         Form {
             Section("Display") {
@@ -225,7 +225,7 @@ struct SettingsPanel: View {
         }
 #endif
     }
-
+    
     /// Updates the cached range and, once that has finished successfully, tells the user.
     /// The wait runs in its own task rather than being tied to this view, so the
     /// notification still appears if Settings is dismissed while the range is computing.
@@ -245,7 +245,7 @@ struct SettingsPanel: View {
             )
         }
     }
-
+    
     private var rangeSelection: Binding<Int> {
         Binding(
             get: { rangeYears },
@@ -255,7 +255,7 @@ struct SettingsPanel: View {
             }
         )
     }
-
+    
     private var rangeDescription: String {
         guard dataController.isReady else { return "" }
         let startYear = UTCDay.calendar.component(.year, from: dataController.startDate)

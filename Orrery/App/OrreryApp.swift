@@ -12,7 +12,7 @@ import SwiftData
 struct OrreryApp: App {
     let modelContainer: ModelContainer
     @State private var dataController: DataController
-
+    
     init() {
         let container: ModelContainer
         do {
@@ -23,7 +23,7 @@ struct OrreryApp: App {
         self.modelContainer = container
         _dataController = State(initialValue: DataController(modelContainer: container))
     }
-
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -31,11 +31,11 @@ struct OrreryApp: App {
                 .inAppNotificationOverlay()
         }
         .modelContainer(modelContainer)
-        #if os (macOS)
+#if os (macOS)
         .windowStyle(.hiddenTitleBar)
-        #endif
-
-        #if os(macOS)
+#endif
+        
+#if os(macOS)
         Settings {
             SettingsPanel()
                 .environment(dataController)
@@ -44,6 +44,6 @@ struct OrreryApp: App {
         .defaultSize(width: 400, height: 700)
         .windowResizability(.contentSize)
         .windowStyle(.titleBar)
-        #endif
+#endif
     }
 }

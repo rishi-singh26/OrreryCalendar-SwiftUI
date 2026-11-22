@@ -12,28 +12,28 @@ import SwiftUI
 struct SmallScreenControlsBar: View {
     @Environment(DataController.self) private var dataController
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
+    
     private let datePickerWheelHeight: CGFloat = 280
-
+    
     let viewModel: ContentViewModel
     let snapshot: DaySnapshot?
     let theme: ThemeColors
     let colorScheme: ColorScheme
-
+    
     private var effectiveAnimation: Animation {
         viewModel.effectiveAnimation(reduceMotion: reduceMotion)
     }
-
+    
     private var panelTransition: AnyTransition {
         viewModel.effectiveTransition(reduceMotion: reduceMotion)
     }
-
+    
     private func dismissPanel() {
         withAnimation(effectiveAnimation) {
             viewModel.controlPresentationState = .none
         }
     }
-
+    
     var body: some View {
         VStack(spacing: 0) {
             ZStack {
@@ -45,7 +45,7 @@ struct SmallScreenControlsBar: View {
                     .opacity(viewModel.controlPresentationState == .none ? 1 : 0)
                     .allowsHitTesting(viewModel.controlPresentationState == .none)
                     .accessibilityHidden(viewModel.controlPresentationState != .none)
-
+                
                 switch viewModel.controlPresentationState {
                 case .datePicker:
                     panel(height: datePickerWheelHeight) {
@@ -84,7 +84,7 @@ struct SmallScreenControlsBar: View {
                 }
             }
             .compositingGroup()
-
+            
             if viewModel.isNearRangeEdge(dataController: dataController) && viewModel.controlPresentationState != .settings {
                 ExtendRangeButton(theme: theme) {
                     withAnimation(effectiveAnimation) {
@@ -95,7 +95,7 @@ struct SmallScreenControlsBar: View {
             }
         }
     }
-
+    
     private func panel<Content: View>(height: CGFloat? = nil, @ViewBuilder content: @escaping () -> Content) -> some View {
         SmallScreenPanelChrome(
             height: height,
@@ -105,7 +105,7 @@ struct SmallScreenControlsBar: View {
             content: content
         )
     }
-
+    
     /// Calendar/buttons capsules plus the scrub timeline. Kept mounted at all
     /// times (shown/hidden via `.opacity`) rather than being one case of the
     /// presentation-state switch: switching it in and out on every
@@ -117,14 +117,14 @@ struct SmallScreenControlsBar: View {
             HStack {
                 SmallScreenCalendarCapsule(viewModel: viewModel)
                     .glassOrSurface(glass: .interactive, in: .capsule)
-
+                
                 Spacer()
-
+                
                 SmallScreenButtonsCapsule(viewModel: viewModel, snapshot: snapshot, theme: theme, colorScheme: colorScheme)
                     .glassOrSurface(glass: .interactive, in: .capsule)
             }
             .padding(10)
-
+            
             if snapshot != nil {
                 DateScrubTimeline(
                     selectedDate: viewModel.dateBinding(dataController: dataController),

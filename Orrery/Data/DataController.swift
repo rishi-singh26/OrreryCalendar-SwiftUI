@@ -19,20 +19,20 @@ final class DataController {
     static let maxRangeYears = 100
     static let defaultRangeYears = 10
     private static let resumeToleranceDays = 14
-
+    
     private(set) var startDate: Date = UTCDay.todayAsUTCMidnight()
     private(set) var endDate: Date = UTCDay.todayAsUTCMidnight()
     private(set) var dayCount: Int = 0
     private(set) var isComputing = false
     private(set) var isReady = false
     private(set) var lastErrorMessage: String?
-
+    
     private var snapshots: [DaySnapshot] = []
     private var packedDataCache = Data()
     private let io: DataStoreIO
     private var computeTask: Task<Void, Never>?
     private var bootstrapTask: Task<Void, Never>?
-
+    
     /// Years currently covered on each side of today, rounded down — used to render
     /// e.g. "±10 years" in Settings.
     var coveredYears: Int {
@@ -40,15 +40,15 @@ final class DataController {
         let days = (try? UTCDay.dayCount(from: startDate, to: UTCDay.todayAsUTCMidnight())) ?? 0
         return abs(days) / 365
     }
-
+    
     var todayDate: Date { UTCDay.todayAsUTCMidnight() }
-
+    
     init(modelContainer: ModelContainer) {
         self.io = DataStoreIO(container: modelContainer)
     }
-
+    
     // MARK: - Launch
-
+    
     /// Call once at app launch. Loads the cached store if present and its format
     /// version still matches; otherwise computes the default ±10-year range in the
     /// background. Never recomputes an already-valid cached range — a given calendar
@@ -67,7 +67,7 @@ final class DataController {
         bootstrapTask = task
         await task.value
     }
-
+    
     private func performBootstrap() async {
         do {
             if let snapshot = try await io.loadStore() {
@@ -80,7 +80,7 @@ final class DataController {
             lastErrorMessage = error.localizedDescription
         }
     }
-
+    
     /// Detects a range setting that doesn't match what's actually cached — e.g. the app
     /// was terminated mid-extension — and resumes rather than silently under-reporting
     /// the range. Safe to call every launch; a no-op once the cache already covers
@@ -92,7 +92,7 @@ final class DataController {
         guard
             let desiredStart = UTCDay.calendar.date(byAdding: .year, value: -years, to: today),
             let desiredEnd = UTCDay.calendar.date(byAdding: .year, value: years, to: today)
-        else { return }
+                else { return }
         // Both ends are anchored on "today", so the cache naturally falls a few days
         // behind `desiredEnd` as time passes; only a larger shortfall (e.g. an
         // interrupted extension) is worth a recompute.
@@ -100,24 +100,24 @@ final class DataController {
         guard
             let toleratedStart = UTCDay.calendar.date(byAdding: .day, value: tolerance, to: desiredStart),
             let toleratedEnd = UTCDay.calendar.date(byAdding: .day, value: -tolerance, to: desiredEnd)
-        else { return }
+                else { return }
         if toleratedStart < startDate || toleratedEnd > endDate {
             extendRange(toYears: years)
         }
     }
-
+    
     // MARK: - Lookup
-
+    
     func snapshot(for date: Date) -> DaySnapshot? {
         guard isReady else { return nil }
         let day = UTCDay.midnight(of: date)
         guard
             let offset = try? UTCDay.dayCount(from: startDate, to: day),
             snapshots.indices.contains(offset)
-        else { return nil }
+                else { return nil }
         return snapshots[offset]
     }
-
+    
     /// Clamps `date` into the currently cached range (UTC-day-normalized). The scrub
     /// timeline and date picker both route through this so they can never request a
     /// day outside the cache.
@@ -125,9 +125,9 @@ final class DataController {
         let day = UTCDay.midnight(of: date)
         return min(max(day, startDate), endDate)
     }
-
+    
     // MARK: - Range extension
-
+    
     /// Extends the cached range to ±`years` around today. Computes only the new
     /// sub-range(s) not already covered and splices them onto the existing blob —
     /// never recomputes what's already cached. Never shrinks the cache, even if `years`
@@ -148,20 +148,20 @@ final class DataController {
         guard
             let requestedStart = UTCDay.calendar.date(byAdding: .year, value: -years, to: today),
             let requestedEnd = UTCDay.calendar.date(byAdding: .year, value: years, to: today)
-        else { return }
-
+                else { return }
+        
         guard isReady else {
             computeTask = Task { await self.computeFullRange(start: requestedStart, end: requestedEnd) }
             return
         }
-
+        
         let newStart = min(requestedStart, startDate)
         let newEnd = max(requestedEnd, endDate)
         guard newStart < startDate || newEnd > endDate else { return } // already fully covered
-
+        
         computeTask = Task { await self.splice(newStart: newStart, newEnd: newEnd) }
     }
-
+    
     /// Sets the cached range to exactly ±`years` around today — growing it (like
     /// `extendRange`) or, unlike `extendRange`, shrinking it and trimming the surplus
     /// out of the cache/SwiftData store when `years` is smaller than what's currently
@@ -180,41 +180,41 @@ final class DataController {
         guard
             let requestedStart = UTCDay.calendar.date(byAdding: .year, value: -years, to: today),
             let requestedEnd = UTCDay.calendar.date(byAdding: .year, value: years, to: today)
-        else { return nil }
-
+                else { return nil }
+        
         guard isReady else {
             let task = Task { await self.computeFullRange(start: requestedStart, end: requestedEnd) }
             computeTask = task
             return task
         }
-
+        
         guard requestedStart != startDate || requestedEnd != endDate else { return nil } // already exactly this range
-
+        
         let task = Task { await self.reconcile(newStart: requestedStart, newEnd: requestedEnd) }
         computeTask = task
         return task
     }
-
+    
     private func clampedYears(_ years: Int) -> Int {
         min(max(years, Self.minRangeYears), Self.maxRangeYears)
     }
-
+    
     /// Delays clearing `isComputing` by 2s so the UI's computing indicator stays visible
     /// long enough for the user to perceive it, even when the computation itself is fast.
     private func finishComputing() async {
         try? await Task.sleep(nanoseconds: 2_000_000_000)
         isComputing = false
     }
-
+    
     private func computeFullRange(years: Int) async {
         let today = UTCDay.todayAsUTCMidnight()
         guard
             let start = UTCDay.calendar.date(byAdding: .year, value: -years, to: today),
             let end = UTCDay.calendar.date(byAdding: .year, value: years, to: today)
-        else { return }
+                else { return }
         await computeFullRange(start: start, end: end)
     }
-
+    
     private func computeFullRange(start: Date, end: Date) async {
         isComputing = true
         lastErrorMessage = nil
@@ -240,7 +240,7 @@ final class DataController {
         }
         await finishComputing()
     }
-
+    
     private func splice(newStart: Date, newEnd: Date) async {
         isComputing = true
         lastErrorMessage = nil
@@ -255,7 +255,7 @@ final class DataController {
                     try PlanetEngineClient.computePackedData(fromUTCDay: newStart, throughUTCDay: beforeEnd)
                 }.value
             }
-
+            
             var afterData = Data()
             if newEnd > existingEnd {
                 let afterStart = UTCDay.nextDay(after: existingEnd)
@@ -263,12 +263,12 @@ final class DataController {
                     try PlanetEngineClient.computePackedData(fromUTCDay: afterStart, throughUTCDay: newEnd)
                 }.value
             }
-
+            
             var fullBlob = Data(capacity: beforeData.count + existingPacked.count + afterData.count)
             fullBlob.append(beforeData)
             fullBlob.append(existingPacked)
             fullBlob.append(afterData)
-
+            
             let count = try UTCDay.dayCount(from: newStart, to: newEnd) + 1
             try await io.replaceStore(startDate: newStart, endDate: newEnd, dayCount: count, packedData: fullBlob)
             await apply(StoreSnapshot(
@@ -283,7 +283,7 @@ final class DataController {
         }
         await finishComputing()
     }
-
+    
     /// Like `splice`, but for `setRange`: computes whatever prefix/suffix isn't already
     /// cached, and — the difference from `splice` — keeps only the slice of the existing
     /// blob that overlaps `newStart...newEnd`, dropping everything outside it. That
@@ -300,7 +300,7 @@ final class DataController {
         // A blob whose size doesn't match its day count can't be sliced by day offset;
         // treat it like "no overlap" so the range is recomputed rather than spliced.
         let existingBlobIsConsistent = existingPacked.count == dayCount * bytesPerDay
-
+        
         // The part of the existing blob still wanted: its overlap with `newStart...newEnd`.
         // Normally non-empty, since both ranges are anchored on "today" — but if the app
         // sat unused for longer than either range spans, "today" can move past the whole
@@ -311,12 +311,12 @@ final class DataController {
         let overlapStart = max(newStart, existingStart)
         let overlapEnd = min(newEnd, existingEnd)
         let hasOverlap = existingBlobIsConsistent && overlapStart <= overlapEnd
-
+        
         do {
             var beforeData = Data()
             var afterData = Data()
             var keptData = Data()
-
+            
             if hasOverlap {
                 if newStart < existingStart {
                     let beforeEnd = UTCDay.previousDay(before: existingStart)
@@ -324,14 +324,14 @@ final class DataController {
                         try PlanetEngineClient.computePackedData(fromUTCDay: newStart, throughUTCDay: beforeEnd)
                     }.value
                 }
-
+                
                 if newEnd > existingEnd {
                     let afterStart = UTCDay.nextDay(after: existingEnd)
                     afterData = try await Task.detached(priority: .userInitiated) {
                         try PlanetEngineClient.computePackedData(fromUTCDay: afterStart, throughUTCDay: newEnd)
                     }.value
                 }
-
+                
                 let startOffset = try UTCDay.dayCount(from: existingStart, to: overlapStart)
                 let overlapDayCount = try UTCDay.dayCount(from: overlapStart, to: overlapEnd) + 1
                 let byteStart = existingPacked.startIndex + startOffset * bytesPerDay
@@ -347,12 +347,12 @@ final class DataController {
                     try PlanetEngineClient.computePackedData(fromUTCDay: newStart, throughUTCDay: newEnd)
                 }.value
             }
-
+            
             var fullBlob = Data(capacity: beforeData.count + keptData.count + afterData.count)
             fullBlob.append(beforeData)
             fullBlob.append(keptData)
             fullBlob.append(afterData)
-
+            
             let count = try UTCDay.dayCount(from: newStart, to: newEnd) + 1
             try await io.replaceStore(startDate: newStart, endDate: newEnd, dayCount: count, packedData: fullBlob)
             await apply(StoreSnapshot(
@@ -367,7 +367,7 @@ final class DataController {
         }
         await finishComputing()
     }
-
+    
     private func apply(_ snapshot: StoreSnapshot) async {
         // Decode before publishing anything, so `snapshot(for:)` never sees the new
         // `startDate` paired with the previous range's `snapshots` array.
@@ -380,7 +380,7 @@ final class DataController {
         packedDataCache = snapshot.packedData
         snapshots = decoded
     }
-
+    
     /// Pure decode, safe to run off the main actor. Guards against a truncated/corrupt
     /// blob at the array boundary by stopping cleanly rather than trapping.
     nonisolated private static func decode(_ snapshot: StoreSnapshot) -> [DaySnapshot] {
@@ -388,7 +388,7 @@ final class DataController {
         var result: [DaySnapshot] = []
         result.reserveCapacity(snapshot.dayCount)
         let data = snapshot.packedData
-
+        
         for day in 0..<snapshot.dayCount {
             guard let date = UTCDay.calendar.date(byAdding: .day, value: day, to: snapshot.startDate) else {
                 break
@@ -397,12 +397,12 @@ final class DataController {
             var planets: [PlanetValue] = []
             planets.reserveCapacity(snapshot.bodies.count)
             var truncated = false
-
+            
             for name in snapshot.bodies {
                 guard
                     let rawDistance = data.readUInt16LE(at: offset),
                     let rawAngle = data.readUInt16LE(at: offset + 2)
-                else {
+                        else {
                     truncated = true
                     break
                 }
@@ -413,7 +413,7 @@ final class DataController {
                     angleDeg: Double(rawAngle) / snapshot.angleScale
                 ))
             }
-
+            
             guard !truncated, let rawMoon = data.readUInt16LE(at: offset) else { break }
             result.append(DaySnapshot(
                 date: date,

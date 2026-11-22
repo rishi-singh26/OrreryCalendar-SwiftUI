@@ -25,7 +25,7 @@ struct WedgedNotchShape: Shape {
     var topCurveFactor: CGFloat = 0.8
     // How far the flares reach along the depth. When nil it matches `topCornerRadius`.
     var topCurveDepth: CGFloat? = nil
-
+    
     var animatableData: AnimatablePair<CGFloat, AnimatablePair<CGFloat, CGFloat>> {
         get { AnimatablePair(topCornerRadius, AnimatablePair(wedgeInset, outerCornerRadius)) }
         set {
@@ -34,7 +34,7 @@ struct WedgedNotchShape: Shape {
             outerCornerRadius = newValue.second.second
         }
     }
-
+    
     func path(in rect: CGRect) -> Path {
         // Same canonical-then-transform approach as `NotchShape`: build attached
         // to the top edge, then map onto the requested edge.
@@ -48,9 +48,9 @@ struct WedgedNotchShape: Shape {
             length = rect.height
             depth = rect.width
         }
-
+        
         let canonical = canonicalPath(length: length, depth: depth)
-
+        
         let transform: CGAffineTransform
         switch edge {
         case .top:
@@ -62,56 +62,56 @@ struct WedgedNotchShape: Shape {
         case .trailing:
             transform = CGAffineTransform(a: 0, b: 1, c: -1, d: 0, tx: rect.maxX, ty: rect.minY)
         }
-
+        
         return canonical.applying(transform)
     }
-
+    
     /// Builds the wedged notch attached to the top edge, within
     /// `CGRect(x: 0, y: 0, width: length, height: depth)`.
     private func canonicalPath(length: CGFloat, depth: CGFloat) -> Path {
         let minX: CGFloat = 0, maxX = length
         let minY: CGFloat = 0, maxY = depth
-
+        
         let topR = max(0, min(topCornerRadius, length / 2))
         let tDepth = max(0, min(topCurveDepth ?? topR, depth))
-
+        
         // Wedge inset, clamped so the walls don't cross past the center.
         let maxInset = max(0, length / 2 - topR)
         let inset = min(max(0, wedgeInset), maxInset)
-
+        
         // Outer-vertex rounding, clamped to the outer edge half-width and wall.
         let outerHalf = max(0, length / 2 - topR - inset)
         let wallLen = hypot(inset, maxY - tDepth)
         let outerR = max(0, min(outerCornerRadius, outerHalf, wallLen))
-
+        
         // Pull distances for the flare's cubic control points.
         let kH = topR * topCurveFactor
         let kV = tDepth * topCurveFactor
-
+        
         // Key vertices (before rounding the outer ones).
         let a = CGPoint(x: minX + topR, y: minY + tDepth)          // left wall top
         let b = CGPoint(x: minX + topR + inset, y: maxY)           // left outer vertex
         let c = CGPoint(x: maxX - topR - inset, y: maxY)           // right outer vertex
         let d = CGPoint(x: maxX - topR, y: minY + tDepth)          // right wall top
-
+        
         // Unit vectors up each slanted wall, used to offset the rounded corners.
         let leftUp = wallLen > 0
-            ? CGPoint(x: (a.x - b.x) / wallLen, y: (a.y - b.y) / wallLen)
-            : CGPoint(x: 0, y: -1)
+        ? CGPoint(x: (a.x - b.x) / wallLen, y: (a.y - b.y) / wallLen)
+        : CGPoint(x: 0, y: -1)
         let rightUp = wallLen > 0
-            ? CGPoint(x: (d.x - c.x) / wallLen, y: (d.y - c.y) / wallLen)
-            : CGPoint(x: 0, y: -1)
-
+        ? CGPoint(x: (d.x - c.x) / wallLen, y: (d.y - c.y) / wallLen)
+        : CGPoint(x: 0, y: -1)
+        
         let b1 = CGPoint(x: b.x + outerR * leftUp.x, y: b.y + outerR * leftUp.y)
         let b2 = CGPoint(x: b.x + outerR, y: b.y)
         let c2 = CGPoint(x: c.x - outerR, y: c.y)
         let c1 = CGPoint(x: c.x + outerR * rightUp.x, y: c.y + outerR * rightUp.y)
-
+        
         var path = Path()
-
+        
         // Start at the top-left outer corner of the wide edge.
         path.move(to: CGPoint(x: minX, y: minY))
-
+        
         // Top-left concave flare. It leaves the wide edge horizontally and
         // arrives *tangent to the slanted wall* (control2 aimed back up the
         // wall via `leftUp`), so the flare blends smoothly into the wall with
@@ -121,18 +121,18 @@ struct WedgedNotchShape: Shape {
             control1: CGPoint(x: minX + kH, y: minY),
             control2: CGPoint(x: a.x + kV * leftUp.x, y: a.y + kV * leftUp.y)
         )
-
+        
         // Left slanted wall down to the rounded outer vertex.
         path.addLine(to: b1)
         path.addQuadCurve(to: b2, control: b)
-
+        
         // Flat (narrower) outer edge.
         path.addLine(to: c2)
-
+        
         // Right rounded outer vertex, then slanted wall back up.
         path.addQuadCurve(to: c1, control: c)
         path.addLine(to: d)
-
+        
         // Top-right concave flare (mirror): leaves the wall tangentially and
         // settles onto the wide edge horizontally.
         path.addCurve(
@@ -140,7 +140,7 @@ struct WedgedNotchShape: Shape {
             control1: CGPoint(x: d.x + kV * rightUp.x, y: d.y + kV * rightUp.y),
             control2: CGPoint(x: maxX - kH, y: minY)
         )
-
+        
         path.closeSubpath()
         return path
     }
@@ -152,11 +152,11 @@ fileprivate struct WedgedNotchDemo: View {
     @State private var outerRadius: CGFloat = 20
     @State private var curveDepth: CGFloat = 45
     @State private var innerCurve: CGFloat = 0.73
-
+    
     // Length of the notch along its edge, and how far it protrudes inward.
     private let notchLength: CGFloat = 340
     private let notchDepth: CGFloat = 50
-
+    
     // For top/bottom the length runs horizontally; for left/right it runs vertically.
     private var isHorizontal: Bool {
         switch edge {
@@ -164,7 +164,7 @@ fileprivate struct WedgedNotchDemo: View {
         case .leading, .trailing: return false
         }
     }
-
+    
     private var notchAlignment: Alignment {
         switch edge {
         case .top: return .top
@@ -173,7 +173,7 @@ fileprivate struct WedgedNotchDemo: View {
         case .trailing: return .trailing
         }
     }
-
+    
     var body: some View {
         VStack(spacing: 32) {
             Picker("Edge", selection: $edge) {
@@ -183,7 +183,7 @@ fileprivate struct WedgedNotchDemo: View {
             }
             .pickerStyle(.segmented)
             .frame(width: 300)
-
+            
             // A mock "screen" with a white wedged notch glued to the chosen edge.
             ZStack {
                 LinearGradient(
@@ -192,7 +192,7 @@ fileprivate struct WedgedNotchDemo: View {
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
-
+                
                 WedgedNotchShape(
                     edge: edge,
                     topCornerRadius: 60,
@@ -210,7 +210,7 @@ fileprivate struct WedgedNotchDemo: View {
             }
             .frame(width: 340, height: 420)
             .clipShape(RoundedRectangle(cornerRadius: 44))
-
+            
             VStack(spacing: 16) {
                 VStack {
                     Text("Wedge inset: \(wedgeInset, specifier: "%.0f")")

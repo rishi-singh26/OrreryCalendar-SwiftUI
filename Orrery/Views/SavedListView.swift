@@ -15,14 +15,14 @@ struct SavedListView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(DataController.self) private var dataController
     @Query(sort: \SavedSnapshot.date, order: .reverse) private var savedSnapshots: [SavedSnapshot]
-
+    
     @AppStorage(AppStorageKeys.showOrbits) private var showOrbits = true
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
     @AppStorage(AppStorageKeys.showSunHalo) private var showSunHalo = true
-
+    
     /// Jumps the main timeline to `Date` and dismisses this list.
     let onJumpToDate: (Date) -> Void
-
+    
     var body: some View {
         ThemeReader { theme, colorScheme in
             List {
@@ -42,12 +42,12 @@ struct SavedListView: View {
             }
         }
     }
-
+    
     private func row(for entry: SavedSnapshot, theme: ThemeColors, colorScheme: ColorScheme) -> some View {
         // The main view can only show days inside the cached range; jumping to anything
         // else would silently clamp to a different date.
         let isInCachedRange = dataController.isReady
-            && dataController.clampedDate(entry.date) == UTCDay.midnight(of: entry.date)
+        && dataController.clampedDate(entry.date) == UTCDay.midnight(of: entry.date)
         return Button {
             onJumpToDate(entry.date)
             dismiss()

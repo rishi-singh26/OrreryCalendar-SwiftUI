@@ -23,7 +23,7 @@ import OSLog
 
 enum ModelContainerFactory {
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Orrery", category: "ModelContainer")
-
+    
     /// Builds the container with CloudKit sync for saved dates. If that fails (e.g. the
     /// CloudKit schema is rejected), falls back to the same stores without sync so the app
     /// still launches and saving keeps working locally; only a failure of the local-only
@@ -39,7 +39,7 @@ enum ModelContainerFactory {
             return try build(inMemory: false, syncSavedSnapshots: false)
         }
     }
-
+    
     private static func build(inMemory: Bool, syncSavedSnapshots: Bool) throws -> ModelContainer {
         let cache = ModelConfiguration(
             "PlanetCache",

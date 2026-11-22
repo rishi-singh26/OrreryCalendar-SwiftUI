@@ -14,7 +14,7 @@ import SwiftUI
 struct GlassStyle {
     var tint: Color?
     var interactive: Bool
-
+    
     static let plain = GlassStyle(tint: nil, interactive: false)
     static let interactive = GlassStyle(tint: nil, interactive: true)
     static func tinted(_ color: Color) -> GlassStyle { GlassStyle(tint: color, interactive: false) }
@@ -22,9 +22,9 @@ struct GlassStyle {
 }
 
 extension View {
-
+    
 #if os(iOS) || os(macOS)
-
+    
     @ViewBuilder
     func withSurface<S: Shape>(with material: Material = .thickMaterial, in shape: S) -> some View {
         self.background {
@@ -34,7 +34,7 @@ extension View {
                 .shadow(color: ThemeColors.surfaceShadow, radius: 2, x: 1, y: 3)
         }
     }
-
+    
     /// Liquid Glass (`glassEffect`) on iOS 26/macOS 26+, falling back to
     /// `withSurface`'s material-behind-a-shape treatment on earlier OS versions —
     /// the `if #available(iOS 26.0, macOS 26.0, *) { glassEffect... } else { withSurface... }`
@@ -57,7 +57,7 @@ extension View {
         }
     }
 #endif
-
+    
     
     /// Shows `content` in a macOS inspector; a no-op on other platforms, where
     /// callers are expected to present `content` some other way (e.g. a sheet)
@@ -78,7 +78,7 @@ extension View {
         self
 #endif
     }
-
+    
     /// `.sensoryFeedback` degrades to a no-op on hardware without haptics
     /// (e.g. a Mac with no Force Touch trackpad). Gated by the "Haptic Feedback"
     /// setting (`AppStorageKeys.hapticsEnabled`).
@@ -86,7 +86,7 @@ extension View {
     func hapticTick<T: Equatable>(_ trigger: T) -> some View {
         hapticFeedback(trigger: trigger) { $0 != $1 }
     }
-
+    
     /// The single entry point for app-generated haptics: a light impact when `trigger`
     /// changes and `condition(old, new)` holds, suppressed when the user has turned off
     /// "Haptic Feedback" in Settings. Don't call `.sensoryFeedback` directly.
@@ -127,17 +127,17 @@ private struct HapticFeedbackModifier<T: Equatable>: ViewModifier {
     @AppStorage(AppStorageKeys.hapticsEnabled) private var hapticsEnabled = true
     let trigger: T
     let condition: (T, T) -> Bool
-
+    
     /// SwiftUI on macOS only maps `.alignment` and `.levelChange` to the trackpad
     /// (`NSHapticFeedbackManager`); `.impact` is silently a no-op there.
     private var feedback: SensoryFeedback {
-        #if os(macOS)
+#if os(macOS)
         .alignment
-        #else
+#else
         .impact(weight: .light, intensity: 1)
-        #endif
+#endif
     }
-
+    
     func body(content: Content) -> some View {
         content.sensoryFeedback(feedback, trigger: trigger) { oldValue, newValue in
             hapticsEnabled && condition(oldValue, newValue)

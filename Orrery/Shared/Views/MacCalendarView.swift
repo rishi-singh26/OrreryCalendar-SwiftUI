@@ -22,7 +22,7 @@ enum MacCalendarMath {
         guard
             let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: month)),
             let gridStart = calendar.dateInterval(of: .weekOfYear, for: monthStart)?.start
-        else { return [] }
+                else { return [] }
         return (0..<42).compactMap { calendar.date(byAdding: .day, value: $0, to: gridStart) }
     }
 }
@@ -33,12 +33,12 @@ struct MacCalendarView: View {
     let maxDate: Date
     let today: Date
     let theme: ThemeColors
-
+    
     @State private var displayedMonth: Date
     @State private var hoveredDate: Date?
-
+    
     private var calendar: Calendar { UTCDay.calendar }
-
+    
     init(selection: Binding<Date>, minDate: Date, maxDate: Date, today: Date, theme: ThemeColors) {
         self._selection = selection
         self.minDate = minDate
@@ -47,7 +47,7 @@ struct MacCalendarView: View {
         self.theme = theme
         self._displayedMonth = State(initialValue: UTCDay.midnight(of: selection.wrappedValue))
     }
-
+    
     /// `UTCDay.calendar` has no `.locale` set (only its `.timeZone` is fixed, for
     /// day-keying math), so its own symbol arrays fall back to generic placeholders
     /// instead of localized names — ask a locale-aware copy for display strings instead,
@@ -57,29 +57,29 @@ struct MacCalendarView: View {
         localizedCalendar.locale = .current
         return localizedCalendar.monthSymbols
     }
-
+    
     private var weekdaySymbols: [String] {
         var localizedCalendar = calendar
         localizedCalendar.locale = .current
         return localizedCalendar.veryShortStandaloneWeekdaySymbols
     }
-
+    
     private var monthTitle: String {
         let comps = calendar.dateComponents([.year, .month], from: displayedMonth)
         let name = monthSymbols[(comps.month ?? 1) - 1]
         return "\(name) \(comps.year ?? 0)"
     }
-
+    
     private var canGoPrevious: Bool {
         guard let previous = calendar.date(byAdding: .month, value: -1, to: displayedMonth) else { return false }
         return monthEnd(of: previous) >= UTCDay.midnight(of: minDate)
     }
-
+    
     private var canGoNext: Bool {
         guard let next = calendar.date(byAdding: .month, value: 1, to: displayedMonth) else { return false }
         return monthStart(of: next) <= UTCDay.midnight(of: maxDate)
     }
-
+    
     var body: some View {
         VStack(spacing: 10) {
             header
@@ -97,24 +97,24 @@ struct MacCalendarView: View {
             }
         }
     }
-
+    
     private var header: some View {
         HStack {
             monthStepButton(systemName: "chevron.left", enabled: canGoPrevious) { step(by: -1) }
-
+            
             Spacer()
-
+            
             Text(monthTitle)
                 .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
                 .foregroundStyle(theme.ink)
-
+            
             Spacer()
-
+            
             monthStepButton(systemName: "chevron.right", enabled: canGoNext) { step(by: 1) }
         }
     }
-
+    
     private func monthStepButton(systemName: String, enabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
@@ -126,7 +126,7 @@ struct MacCalendarView: View {
         .foregroundStyle(enabled ? theme.ink : theme.muted.opacity(0.35))
         .disabled(!enabled)
     }
-
+    
     private var weekdayHeader: some View {
         HStack(spacing: 4) {
             ForEach(Array(weekdaySymbols.enumerated()), id: \.offset) { _, symbol in
@@ -137,7 +137,7 @@ struct MacCalendarView: View {
             }
         }
     }
-
+    
     private var grid: some View {
         let days = MacCalendarMath.grid(for: displayedMonth)
         let columns = Array(repeating: GridItem(.fixed(32), spacing: 4), count: 7)
@@ -147,7 +147,7 @@ struct MacCalendarView: View {
             }
         }
     }
-
+    
     @ViewBuilder
     private func dayCell(for day: Date) -> some View {
         let isCurrentMonth = monthStart(of: day) == monthStart(of: displayedMonth)
@@ -155,7 +155,7 @@ struct MacCalendarView: View {
         let isToday = day == UTCDay.midnight(of: today)
         let isInRange = day >= UTCDay.midnight(of: minDate) && day <= UTCDay.midnight(of: maxDate)
         let dayNumber = calendar.component(.day, from: day)
-
+        
         Button {
             selection = day
         } label: {
@@ -183,23 +183,23 @@ struct MacCalendarView: View {
             hoveredDate = hovering ? day : (hoveredDate == day ? nil : hoveredDate)
         }
     }
-
+    
     private func foregroundColor(isSelected: Bool, isToday: Bool, isCurrentMonth: Bool, isInRange: Bool) -> Color {
         guard isInRange else { return theme.muted.opacity(0.3) }
         if isSelected { return theme.background }
         if isToday { return Color.accentColor }
         return isCurrentMonth ? theme.ink : theme.muted.opacity(0.6)
     }
-
+    
     private func monthStart(of date: Date) -> Date {
         calendar.date(from: calendar.dateComponents([.year, .month], from: date)) ?? date
     }
-
+    
     private func monthEnd(of date: Date) -> Date {
         guard let interval = calendar.dateInterval(of: .month, for: date) else { return date }
         return calendar.date(byAdding: .day, value: -1, to: interval.end) ?? date
     }
-
+    
     private func step(by months: Int) {
         guard let newMonth = calendar.date(byAdding: .month, value: months, to: displayedMonth) else { return }
         displayedMonth = newMonth

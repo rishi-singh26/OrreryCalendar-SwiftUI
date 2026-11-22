@@ -24,11 +24,11 @@ final class PlanetDataStore {
     var packedData: Data
     var formatVersion: Int // bumped if the packed byte layout ever changes
     var lastUpdated: Date
-
+    
     /// Bump this if the packed byte layout ever changes. A mismatch at launch triggers
     /// a full recompute rather than misreading old bytes under a new interpretation.
     static let currentFormatVersion = 1
-
+    
     init(startDate: Date, endDate: Date, dayCount: Int, packedData: Data) {
         self.startDate = startDate
         self.endDate = endDate

@@ -12,15 +12,15 @@ import SwiftData
 
 struct ContentView: View {
     var body: some View {
-        #if os (iOS)
+#if os (iOS)
         if DeviceType.isIphone {
             SmallScreenView()
         } else {
             LargeScreenView()
         }
-        #else
+#else
         LargeScreenView()
-        #endif
+#endif
     }
 }
 

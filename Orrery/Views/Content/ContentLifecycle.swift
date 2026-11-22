@@ -21,17 +21,17 @@ enum ContentLifecycleObservation {
 private struct ContentLifecycleModifier: ViewModifier {
     @Environment(DataController.self) private var dataController
     @Environment(\.scenePhase) private var scenePhase
-
+    
     @AppStorage(AppStorageKeys.rangeYears) private var rangeYears = DataController.defaultRangeYears
     @AppStorage(AppStorageKeys.autoPlayEnabled) private var autoPlayEnabled = true
     @AppStorage(AppStorageKeys.autoPlayRate) private var autoPlayRate: AutoPlayRate = AutoPlayRate.defaultRate
     @AppStorage(AppStorageKeys.autoPlayDirection) private var autoPlayDirection: AutoPlayDirection = AutoPlayDirection.defaultDirection
-
+    
     let viewModel: ContentViewModel
     let observing: ContentLifecycleObservation
-
+    
     private var firesOnMount: Bool { observing == .includingCurrentState }
-
+    
     func body(content: Content) -> some View {
         content
             .task {

@@ -22,11 +22,11 @@ struct NotificationContainer: View {
     /// Notifications are capped to a phone-like width on iPad and macOS, where the
     /// overlay spans a much wider window.
     private var maxContentWidth: CGFloat {
-        #if os(iOS)
+#if os(iOS)
         DeviceType.isIphone ? .infinity : 400
-        #else
+#else
         400
-        #endif
+#endif
     }
     
     var body: some View {
@@ -50,17 +50,17 @@ struct NotificationContainer: View {
                     let baseZIndex = Double(queue.count - originalIndex)
                     
                     InAppNotificationSelector(notification: notification)
-                    .offset(y: notification.offsetY)
-                    .visualEffect { [isExpanded] content, proxy in
-                        content
-                            .scaleEffect(isExpanded ? 1 : scale(stackIndex), anchor: .top)
-                            .offset(y: isExpanded ? 0 : offsetY(stackIndex))
-                    }
-                    .zIndex(1000 + baseZIndex)
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .top).combined(with: .opacity),
-                        removal: .move(edge: .top).combined(with: .opacity)
-                    ))
+                        .offset(y: notification.offsetY)
+                        .visualEffect { [isExpanded] content, proxy in
+                            content
+                                .scaleEffect(isExpanded ? 1 : scale(stackIndex), anchor: .top)
+                                .offset(y: isExpanded ? 0 : offsetY(stackIndex))
+                        }
+                        .zIndex(1000 + baseZIndex)
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .top).combined(with: .opacity),
+                            removal: .move(edge: .top).combined(with: .opacity)
+                        ))
                 }
             }
             //.onTapGesture {
@@ -80,9 +80,9 @@ struct NotificationContainer: View {
         // the full-window overlay.
         .frame(maxWidth: maxContentWidth)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        #if os(macOS)
+#if os(macOS)
         .padding(.top, 8)
-        #endif
+#endif
     }
     
     nonisolated func offsetY(_ index: Int) -> CGFloat {

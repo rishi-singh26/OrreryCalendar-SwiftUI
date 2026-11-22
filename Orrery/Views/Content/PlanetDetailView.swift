@@ -15,15 +15,15 @@ struct PlanetDetailView: View {
     /// animation around it), since this view has no access to the presentation state that
     /// controls whether it's shown at all.
     let onClose: () -> Void
-
+    
     @Environment(DataController.self) private var dataController
     @Environment(\.colorScheme) private var colorScheme
-
+    
     @State private var isPlaying: Bool = true
     @State private var resetTrigger: Int = 0
     @AppStorage(AppStorageKeys.selectedPlanetIndex) private var selectedPlanetIndex: Int = 2
     @State private var tabs: [GlassSegmentedControl.Tab] = PlanetConfig.all.map { .init(title: $0.displayName) }
-
+    
     /// When on, `dateBinding` below reads/writes `selectedDate` directly, so this view's
     /// scrubber and the caller's date selection stay in sync. When off, it reads/writes
     /// `localDate` instead, so scrubbing here never changes the caller's date (and vice versa).
@@ -33,27 +33,27 @@ struct PlanetDetailView: View {
     /// since it's constructed fresh each time it's presented, that init also re-seeds this
     /// on every reopen.
     @State private var localDate: Date
-
+    
     init(selectedDate: Binding<Date>, theme: ThemeColors, onClose: @escaping () -> Void) {
         self._selectedDate = selectedDate
         self.theme = theme
         self.onClose = onClose
         self._localDate = State(initialValue: selectedDate.wrappedValue)
     }
-
+    
     private var selectedPlanet: PlanetConfig {
         PlanetConfig.all[max(min(selectedPlanetIndex, PlanetConfig.all.count - 1), 0)]
     }
-
+    
     private var planetName: String {
         selectedPlanet.displayName
     }
-
+    
     /// The date this view displays — `selectedDate` when synced, `localDate` otherwise.
     private var effectiveDate: Date {
         syncPlanetDetailDate ? selectedDate : localDate
     }
-
+    
     /// The binding handed to the scrub timeline below.
     private var dateBinding: Binding<Date> {
         guard syncPlanetDetailDate else {
@@ -64,11 +64,11 @@ struct PlanetDetailView: View {
         }
         return $selectedDate
     }
-
+    
     private var measurements: [PlanetMeasurement] {
         PlanetMeasurementsProvider.measurements(for: selectedPlanet, on: effectiveDate)
     }
-
+    
     var body: some View {
         GeometryReader { proxy in
             let isWide = proxy.size.width > proxy.size.height

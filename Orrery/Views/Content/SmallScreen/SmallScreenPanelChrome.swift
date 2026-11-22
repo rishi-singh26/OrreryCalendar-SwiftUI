@@ -16,14 +16,14 @@ struct SmallScreenPanelChrome<Content: View>: View {
     /// overlaid at `.topTrailing` — that button is a 45pt `GlassButton` plus its own
     /// `.padding()`.
     private let topInset: CGFloat = 40
-
+    
     var height: CGFloat? = nil
     /// Color scheme used for the top gradient tint.
     let colorScheme: ColorScheme
     let transition: AnyTransition
     let onClose: () -> Void
     @ViewBuilder let content: () -> Content
-
+    
     var body: some View {
         GeometryReader { proxy in
             let width = proxy.size.width
@@ -34,8 +34,8 @@ struct SmallScreenPanelChrome<Content: View>: View {
                     LinearGradient(
                         colors: [
                             colorScheme == .dark
-                                ? .orange.mix(with: .black, by: 0.4).opacity(0.4)
-                                : .orange.mix(with: .gray, by: 0.3).opacity(0.6),
+                            ? .orange.mix(with: .black, by: 0.4).opacity(0.4)
+                            : .orange.mix(with: .gray, by: 0.3).opacity(0.6),
                             .clear
                         ],
                         startPoint: .top, endPoint: .bottom

@@ -9,7 +9,7 @@ import SwiftUI
 
 struct GlassButton<Label: View>: View {
     @Environment(\.isEnabled) private var isEnabled
-
+    
     // MARK: - Properties
     let systemName: String?
     let label: Label?
@@ -17,7 +17,7 @@ struct GlassButton<Label: View>: View {
     let size: CGFloat
     let useInteractiveGlass: Bool
     let action: () -> Void
-
+    
     // MARK: - Initialiser 1: Icon Only (Circular)
     init(
         systemName: String,
@@ -32,7 +32,7 @@ struct GlassButton<Label: View>: View {
         self.useInteractiveGlass = useInteractiveGlass
         self.action = action
     }
-
+    
     // MARK: - Initialiser 2: Custom Label
     init(
         circular: Bool = false,
@@ -48,7 +48,7 @@ struct GlassButton<Label: View>: View {
         self.useInteractiveGlass = useInteractiveGlass
         self.action = action
     }
-
+    
     var body: some View {
         if DeviceType.isMac {
             buildButton
@@ -86,7 +86,7 @@ struct GlassButton<Label: View>: View {
         GlassButton(systemName: "plus") {
             print("Icon button tapped!")
         }
-
+        
         // 2. Simple Text Label — Capsule
         GlassButton(
             action: {
@@ -96,7 +96,7 @@ struct GlassButton<Label: View>: View {
             Text("Add Item")
                 .font(.headline)
         }
-
+        
         // 3. Custom View Label
         GlassButton(
             action: {
@@ -109,7 +109,7 @@ struct GlassButton<Label: View>: View {
             }
             .font(.headline)
         }
-
+        
         // 4. SwiftUI Label View
         GlassButton(
             action: {
@@ -120,7 +120,7 @@ struct GlassButton<Label: View>: View {
                 .font(.headline)
         }
         .disabled(true)
-
+        
         // 5. Rich Custom Label
         GlassButton(
             action: {
@@ -130,7 +130,7 @@ struct GlassButton<Label: View>: View {
             VStack(spacing: 2) {
                 Text("Add to Cart")
                     .font(.headline)
-
+                
                 Text("$24.99")
                     .font(.caption)
                     .opacity(0.7)
