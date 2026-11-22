@@ -2,7 +2,7 @@
 //  MoonSizeScrubberNotch.swift
 //  Orrery
 //
-//  The trailing-edge Moon-size scrubber docked in a wedged notch, shared by
+//  The leading-edge Moon-size scrubber docked in a wedged notch, shared by
 //  `SmallScreenView` and `LargeScreenView`. Placement (padding/frame/offset) is
 //  left to each caller since it differs per layout.
 //
@@ -16,6 +16,8 @@ struct MoonSizeScrubberNotch: View {
     /// bridges `Double` natively — so this view hands `VerticalScrubber` a `CGFloat` adapter.
     @Binding var scrub: Double
     let theme: ThemeColors
+    /// Whether the notch is shown (animated; see `ScrubberNotchContainer`).
+    var isPresented: Bool = true
 
     private var scrubBinding: Binding<CGFloat> {
         Binding(
@@ -24,37 +26,19 @@ struct MoonSizeScrubberNotch: View {
         )
     }
 
-    private var notchShape: WedgedNotchShape {
-        WedgedNotchShape(
-            edge: .trailing,
-            topCornerRadius: 60,
-            wedgeInset: 12,
-            outerCornerRadius: 20,
-            topCurveFactor: 0.73,
-            topCurveDepth: 45
-        )
-    }
-
     var body: some View {
-        notchShape
-            .fill(.background)
-            .frame(width: 35, height: 220)
-            .overlay {
-                // Padded and clipped to the notch's straight-walled middle so the
-                // ruler never travels into its flared top/bottom corners.
-                VerticalScrubber(
-                    value: scrubBinding,
-                    tickCount: 30,
-                    visibleTickCount: 12,
-                    tickThickness: 2,
-                    tickLength: 16,
-                    dimColor: theme.ink.opacity(0.5),
-                    accentColor: .accentColor,
-                    accessibilityLabel: "Moon size"
-                )
-                .frame(height: 160)
-                .padding(.horizontal, 10)
-            }
-            .clipShape(notchShape)
+        ScrubberNotchContainer(side: .leading, isPresented: isPresented) {
+            VerticalScrubber(
+                value: scrubBinding,
+                tickCount: 30,
+                visibleTickCount: 12,
+                tickThickness: 2,
+                tickLength: 16,
+                dimColor: theme.ink.opacity(0.5),
+                accentColor: .accentColor,
+                accessibilityLabel: "Moon size"
+            )
+            .padding(.horizontal, 10)
+        }
     }
 }

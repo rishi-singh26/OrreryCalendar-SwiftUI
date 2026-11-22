@@ -27,7 +27,8 @@
 //
 //  Deliberately knows nothing about what it controls, so it's reusable anywhere a
 //  continuous vertical control is needed — first used to drive the animated
-//  Moon-size control docked in `SmallScreenView`'s trailing-edge notch.
+//  Moon-size control docked in the leading-edge notch of `SmallScreenView` and
+//  `LargeScreenView`.
 //
 
 import SwiftUI

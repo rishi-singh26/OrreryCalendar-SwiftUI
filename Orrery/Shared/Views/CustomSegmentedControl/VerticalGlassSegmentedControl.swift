@@ -1,0 +1,196 @@
+//
+//  VerticalGlassSegmentedControl.swift
+//  Orrery
+//
+//  A vertical sibling of `GlassSegmentedControl`: a scrolling column of equally sized
+//  text slots with a fixed glass capsule at the center that highlights the slot
+//  snapped under it. Because every slot has the same known size there is no tab
+//  measuring or custom snap-point logic — a view-aligned `ScrollView` does the snapping,
+//  and the centering inset is a constant.
+//
+//  `options` is read once to seed the initial slot and is expected to stay fixed for the
+//  life of the view (it's not re-synced if it changes).
+//
+//  `selection` is only written when the scroll comes to rest (or a slot is tapped), not
+//  for every slot a fast drag sweeps over, since consumers may react to each change.
+//
+
+import SwiftUI
+
+struct VerticalGlassSegmentedControl<Value: Hashable>: View {
+    let options: [Value]
+    @Binding var selection: Value
+    let title: (Value) -> String
+    var accessibilityLabel: String
+    var accessibilityValue: (Value) -> String
+    /// Total height of the control; `visibleCount` slots fill it exactly.
+    var height: CGFloat
+
+    private let visibleCount = 5
+    private let pillWidth: CGFloat = 26
+
+    /// Index of the slot currently under the capsule — follows the scroll live.
+    @State private var activeIndex: Int
+    @State private var scrollPosition: Int?
+    @State private var scrollPhase: ScrollPhase = .idle
+    @State private var hapticCount = 0
+    /// True while a scroll we started ourselves (the initial positioning, a tap, or an
+    /// external selection change) is in flight. Its intermediate offsets pass through
+    /// other slots — notably the initial scroll starts at offset 0 — and must not be read
+    /// as the user landing on them. Cleared when the user takes over or the scroll settles.
+    @State private var isProgrammaticScroll = true
+
+    init(
+        options: [Value],
+        selection: Binding<Value>,
+        title: @escaping (Value) -> String,
+        accessibilityLabel: String = "Selection",
+        accessibilityValue: ((Value) -> String)? = nil,
+        height: CGFloat = ScrubberNotchMetrics.contentHeight
+    ) {
+        self.options = options
+        self._selection = selection
+        self.title = title
+        self.accessibilityLabel = accessibilityLabel
+        self.accessibilityValue = accessibilityValue ?? title
+        self.height = height
+
+        // Seed the initial slot. The scroll view doesn't honor `scrollPosition` on its first
+        // layout, so the `.task` below re-applies it once laid out.
+        let index = options.firstIndex(of: selection.wrappedValue) ?? 0
+        _activeIndex = State(initialValue: index)
+        _scrollPosition = State(initialValue: index)
+    }
+
+    private var slotHeight: CGFloat { height / CGFloat(visibleCount) }
+
+    var body: some View {
+        ZStack {
+            pill
+                .frame(width: pillWidth, height: slotHeight - 4)
+                .allowsHitTesting(false)
+
+            ScrollView(.vertical) {
+                VStack(spacing: 0) {
+                    ForEach(options.indices, id: \.self) { index in
+                        Text(title(options[index]))
+                            .font(.caption2.monospaced())
+                            .fontWeight(.semibold)
+                            .foregroundStyle(index == activeIndex ? Color.white : Color.secondary)
+                            .animation(.easeOut(duration: 0.15), value: activeIndex)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: slotHeight)
+                            .contentShape(.rect)
+                            .onTapGesture { select(index) }
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .scrollIndicators(.hidden)
+            .scrollTargetBehavior(.viewAligned(limitBehavior: .alwaysByOne))
+            .scrollPosition(id: $scrollPosition, anchor: .center)
+            // Centering the first/last slot under the capsule.
+            .safeAreaPadding(.vertical, (height - slotHeight) / 2)
+            .onScrollGeometryChange(for: CGFloat.self) {
+                $0.contentOffset.y + $0.contentInsets.top
+            } action: { _, offset in
+                guard scrollPhase != .idle, !isProgrammaticScroll else { return }
+                activeIndex = clamped(Int((offset / slotHeight).rounded()))
+            }
+            .onScrollPhaseChange { oldPhase, newPhase in
+                scrollPhase = newPhase
+                // The user grabbing the scroll view takes over from any programmatic scroll.
+                if newPhase == .interacting { isProgrammaticScroll = false }
+                guard newPhase == .idle else { return }
+                // Our own scrolls already set `activeIndex`/`selection`; nothing to settle.
+                let wasProgrammatic = isProgrammaticScroll
+                isProgrammaticScroll = false
+                guard !wasProgrammatic else { return }
+                // Commit the settled slot only for a user-driven scroll; a tap's animated
+                // scroll already committed `selection`.
+                if oldPhase != .animating, options.indices.contains(activeIndex),
+                   options[activeIndex] != selection {
+                    selection = options[activeIndex]
+                }
+                // In rare cases the view-aligned behavior doesn't land exactly centered.
+                if scrollPosition != activeIndex {
+                    withAnimation(.snappy) { scrollPosition = activeIndex }
+                }
+            }
+        }
+        .frame(height: height)
+        .task {
+            // The scroll position seeded in `init` isn't honored on the first layout (the
+            // scroll view reports offset 0, so the control would show the first slot).
+            // Assigning the same value is a no-op, so clear it first to force the scroll view
+            // to re-resolve it once laid out, then restore it on the next turn. Same
+            // workaround as `VerticalScrubber`.
+            isProgrammaticScroll = true
+            scrollPosition = nil
+            await Task.yield()
+            scrollPosition = activeIndex
+        }
+        .onChange(of: activeIndex) { _, _ in
+            if scrollPhase == .interacting || scrollPhase == .decelerating {
+                hapticCount += 1
+            }
+        }
+        .onChange(of: selection) { _, newValue in
+            // Selection changed from outside (e.g. Settings): follow it — unless the user is
+            // mid-gesture, in which case their drag wins and commits when it settles.
+            guard scrollPhase != .interacting, scrollPhase != .decelerating else { return }
+            guard let index = options.firstIndex(of: newValue), index != activeIndex else { return }
+            activeIndex = index
+            isProgrammaticScroll = true
+            withAnimation(.snappy) { scrollPosition = index }
+        }
+        .hapticTick(hapticCount)
+        .accessibilityElement()
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityValue(options.indices.contains(activeIndex) ? accessibilityValue(options[activeIndex]) : "")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment: select(clamped(activeIndex + 1))
+            case .decrement: select(clamped(activeIndex - 1))
+            @unknown default: break
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var pill: some View {
+        if #available(iOS 26, macOS 26, *) {
+            Capsule()
+                .fill(.clear)
+                .glassEffect(.regular.tint(.accentColor), in: .capsule)
+        } else {
+            Capsule()
+                .fill(Color.accentColor)
+        }
+    }
+
+    private func clamped(_ index: Int) -> Int {
+        max(min(index, options.count - 1), 0)
+    }
+
+    /// Selects the slot at `index` and scrolls it under the capsule.
+    private func select(_ index: Int) {
+        guard options.indices.contains(index) else { return }
+        activeIndex = index
+        selection = options[index]
+        isProgrammaticScroll = true
+        withAnimation(.snappy) { scrollPosition = index }
+    }
+}
+
+#Preview("Vertical Glass Segmented Control") {
+    @Previewable @State var selection = "1W"
+    VerticalGlassSegmentedControl(
+        options: ["1D", "2D", "3D", "1W", "2W", "1M", "2M"],
+        selection: $selection,
+        title: { $0 },
+        accessibilityLabel: "Speed"
+    )
+    .frame(width: 35)
+    .padding()
+}

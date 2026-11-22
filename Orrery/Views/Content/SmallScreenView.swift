@@ -17,10 +17,12 @@ struct SmallScreenView: View {
     @AppStorage(AppStorageKeys.showLabels) private var showLabels = true
     @AppStorage(AppStorageKeys.showSunHalo) private var showSunHalo = true
     @AppStorage(AppStorageKeys.autoPlayEnabled) private var autoPlayEnabled = true
+    @AppStorage(AppStorageKeys.showMoonSizeScrubber) private var showMoonSizeScrubber = true
+    @AppStorage(AppStorageKeys.autoPlayRate) private var autoPlayRate: AutoPlayRate = AutoPlayRate.defaultRate
 
     @State private var viewModel = ContentViewModel()
 
-    /// Persisted, normalized (`0...1`) position of the trailing-edge Moon-size
+    /// Persisted, normalized (`0...1`) position of the leading-edge Moon-size
     /// scrubber. `0.5` (its default) maps to `1.0` via `viewModel.moonSizeMultiplier`,
     /// reproducing `MoonPhaseRow`'s normal size until the user drags it. Kept here
     /// (rather than in `ContentViewModel`) since `@AppStorage` only integrates with
@@ -93,7 +95,14 @@ struct SmallScreenView: View {
 
             // Drives `moonSizeMultiplier` (via `moonSizeScrub`), which `MoonPhaseRow` above
             // animates into on change.
-            MoonSizeScrubberNotch(scrub: $moonSizeScrub, theme: theme)
+            MoonSizeScrubberNotch(scrub: $moonSizeScrub, theme: theme, isPresented: showMoonSizeScrubber)
+                .padding(.leading, (barOuterPadding / 2))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .offset(y: -180)
+
+            // Drawn before the Auto Play button below so the button stays on top (and
+            // tappable) where the two overlap. Only shown while playing.
+            AutoPlaySpeedNotch(rate: $autoPlayRate, isPresented: autoPlayEnabled && viewModel.autoPlay.isPlaying)
                 .padding(.trailing, (barOuterPadding / 2))
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .offset(y: -180)
