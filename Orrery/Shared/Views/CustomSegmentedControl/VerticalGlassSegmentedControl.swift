@@ -6,8 +6,10 @@
 //  text slots with a fixed glass capsule at the center that highlights the slot
 //  snapped under it. Because every slot has the same known size there is no tab
 //  measuring or custom snap-point logic — a view-aligned `ScrollView` does the snapping,
-//  and the centering inset is a constant, so the initial position is correct from the
-//  first frame.
+//  and the centering inset is a constant.
+//
+//  `options` is read once to seed the initial slot and is expected to stay fixed for the
+//  life of the view (it's not re-synced if it changes).
 //
 //  `selection` is only written when the scroll comes to rest (or a slot is tapped), not
 //  for every slot a fast drag sweeps over, since consumers may react to each change.
@@ -23,8 +25,9 @@ struct VerticalGlassSegmentedControl<Value: Hashable>: View {
     var accessibilityValue: (Value) -> String
     /// Total height of the control; `visibleCount` slots fill it exactly.
     var height: CGFloat
-    var visibleCount: Int
-    var pillWidth: CGFloat
+
+    private let visibleCount = 5
+    private let pillWidth: CGFloat = 26
 
     /// Index of the slot currently under the capsule — follows the scroll live.
     @State private var activeIndex: Int
@@ -43,9 +46,7 @@ struct VerticalGlassSegmentedControl<Value: Hashable>: View {
         title: @escaping (Value) -> String,
         accessibilityLabel: String = "Selection",
         accessibilityValue: ((Value) -> String)? = nil,
-        height: CGFloat = ScrubberNotchMetrics.contentHeight,
-        visibleCount: Int = 5,
-        pillWidth: CGFloat = 26
+        height: CGFloat = ScrubberNotchMetrics.contentHeight
     ) {
         self.options = options
         self._selection = selection
@@ -53,17 +54,15 @@ struct VerticalGlassSegmentedControl<Value: Hashable>: View {
         self.accessibilityLabel = accessibilityLabel
         self.accessibilityValue = accessibilityValue ?? title
         self.height = height
-        self.visibleCount = visibleCount
-        self.pillWidth = pillWidth
 
-        // Seeded synchronously (the centering inset below is constant) so the control
-        // renders already positioned rather than snapping there after the first frame.
+        // Seed the initial slot. The scroll view doesn't honor `scrollPosition` on its first
+        // layout, so the `.task` below re-applies it once laid out.
         let index = options.firstIndex(of: selection.wrappedValue) ?? 0
         _activeIndex = State(initialValue: index)
         _scrollPosition = State(initialValue: index)
     }
 
-    private var slotHeight: CGFloat { height / CGFloat(max(visibleCount, 1)) }
+    private var slotHeight: CGFloat { height / CGFloat(visibleCount) }
 
     var body: some View {
         ZStack {
@@ -126,6 +125,7 @@ struct VerticalGlassSegmentedControl<Value: Hashable>: View {
             // Assigning the same value is a no-op, so clear it first to force the scroll view
             // to re-resolve it once laid out, then restore it on the next turn. Same
             // workaround as `VerticalScrubber`.
+            isProgrammaticScroll = true
             scrollPosition = nil
             await Task.yield()
             scrollPosition = activeIndex
@@ -136,7 +136,9 @@ struct VerticalGlassSegmentedControl<Value: Hashable>: View {
             }
         }
         .onChange(of: selection) { _, newValue in
-            // Selection changed from outside (e.g. Settings): follow it.
+            // Selection changed from outside (e.g. Settings): follow it — unless the user is
+            // mid-gesture, in which case their drag wins and commits when it settles.
+            guard scrollPhase != .interacting, scrollPhase != .decelerating else { return }
             guard let index = options.firstIndex(of: newValue), index != activeIndex else { return }
             activeIndex = index
             isProgrammaticScroll = true
