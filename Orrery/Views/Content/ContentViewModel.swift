@@ -24,7 +24,6 @@ enum ControlPresentationState {
 @MainActor
 @Observable
 final class ContentViewModel {
-    let rangeYearsForAnimatedScrubber = 10
     var selectedDate = UTCDay.todayAsUTCMidnight()
     var justSaved = false
     @ObservationIgnored private var justSavedResetTask: Task<Void, Never>?
@@ -33,6 +32,18 @@ final class ContentViewModel {
     let transition: AnyTransition = AnyTransition(.blurReplace)
     let reducedAnimation: Animation = .linear(duration: 0.1)
     let reducedTransition: AnyTransition = .opacity
+
+    /// `animation`, softened when Reduce Motion is on — use at every call site that
+    /// changes `controlPresentationState`.
+    func effectiveAnimation(reduceMotion: Bool) -> Animation {
+        reduceMotion ? reducedAnimation : animation
+    }
+
+    /// The overlay panels' open/close transition — `.blurReplace` normally, a plain
+    /// fade when Reduce Motion is on to match `effectiveAnimation(reduceMotion:)`.
+    func effectiveTransition(reduceMotion: Bool) -> AnyTransition {
+        reduceMotion ? reducedTransition : transition
+    }
 
     /// Single source of truth for which control surface `SmallScreenView` presents in its
     /// bottom control bar — that bar has one slot, so these are mutually exclusive by

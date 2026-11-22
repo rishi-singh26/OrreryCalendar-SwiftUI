@@ -86,6 +86,22 @@ enum AutoPlayRate: String, CaseIterable, Identifiable {
         }
         return "\(count)\(suffix)"
     }
+    
+    var speedSystemName: String {
+        switch self {
+        case .day1: return "gauge.with.dots.needle.0percent"
+        case .day2: return "gauge.with.dots.needle.0percent"
+        case .day3: return "gauge.with.dots.needle.0percent"
+        case .day4: return "gauge.with.dots.needle.0percent"
+        case .day5: return "gauge.with.dots.needle.0percent"
+        case .day6: return "gauge.with.dots.needle.0percent"
+        case .week1: return "gauge.with.dots.needle.33percent"
+        case .week2: return "gauge.with.dots.needle.33percent"
+        case .week3: return "gauge.with.dots.needle.50percent"
+        case .month1: return "gauge.with.dots.needle.67percent"
+        case .month2: return "gauge.with.dots.needle.100percent"
+        }
+    }
 
     static var persisted: AutoPlayRate {
         UserDefaults.standard.string(forKey: AppStorageKeys.autoPlayRate)

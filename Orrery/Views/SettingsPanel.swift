@@ -37,9 +37,15 @@ struct SettingsPanel: View {
     var body: some View {
         Form {
             Section("Display") {
-                Toggle("Show Orbits", isOn: $showOrbits)
-                Toggle("Show Labels", isOn: $showLabels)
-                Toggle("Show Sun Halo", isOn: $showSunHalo)
+                Toggle(isOn: $showOrbits) {
+                    Label("Show Orbits", systemImage: "circle.circle")
+                }
+                Toggle(isOn: $showLabels) {
+                    Label("Show Planet Labels", systemImage: "circle")
+                }
+                Toggle(isOn: $showSunHalo) {
+                    Label("Show Sun Halo", systemImage: "sun.max.circle")
+                }
                 Picker(selection: $appearanceMode) {
                     Label("System", systemImage: "iphone.gen2").tag(AppearanceMode.system)
                     Label("Light", systemImage: "sun.max").tag(AppearanceMode.light)
@@ -48,7 +54,7 @@ struct SettingsPanel: View {
                     Label {
                         Text("Appearance")
                     } icon: {
-                        AppearanceIconView(size: 24)
+                        AppearanceIconView(size: DeviceType.isMac ? 12 : 22, tint: DeviceType.isMac ? nil : .accentColor)
                             .foregroundStyle(.primary)
                     }
                 }
@@ -66,7 +72,7 @@ struct SettingsPanel: View {
                             Text(rate.label).tag(rate)
                         }
                     } label: {
-                        Label("Speed", systemImage: "speedometer")
+                        Label("Speed", systemImage: autoPlayRate.speedSystemName)
                     }
                     
                     Picker(selection: $autoPlayDirection) {
@@ -113,12 +119,12 @@ struct SettingsPanel: View {
             
             Section {
                 Toggle(isOn: $syncPlanetDetailDate) {
-                    Text("Sync Planet Detail Date")
+                    Label("Sync Planet Detail Date", systemImage: "calendar.circle")
                 }
             } header: {
                 Text("Planet Detail")
             } footer: {
-                Text("Keep the date shown in the Planet Detail view matched with the main timeline. Turn off to browse a planet's dates on its own, without moving the main timeline.")
+                Text("Keep the date shown in the Planet Detail panel synced with the main timeline on the home page. Turn off to browse a planet's dates on its own, without moving the main timeline.")
             }
             .tint(.accentColor)
             
