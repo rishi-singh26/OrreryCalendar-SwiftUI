@@ -10,11 +10,15 @@
 ---
 
 <p align="center">
-  <img src="Assets/AppLook-1.png" alt="Orrery app screenshots" width="100%">
+  <img src="Assets/AppLook-2.png" alt="Orrery app screenshots" width="100%">
 </p>
 
 <p align="center">
   <img src="Assets/AppLook.png" alt="Orrery app screenshots" width="100%">
+</p>
+
+<p align="center">
+  <img src="Assets/AppLook-1.png" alt="Orrery app screenshots" width="100%">
 </p>
 
 ## About
