@@ -10,6 +10,12 @@
 
 import SwiftUI
 
+/// Dimensions shared between the notch shell and the controls docked in it.
+enum ScrubberNotchMetrics {
+    /// Height of the notch's straight-walled middle, where its content lives.
+    static let contentHeight: CGFloat = 160
+}
+
 struct ScrubberNotchContainer<Content: View>: View {
     /// The side of the screen the notch is docked to, in layout terms (`.leading` /
     /// `.trailing`) — i.e. the same side the caller aligns it to, which flips in
@@ -19,8 +25,9 @@ struct ScrubberNotchContainer<Content: View>: View {
     /// down to `0` (flattening into the edge) and showing animates it back out, rather than
     /// the view being inserted/removed.
     let isPresented: Bool
-    /// Padded and clipped to the notch's straight-walled middle (`160pt` tall) so the
-    /// content never travels into its flared top/bottom corners.
+    /// Docked content. It is given `ScrubberNotchMetrics.contentHeight` and clipped to the
+    /// notch, so it never travels into the flared top/bottom corners; any horizontal
+    /// padding is up to the content itself.
     @ViewBuilder let content: Content
 
     private let notchDepth: CGFloat = 35
@@ -47,7 +54,7 @@ struct ScrubberNotchContainer<Content: View>: View {
             .frame(width: isPresented ? notchDepth : 0, height: 220)
             .overlay {
                 content
-                    .frame(height: 160)
+                    .frame(height: ScrubberNotchMetrics.contentHeight)
                     // The content fades with the collapse and, once hidden, is neither
                     // touchable nor exposed to VoiceOver.
                     .opacity(isPresented ? 1 : 0)

@@ -21,7 +21,8 @@ struct VerticalGlassSegmentedControl<Value: Hashable>: View {
     let title: (Value) -> String
     var accessibilityLabel: String
     var accessibilityValue: (Value) -> String
-    var slotHeight: CGFloat
+    /// Total height of the control; `visibleCount` slots fill it exactly.
+    var height: CGFloat
     var visibleCount: Int
     var pillWidth: CGFloat
 
@@ -37,7 +38,7 @@ struct VerticalGlassSegmentedControl<Value: Hashable>: View {
         title: @escaping (Value) -> String,
         accessibilityLabel: String = "Selection",
         accessibilityValue: ((Value) -> String)? = nil,
-        slotHeight: CGFloat = 32,
+        height: CGFloat = ScrubberNotchMetrics.contentHeight,
         visibleCount: Int = 5,
         pillWidth: CGFloat = 26
     ) {
@@ -46,7 +47,7 @@ struct VerticalGlassSegmentedControl<Value: Hashable>: View {
         self.title = title
         self.accessibilityLabel = accessibilityLabel
         self.accessibilityValue = accessibilityValue ?? title
-        self.slotHeight = slotHeight
+        self.height = height
         self.visibleCount = visibleCount
         self.pillWidth = pillWidth
 
@@ -57,7 +58,7 @@ struct VerticalGlassSegmentedControl<Value: Hashable>: View {
         _scrollPosition = State(initialValue: index)
     }
 
-    private var containerHeight: CGFloat { slotHeight * CGFloat(visibleCount) }
+    private var slotHeight: CGFloat { height / CGFloat(max(visibleCount, 1)) }
 
     var body: some View {
         ZStack {
@@ -85,7 +86,7 @@ struct VerticalGlassSegmentedControl<Value: Hashable>: View {
             .scrollTargetBehavior(.viewAligned(limitBehavior: .alwaysByOne))
             .scrollPosition(id: $scrollPosition, anchor: .center)
             // Centering the first/last slot under the capsule.
-            .safeAreaPadding(.vertical, (containerHeight - slotHeight) / 2)
+            .safeAreaPadding(.vertical, (height - slotHeight) / 2)
             .onScrollGeometryChange(for: CGFloat.self) {
                 $0.contentOffset.y + $0.contentInsets.top
             } action: { _, offset in
@@ -107,7 +108,7 @@ struct VerticalGlassSegmentedControl<Value: Hashable>: View {
                 }
             }
         }
-        .frame(height: containerHeight)
+        .frame(height: height)
         .onChange(of: activeIndex) { _, _ in
             if scrollPhase == .interacting || scrollPhase == .decelerating {
                 hapticCount += 1
