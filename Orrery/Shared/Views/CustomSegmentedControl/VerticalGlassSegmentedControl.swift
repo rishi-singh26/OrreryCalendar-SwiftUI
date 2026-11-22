@@ -31,6 +31,11 @@ struct VerticalGlassSegmentedControl<Value: Hashable>: View {
     @State private var scrollPosition: Int?
     @State private var scrollPhase: ScrollPhase = .idle
     @State private var hapticCount = 0
+    /// True while a scroll we started ourselves (the initial positioning, a tap, or an
+    /// external selection change) is in flight. Its intermediate offsets pass through
+    /// other slots — notably the initial scroll starts at offset 0 — and must not be read
+    /// as the user landing on them. Cleared when the user takes over or the scroll settles.
+    @State private var isProgrammaticScroll = true
 
     init(
         options: [Value],
@@ -90,14 +95,20 @@ struct VerticalGlassSegmentedControl<Value: Hashable>: View {
             .onScrollGeometryChange(for: CGFloat.self) {
                 $0.contentOffset.y + $0.contentInsets.top
             } action: { _, offset in
-                guard scrollPhase != .idle else { return }
+                guard scrollPhase != .idle, !isProgrammaticScroll else { return }
                 activeIndex = clamped(Int((offset / slotHeight).rounded()))
             }
             .onScrollPhaseChange { oldPhase, newPhase in
                 scrollPhase = newPhase
+                // The user grabbing the scroll view takes over from any programmatic scroll.
+                if newPhase == .interacting { isProgrammaticScroll = false }
                 guard newPhase == .idle else { return }
-                // Commit the settled slot only for a user-driven scroll; our own animated
-                // scrolls (tap / external change) already committed `selection`.
+                // Our own scrolls already set `activeIndex`/`selection`; nothing to settle.
+                let wasProgrammatic = isProgrammaticScroll
+                isProgrammaticScroll = false
+                guard !wasProgrammatic else { return }
+                // Commit the settled slot only for a user-driven scroll; a tap's animated
+                // scroll already committed `selection`.
                 if oldPhase != .animating, options.indices.contains(activeIndex),
                    options[activeIndex] != selection {
                     selection = options[activeIndex]
@@ -109,6 +120,16 @@ struct VerticalGlassSegmentedControl<Value: Hashable>: View {
             }
         }
         .frame(height: height)
+        .task {
+            // The scroll position seeded in `init` isn't honored on the first layout (the
+            // scroll view reports offset 0, so the control would show the first slot).
+            // Assigning the same value is a no-op, so clear it first to force the scroll view
+            // to re-resolve it once laid out, then restore it on the next turn. Same
+            // workaround as `VerticalScrubber`.
+            scrollPosition = nil
+            await Task.yield()
+            scrollPosition = activeIndex
+        }
         .onChange(of: activeIndex) { _, _ in
             if scrollPhase == .interacting || scrollPhase == .decelerating {
                 hapticCount += 1
@@ -118,6 +139,7 @@ struct VerticalGlassSegmentedControl<Value: Hashable>: View {
             // Selection changed from outside (e.g. Settings): follow it.
             guard let index = options.firstIndex(of: newValue), index != activeIndex else { return }
             activeIndex = index
+            isProgrammaticScroll = true
             withAnimation(.snappy) { scrollPosition = index }
         }
         .hapticTick(hapticCount)
@@ -154,6 +176,7 @@ struct VerticalGlassSegmentedControl<Value: Hashable>: View {
         guard options.indices.contains(index) else { return }
         activeIndex = index
         selection = options[index]
+        isProgrammaticScroll = true
         withAnimation(.snappy) { scrollPosition = index }
     }
 }
