@@ -18,6 +18,7 @@ struct SmallScreenView: View {
     @AppStorage(AppStorageKeys.showSunHalo) private var showSunHalo = true
     @AppStorage(AppStorageKeys.autoPlayEnabled) private var autoPlayEnabled = true
     @AppStorage(AppStorageKeys.showMoonSizeScrubber) private var showMoonSizeScrubber = true
+    @AppStorage(AppStorageKeys.autoPlayRate) private var autoPlayRate: AutoPlayRate = AutoPlayRate.defaultRate
 
     @State private var viewModel = ContentViewModel()
 
@@ -97,6 +98,13 @@ struct SmallScreenView: View {
             MoonSizeScrubberNotch(scrub: $moonSizeScrub, theme: theme, isPresented: showMoonSizeScrubber)
                 .padding(.leading, (barOuterPadding / 2))
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .offset(y: -180)
+
+            // Drawn before the Auto Play button below so the button stays on top (and
+            // tappable) where the two overlap. Only shown while playing.
+            AutoPlaySpeedNotch(rate: $autoPlayRate, isPresented: autoPlayEnabled && viewModel.autoPlay.isPlaying)
+                .padding(.trailing, (barOuterPadding / 2))
+                .frame(maxWidth: .infinity, alignment: .trailing)
                 .offset(y: -180)
 
             if autoPlayEnabled {

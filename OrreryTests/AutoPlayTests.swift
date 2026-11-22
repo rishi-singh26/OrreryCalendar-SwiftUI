@@ -21,6 +21,14 @@ struct AutoPlayTests {
         #expect(AutoPlayRate.month2.label == "2 Months per Sec")
     }
 
+    @Test func rateShortLabelsAreUniqueAndOrderedBySpeed() {
+        // The speed notch lists `allCases` top to bottom, relying on this order.
+        let labels = AutoPlayRate.allCases.map(\.shortLabel)
+        #expect(Set(labels).count == labels.count)
+        #expect(labels.first == "1D")
+        #expect(labels.last == "2M")
+    }
+
     @Test func rateDaysPerSecond() {
         #expect(AutoPlayRate.day6.daysPerSecond == 6)
         #expect(AutoPlayRate.week2.daysPerSecond == 14)

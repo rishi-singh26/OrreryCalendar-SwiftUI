@@ -21,6 +21,7 @@ struct LargeScreenView: View {
     @AppStorage(AppStorageKeys.showSunHalo) private var showSunHalo = true
     @AppStorage(AppStorageKeys.autoPlayEnabled) private var autoPlayEnabled = true
     @AppStorage(AppStorageKeys.showMoonSizeScrubber) private var showMoonSizeScrubber = true
+    @AppStorage(AppStorageKeys.autoPlayRate) private var autoPlayRate: AutoPlayRate = AutoPlayRate.defaultRate
 
     /// Persisted, normalized (`0...1`) position of the leading-edge Moon-size
     /// scrubber — same `AppStorageKeys.moonSizeScrub` key `SmallScreenView` uses, so
@@ -99,6 +100,11 @@ struct LargeScreenView: View {
             // animates into on change.
             MoonSizeScrubberNotch(scrub: $moonSizeScrub, theme: theme, isPresented: showMoonSizeScrubber)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .offset(y: 150)
+
+            // Only shown while Auto Play is playing.
+            AutoPlaySpeedNotch(rate: $autoPlayRate, isPresented: autoPlayEnabled && viewModel.autoPlay.isPlaying)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
                 .offset(y: 150)
 
             LargeScreenBottomPanel(
