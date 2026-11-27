@@ -96,6 +96,25 @@ class InAppNotificationManager: ObservableObject {
         notificationQueue.append(notification)
     }
     
+    /// Shows a toast with a Settings button and a close button. It stays until the user
+    /// taps either one, or the caller removes it using the returned id. Only one is queued
+    /// at a time: a new one replaces any previous one.
+    @discardableResult
+    func showActionToast(title: String, message: String? = nil, onSettings: @escaping @MainActor () -> Void) -> UUID {
+        let notification = InAppNotification(
+            title: title,
+            message: message,
+            type: .neutral,
+            mode: .actionToast,
+            windowID: targetWindowID,
+            settingsAction: NotificationAction(perform: onSettings)
+        )
+        
+        notificationQueue.removeAll { $0.mode == .actionToast }
+        notificationQueue.append(notification)
+        return notification.id
+    }
+    
     // Clear all notifications (current and queued)
     func clearAllNotifications() {
         notificationQueue.removeAll()
@@ -142,6 +161,9 @@ struct InAppNotification: Identifiable, Equatable {
     /// The window whose overlay shows this notification (see `InAppNotificationManager`).
     var windowID: UUID?
     
+    /// Run by the settings button of an `.actionToast`.
+    var settingsAction: NotificationAction?
+    
     // View properties
     var offsetY: CGFloat = 0
 }
@@ -149,6 +171,18 @@ struct InAppNotification: Identifiable, Equatable {
 enum NotificationMode {
     case notification
     case toast
+    case actionToast
+}
+
+/// A button action carried by a notification. Wraps the closure so that
+/// `InAppNotification` can stay `Equatable`.
+struct NotificationAction: Equatable {
+    private let id = UUID()
+    let perform: @MainActor () -> Void
+    
+    static func == (lhs: NotificationAction, rhs: NotificationAction) -> Bool {
+        lhs.id == rhs.id
+    }
 }
 
 enum NotificationTime: CGFloat {

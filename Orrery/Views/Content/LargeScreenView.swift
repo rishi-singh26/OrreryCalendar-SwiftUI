@@ -85,6 +85,7 @@ struct LargeScreenView: View {
         // opened after it's already ready never sees these values change, so it must
         // seed its selection and range thresholds from the current values on mount.
         .contentLifecycle(viewModel: viewModel, observing: .includingCurrentState)
+        .extendRangeToast(viewModel: viewModel) { presentSettings() }
     }
     
     @ViewBuilder

@@ -106,6 +106,8 @@ fileprivate struct InAppNotificationSelector: View {
                 InAppNotificationView(notification: notification)
             case .toast:
                 InAppToastView(notification: notification)
+            case .actionToast:
+                InAppActionToastView(notification: notification)
             }
         }
     }

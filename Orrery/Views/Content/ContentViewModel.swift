@@ -118,8 +118,8 @@ final class ContentViewModel {
     /// seeded (in practice always seeded before `isReady` flips true — see
     /// `DataController.bootstrap`/`apply`, which set `startDate`/`endDate`,
     /// triggering `handleRangeChange`, before `isReady` is set).
-    private var nearStartThreshold: Date = .distantPast
-    private var nearEndThreshold: Date = .distantFuture
+    private(set) var nearStartThreshold: Date = .distantPast
+    private(set) var nearEndThreshold: Date = .distantFuture
     
     /// Call from `.onChange(of: dataController.isReady)`. Seeds the initial selection once
     /// the controller has a cached range to clamp into, then resumes any range extension
