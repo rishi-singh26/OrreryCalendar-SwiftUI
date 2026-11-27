@@ -65,11 +65,7 @@ struct SmallScreenView: View {
             }
         }
         .contentLifecycle(viewModel: viewModel, observing: .changesOnly)
-        .extendRangeToast(
-            viewModel: viewModel,
-            // Same as `SmallScreenControlsBar`, which hides the button behind Settings.
-            isSuppressed: viewModel.controlPresentationState == .settings
-        ) {
+        .extendRangeToast(viewModel: viewModel) {
             withAnimation(effectiveAnimation) {
                 viewModel.controlPresentationState = .settings
             }

@@ -3,7 +3,7 @@
 //  Orrery
 //
 //  A persistent banner-style toast, modeled on the iOS system banner (e.g. iPhone
-//  Mirroring): icon, title and subtitle, then a "Settings" pill and a close button.
+//  Mirroring): icon, title and subtitle, then an action pill and a close button.
 //  It never auto-dismisses; it can be closed with the ✕ button or swiped up.
 //
 
@@ -18,9 +18,11 @@ struct InAppActionToastView: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "calendar.badge.plus")
-                .font(.title3)
-                .accessibilityHidden(true)
+            if let systemImage = notification.systemImage {
+                Image(systemName: systemImage)
+                    .font(.title2)
+                    .accessibilityHidden(true)
+            }
             
             VStack(alignment: .leading, spacing: 0) {
                 Text(notification.title ?? "")
@@ -33,24 +35,39 @@ struct InAppActionToastView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .lineLimit(1)
+            .lineLimit(2)
             .accessibilityElement(children: .combine)
             
-            Button {
-                notification.settingsAction?.perform()
-                notificationManager.removeNotification(notification.id)
-            } label: {
-                Text("Settings")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color.accentColor)
-                    .lineLimit(1)
-                    .fixedSize()
-                    .padding(.horizontal, 14)
-                    .frame(height: buttonHeight)
-                    .background(Color.primary.opacity(0.08), in: .capsule)
-                    .contentShape(.capsule)
+            HStack(spacing: 6) {
+                Button {
+                    notification.action?.perform()
+                    notificationManager.removeNotification(notification.id)
+                } label: {
+                    Text(notification.action?.title ?? "")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.accentColor)
+                        .lineLimit(1)
+                        .fixedSize()
+                        .padding(.horizontal, 14)
+                        .frame(height: buttonHeight)
+                        .background(Color.primary.opacity(0.08), in: .capsule)
+                        .contentShape(.capsule)
+                }
+                .buttonStyle(.plain)
+                
+                Button {
+                    notificationManager.removeNotification(notification.id)
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: buttonHeight, height: buttonHeight)
+                        .background(Color.primary.opacity(0.08), in: .circle)
+                        .contentShape(.circle)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Dismiss notification")
             }
-            .buttonStyle(.plain)
         }
         .padding(.leading, 18)
         .padding([.vertical, .trailing], 8)
@@ -58,34 +75,17 @@ struct InAppActionToastView: View {
         .contentShape(.capsule)
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 10)
-        .gesture(gesture)
-    }
-    
-    private var gesture: some Gesture {
-        // Global space for the same reason as in `InAppToastView`: the container moves this
-        // view while it's dragged, which would make local coordinates flicker.
-        DragGesture(coordinateSpace: .global)
-            .onChanged { value in
-                // Only follow upward drags; downward drags are ignored.
-                let yOffset = value.translation.height < 0 ? value.translation.height : 0
-                notificationManager.setOffset(notification.id, to: yOffset)
-            }.onEnded { value in
-                let yOffset = value.translation.height + (value.velocity.height / 2)
-                
-                if -yOffset > InAppNotificationManager.swipeDismissDistance {
-                    notificationManager.removeNotification(notification.id)
-                } else {
-                    withAnimation(.snappy) {
-                        notificationManager.setOffset(notification.id, to: 0)
-                    }
-                }
-            }
+        .swipeUpToDismiss(notification.id)
     }
 }
 
 #Preview {
     InAppActionToastView(
-        notification: .init(title: "Extend date range", message: "No more cached dates", type: .neutral, mode: .actionToast)
+        notification: .init(
+            title: "Extend date range", message: "Near the cached date limit",
+            type: .neutral, mode: .actionToast, systemImage: "calendar.badge.plus",
+            action: .init(title: "Settings", perform: {})
+        )
     )
     .environmentObject(InAppNotificationManager.shared)
 }

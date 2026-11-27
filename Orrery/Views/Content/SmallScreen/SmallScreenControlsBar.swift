@@ -85,7 +85,7 @@ struct SmallScreenControlsBar: View {
             }
             .compositingGroup()
             
-            if viewModel.isNearRangeEdge(dataController: dataController) && viewModel.controlPresentationState != .settings {
+            if viewModel.showsRangeExtensionPrompt(dataController: dataController) {
                 ExtendRangeButton(theme: theme) {
                     withAnimation(effectiveAnimation) {
                         viewModel.controlPresentationState = .settings

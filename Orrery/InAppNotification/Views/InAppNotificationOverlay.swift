@@ -14,6 +14,12 @@
 
 import SwiftUI
 
+extension EnvironmentValues {
+    /// Identifies the hosting window's overlay, for notifications that must appear in the
+    /// window that posted them. `nil` outside `inAppNotificationOverlay()`.
+    @Entry var notificationWindowID: UUID?
+}
+
 extension View {
     /// Apply once, near the root of each window's content (the view given to `WindowGroup`).
     /// All windows mirror `InAppNotificationManager.shared`'s queue.
@@ -29,11 +35,13 @@ private struct InAppNotificationOverlayModifier: ViewModifier {
     @State private var controller = OverlayWindowController()
     
     func body(content: Content) -> some View {
-        content.background(
-            WindowSceneFinder { scene in
-                controller.attach(to: scene)
-            }
-        )
+        content
+            .environment(\.notificationWindowID, controller.windowID)
+            .background(
+                WindowSceneFinder { scene in
+                    controller.attach(to: scene)
+                }
+            )
     }
 }
 
@@ -50,7 +58,8 @@ private struct WindowSceneFinder: UIViewRepresentable {
     func updateUIView(_ uiView: FinderView, context: Context) {
         uiView.onResolve = onResolve
         if let scene = uiView.window?.windowScene {
-            onResolve(scene)
+            // Attaching publishes manager changes, which isn't allowed mid view update.
+            Task { @MainActor in onResolve(scene) }
         }
     }
     
@@ -60,7 +69,8 @@ private struct WindowSceneFinder: UIViewRepresentable {
         override func didMoveToWindow() {
             super.didMoveToWindow()
             if let scene = window?.windowScene {
-                onResolve?(scene)
+                // May run during SwiftUI's layout pass; see `updateUIView`.
+                Task { @MainActor [onResolve] in onResolve?(scene) }
             }
         }
     }
@@ -74,7 +84,7 @@ private final class OverlayWindowController {
     private var activateObserver: NSObjectProtocol?
     /// Identifies this scene's overlay in `InAppNotificationManager`, which routes each
     /// notification to a single window.
-    private let windowID = UUID()
+    let windowID = UUID()
     
     func attach(to scene: UIWindowScene) {
         // Already attached to this scene (body re-evaluated): nothing to do.
@@ -179,11 +189,13 @@ private struct InAppNotificationOverlayModifier: ViewModifier {
     @State private var controller = OverlayWindowController()
     
     func body(content: Content) -> some View {
-        content.background(
-            WindowFinder { window in
-                controller.attach(to: window)
-            }
-        )
+        content
+            .environment(\.notificationWindowID, controller.windowID)
+            .background(
+                WindowFinder { window in
+                    controller.attach(to: window)
+                }
+            )
     }
 }
 
@@ -200,7 +212,8 @@ private struct WindowFinder: NSViewRepresentable {
     func updateNSView(_ nsView: FinderView, context: Context) {
         nsView.onResolve = onResolve
         if let window = nsView.window {
-            onResolve(window)
+            // Attaching publishes manager changes, which isn't allowed mid view update.
+            Task { @MainActor in onResolve(window) }
         }
     }
     
@@ -210,7 +223,8 @@ private struct WindowFinder: NSViewRepresentable {
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             if let window {
-                onResolve?(window)
+                // May run during SwiftUI's layout pass; see `updateNSView`.
+                Task { @MainActor [onResolve] in onResolve?(window) }
             }
         }
     }
@@ -224,7 +238,7 @@ private final class OverlayWindowController {
     private var layoutObservation: NSKeyValueObservation?
     /// Identifies this window's overlay in `InAppNotificationManager`, which routes each
     /// notification to a single window.
-    private let windowID = UUID()
+    let windowID = UUID()
     
     func attach(to window: NSWindow) {
         // Already attached to this window (body re-evaluated): nothing to do.

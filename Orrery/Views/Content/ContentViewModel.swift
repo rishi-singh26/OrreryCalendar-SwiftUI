@@ -232,6 +232,19 @@ final class ContentViewModel {
         return selectedDate < nearStartThreshold || selectedDate > nearEndThreshold
     }
     
+    /// Whether the cached range is worth extending from here: the selection is near an edge
+    /// and the range isn't already as large as it gets.
+    func canSuggestRangeExtension(dataController: DataController) -> Bool {
+        isNearRangeEdge(dataController: dataController) && !dataController.isAtMaxRange
+    }
+    
+    /// The single visibility rule for `ExtendRangeButton` and the "Extend date range" toast.
+    /// Both are hidden while `SmallScreenView`'s Settings panel is up;
+    /// `controlPresentationState` stays `.none` on large screens, so it has no effect there.
+    func showsRangeExtensionPrompt(dataController: DataController) -> Bool {
+        canSuggestRangeExtension(dataController: dataController) && controlPresentationState != .settings
+    }
+    
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Orrery", category: "Save")
     
     func save(dataController: DataController, modelContext: ModelContext) {

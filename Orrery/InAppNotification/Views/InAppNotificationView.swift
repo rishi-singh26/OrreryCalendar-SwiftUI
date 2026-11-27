@@ -55,7 +55,7 @@ struct InAppNotificationView: View {
         .glassOrSurface(in: .rect(cornerRadius: 18, style: .continuous))
         .contentShape(.rect(cornerRadius: 18))
         .padding(.horizontal, 10)
-        .gesture(gesture)
+        .swipeUpToDismiss(notification.id, onDrag: cancelDelayTask, onSnapBack: createDelayTask)
         .onAppear(perform: createDelayTask)
     }
     
@@ -76,32 +76,6 @@ struct InAppNotificationView: View {
             delayTask.cancel()
             self.delayTask = nil
         }
-    }
-    
-    private var gesture: some Gesture {
-        // Measure in the global space: the container moves this view (`.offset`) while it's
-        // dragged, so in the default local space the gesture's own coordinates shift under
-        // the finger on every update and the translation zigzags, making the drag flicker.
-        DragGesture(coordinateSpace: .global)
-            .onChanged { value in
-                // Only follow upward drags; downward drags are ignored.
-                let yOffset = value.translation.height < 0 ? value.translation.height : 0
-                notificationManager.setOffset(notification.id, to: yOffset)
-                cancelDelayTask()
-            }.onEnded { value in
-                let yOffset = value.translation.height + (value.velocity.height / 2)
-                
-                if -yOffset > InAppNotificationManager.swipeDismissDistance {
-                    // Remove notification
-                    notificationManager.removeNotification(notification.id)
-                } else {
-                    // Reset notification position
-                    withAnimation(.snappy) {
-                        notificationManager.setOffset(notification.id, to: 0)
-                    }
-                    createDelayTask()
-                }
-            }
     }
 }
 
