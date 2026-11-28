@@ -3,8 +3,8 @@
 //  Orrery
 //
 //  A persistent banner-style toast, modeled on the iOS system banner (e.g. iPhone
-//  Mirroring): icon, title and subtitle, then an action pill and a close button.
-//  It never auto-dismisses; it can be closed with the ✕ button or swiped up.
+//  Mirroring): icon, title and subtitle, then an action pill. It has no timer and
+//  no close button: it's swiped up to dismiss, or dismissed with VoiceOver's actions.
 //
 
 import SwiftUI
@@ -28,46 +28,36 @@ struct InAppActionToastView: View {
                 Text(notification.title ?? "")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
+                    .lineLimit(1)
                 
                 if let message = notification.message {
                     Text(message)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                }
-            }
-            .lineLimit(2)
-            .accessibilityElement(children: .combine)
-            
-            HStack(spacing: 6) {
-                Button {
-                    notification.action?.perform()
-                    notificationManager.removeNotification(notification.id)
-                } label: {
-                    Text(notification.action?.title ?? "")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Color.accentColor)
                         .lineLimit(1)
-                        .fixedSize()
-                        .padding(.horizontal, 14)
-                        .frame(height: buttonHeight)
-                        .background(Color.primary.opacity(0.08), in: .capsule)
-                        .contentShape(.capsule)
                 }
-                .buttonStyle(.plain)
-                
-                Button {
-                    notificationManager.removeNotification(notification.id)
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: buttonHeight, height: buttonHeight)
-                        .background(Color.primary.opacity(0.08), in: .circle)
-                        .contentShape(.circle)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Dismiss notification")
             }
+            .accessibilityElement(children: .combine)
+            // Stands in for the swipe, which VoiceOver users can't easily discover.
+            .accessibilityAction(named: "Dismiss") {
+                notificationManager.removeNotification(notification.id)
+            }
+            
+            Button {
+                notification.action?.perform()
+                notificationManager.removeNotification(notification.id)
+            } label: {
+                Text(notification.action?.title ?? "")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
+                    .lineLimit(1)
+                    .fixedSize()
+                    .padding(.horizontal, 14)
+                    .frame(height: buttonHeight)
+                    .background(Color.primary.opacity(0.08), in: .capsule)
+                    .contentShape(.capsule)
+            }
+            .buttonStyle(.plain)
         }
         .padding(.leading, 18)
         .padding([.vertical, .trailing], 8)

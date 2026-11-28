@@ -100,11 +100,13 @@ class InAppNotificationManager: ObservableObject {
         notificationQueue.append(notification)
     }
     
-    /// Shows a toast with an action button and a close button. It stays until the user
-    /// taps either one or swipes it away, or the caller removes it using the returned id.
+    /// Shows a toast with an action button. It stays until the user taps the button or
+    /// dismisses it (by swiping, or with VoiceOver), or the caller removes it using the
+    /// returned id.
     ///
     /// It appears in the window identified by `windowID` (see
-    /// `EnvironmentValues.notificationWindowID`), falling back to the last active window.
+    /// `EnvironmentValues.notificationWindowID`), as soon as that window has registered.
+    /// Without an ID it goes to the last active window.
     /// Each window holds at most one: a new one replaces that window's previous one.
     @discardableResult
     func showActionToast(
@@ -115,7 +117,7 @@ class InAppNotificationManager: ObservableObject {
         in windowID: UUID?,
         action: @escaping @MainActor () -> Void
     ) -> UUID {
-        let target = windowID.flatMap { registeredWindowIDs.contains($0) ? $0 : nil } ?? targetWindowID
+        let target = windowID ?? targetWindowID
         let notification = InAppNotification(
             title: title,
             message: message,

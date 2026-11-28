@@ -2,7 +2,7 @@
 //  RangeExtensionPromptTests.swift
 //  OrreryTests
 //
-//  When the "extend the cached range" button and toast show, and where the toast goes.
+//  When the "extend the cached range" button and toast show and go, and where the toast goes.
 //
 
 import Testing
@@ -87,5 +87,59 @@ struct RangeExtensionPromptTests {
         #expect(!manager.notificationQueue.contains { $0.id == a })
         #expect(window(of: b) == second)
         manager.removeNotification(b)
+    }
+    
+    /// Runs `body` with a registered test window and a way to count its toasts.
+    private func withWindow(_ body: (UUID, () -> [UUID]) throws -> Void) rethrows {
+        let manager = InAppNotificationManager.shared
+        let window = UUID()
+        manager.registerWindow(window)
+        defer { manager.unregisterWindow(window) }
+        try body(window) { manager.notificationQueue.filter { $0.windowID == window }.map(\.id) }
+    }
+    
+    @Test func presenterKeepsTheToastThatIsAlreadyUp() {
+        withWindow { window, toasts in
+            var presenter = ExtendRangeToastPresenter()
+            presenter.promptChanged(isShown: true, windowID: window) {}
+            let first = toasts()
+            #expect(first.count == 1)
+            // Settings panel opened and closed again.
+            presenter.promptChanged(isShown: false, windowID: window) {}
+            presenter.suggestionChanged(canSuggest: true)
+            presenter.promptChanged(isShown: true, windowID: window) {}
+            #expect(toasts() == first)
+        }
+    }
+    
+    @Test func presenterPostsAgainAfterTheUserDismisses() {
+        withWindow { window, toasts in
+            var presenter = ExtendRangeToastPresenter()
+            presenter.promptChanged(isShown: true, windowID: window) {}
+            let first = toasts()
+            first.forEach { InAppNotificationManager.shared.removeNotification($0) }
+            presenter.promptChanged(isShown: true, windowID: window) {}
+            #expect(toasts().count == 1)
+            #expect(toasts() != first)
+        }
+    }
+    
+    @Test func presenterRemovesTheToastWhenThereIsNothingToSuggest() {
+        withWindow { window, toasts in
+            var presenter = ExtendRangeToastPresenter()
+            presenter.promptChanged(isShown: true, windowID: window) {}
+            presenter.suggestionChanged(canSuggest: false)
+            #expect(toasts().isEmpty)
+            #expect(presenter.toastID == nil)
+        }
+    }
+    
+    @Test func toastPostedBeforeItsWindowRegistersWaitsForIt() {
+        let manager = InAppNotificationManager.shared
+        let window = UUID()
+        defer { manager.unregisterWindow(window) }
+        let id = manager.showActionToast(title: "T", systemImage: "gear", actionTitle: "A", in: window) {}
+        manager.registerWindow(window)
+        #expect(manager.notificationQueue.first { $0.id == id }?.windowID == window)
     }
 }
