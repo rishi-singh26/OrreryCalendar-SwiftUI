@@ -237,9 +237,9 @@ struct SettingsPanel: View {
             // On failure Settings already shows the error (with Retry); don't announce success.
             guard controller.lastErrorMessage == nil else { return }
             InAppNotificationManager.shared.showNotification(
-                title: "Date range updated",
-                message: "Planet positions are now cached for ±\(years) years around today.",
-                type: .info,
+                title: nil,
+                message: "Planet positions are now cached\nfor ±\(years) years around today.",
+                type: .success,
                 timing: .extraLong,
                 autoDismiss: true
             )

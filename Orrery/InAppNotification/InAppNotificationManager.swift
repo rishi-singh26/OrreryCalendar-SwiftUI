@@ -61,8 +61,8 @@ class InAppNotificationManager: ObservableObject {
     
     // Show in-app notification
     func showNotification(
-        title: String,
-        message: String,
+        title: String? = nil,
+        message: String? = nil,
         type: NotificationType = .info,
         timing: NotificationTime = .medium,
         autoDismiss: Bool = false

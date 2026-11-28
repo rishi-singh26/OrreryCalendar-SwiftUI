@@ -15,45 +15,44 @@ struct InAppNotificationView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            HStack {
+            HStack(spacing: 10) {
+                if notification.type != .neutral {
+                    Image(systemName: notification.type.icon)
+                        .foregroundColor(.white)
+                        .font(.title3)
+                        .frame(width: 40, height: 40)
+                        .background(notification.type.color)
+                        .contentShape(.rect(cornerRadius: 10))
+                        .clipShape(.rect(cornerRadius: 10))
+                }
+                
                 VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 10) {
-                        if notification.type != .neutral {
-                            Image(systemName: notification.type.icon)
-                                .foregroundColor(notification.type.color)
-                                .font(.title3)
-                        }
-                        Text(notification.title ?? "")
+                    if let title = notification.title {
+                        Text(title)
                             .font(.headline)
                             .foregroundColor(.primary)
-                        Spacer()
                     }
                     
-                    Text(notification.message ?? "")
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.leading)
-                }
-                
-                Spacer()
-                
-                Button {
-                    if let delayTask {
-                        delayTask.cancel()
+                    if let message = notification.message {
+                        Text(message)
+                            .font(.subheadline)
+                            .foregroundColor(notification.title == nil ? nil : .secondary)
+                            .multilineTextAlignment(.leading)
                     }
-                    notificationManager.removeNotification(notification.id)
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.gray)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Dismiss notification")
+                Spacer()
+            }
+            .accessibilityElement(children: .combine)
+            // Stands in for the swipe, which VoiceOver users can't easily discover.
+            .accessibilityAction(named: "Dismiss") {
+                cancelDelayTask()
+                notificationManager.removeNotification(notification.id)
             }
             .padding()
             .frame(maxWidth: .infinity)
         }
-        .glassOrSurface(in: .rect(cornerRadius: 18, style: .continuous))
-        .contentShape(.rect(cornerRadius: 18))
+        .glassOrSurface(in: .rect(cornerRadius: 20, style: .continuous))
+        .contentShape(.rect(cornerRadius: 20))
         .padding(.horizontal, 10)
         .swipeUpToDismiss(notification.id, onDrag: cancelDelayTask, onSnapBack: createDelayTask)
         .onAppear(perform: createDelayTask)
@@ -80,8 +79,22 @@ struct InAppNotificationView: View {
 }
 
 #Preview {
-    InAppNotificationView(
-        notification: .init(title: "Alert", message: "This is a notification", type: .info, mode: .toast),
-    )
+    Group {
+        InAppNotificationView(
+            notification: .init(title: "Alert", message: "This is a test notification. This notification has some long content. This needs to be long for proper testing.", type: .info, mode: .toast),
+        )
+        InAppNotificationView(
+            notification: .init(title: "Error", message: "This is a test notification. This notification has some long content.", type: .error, mode: .notification),
+        )
+        InAppNotificationView(
+            notification: .init(title: "Success", message: "This is a test notification", type: .success, mode: .toast),
+        )
+        InAppNotificationView(
+            notification: .init(title: nil, message: "This is a test notification.\nThis notification has some long content.", type: .neutral, mode: .toast),
+        )
+        InAppNotificationView(
+            notification: .init(title: nil, message: "This is a test notification.\nThis notification has some long content.", type: .success, mode: .toast),
+        )
+    }
     .environmentObject(InAppNotificationManager.shared)
 }

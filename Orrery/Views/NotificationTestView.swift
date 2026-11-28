@@ -31,6 +31,24 @@ struct NotificationTestView: View {
                     }
                 }
                 
+                Section("No title Notifications (stay until dismissed)") {
+                    Button("No title") {
+                        manager.showNotification(title: nil, message: "This is a information notification", type: .info)
+                    }
+                    Button("No title error") {
+                        manager.showNotification(title: nil, message: "This is a information notification", type: .error)
+                    }
+                    Button("No title Mind message") {
+                        manager.showNotification(title: nil, message: "This is a success notification\nSome more text in the next line.", type: .success)
+                    }
+                    Button("No title Long message") {
+                        manager.showNotification(title: nil, message: longMessage, type: .info)
+                    }
+                    Button("No title Neutral") {
+                        manager.showNotification(title: nil, message: "This is a neutral notification.\nSome more text in the next line.", type: .neutral)
+                    }
+                }
+                
                 Section("Notifications (auto-dismiss)") {
                     Button("Short (1s)") {
                         manager.showNotification(title: "Short", message: "Dismisses after 1 second.", type: .success, timing: .short, autoDismiss: true)
@@ -111,6 +129,7 @@ struct NotificationTestView: View {
 
 #Preview {
     NotificationTestView()
+        .inAppNotificationOverlay()
 }
 
 #endif

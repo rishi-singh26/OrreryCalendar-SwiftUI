@@ -23,23 +23,20 @@ struct InAppToastView: View {
                 }
                 
                 Text(notification.message ?? "")
-                    .font(.body)
-                    .foregroundColor(.secondary)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
                     .multilineTextAlignment(.leading)
-                
-                Button {
-                    if let delayTask {
-                        delayTask.cancel()
-                    }
-                    notificationManager.removeNotification(notification.id)
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.gray)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Dismiss notification")
+                    .lineLimit(1)
+            }
+            .accessibilityElement(children: .combine)
+            // Stands in for the swipe, which VoiceOver users can't easily discover.
+            .accessibilityAction(named: "Dismiss") {
+                cancelDelayTask()
+                notificationManager.removeNotification(notification.id)
             }
             .padding(10)
+            .padding(.leading, notification.type == .neutral ? 10 : 0)
+            .padding(.trailing, 10)
             .glassOrSurface(in: Capsule())
             .frame(maxWidth: .infinity)
         }
@@ -69,8 +66,16 @@ struct InAppToastView: View {
 }
 
 #Preview {
-    InAppToastView(
-        notification: .init(title: nil, message: "This is a toast", type: .info, mode: .toast, autoDismiss: false)
-    )
+    Group {
+        InAppToastView(
+            notification: .init(title: nil, message: "This is a toast with some long message. This message has to be long for test.", type: .info, mode: .toast, autoDismiss: false)
+        )
+        InAppToastView(
+            notification: .init(title: nil, message: "This is a toast", type: .neutral, mode: .toast, autoDismiss: false)
+        )
+        InAppToastView(
+            notification: .init(title: nil, message: "This is a toast", type: .info, mode: .toast, autoDismiss: false)
+        )
+    }
     .environmentObject(InAppNotificationManager.shared)
 }
