@@ -39,10 +39,14 @@ class InAppNotificationManager: ObservableObject {
     }
     
     /// Called when a window's overlay goes away. Its notifications move to another window
-    /// so they aren't orphaned (they stay unassigned if no window is left).
+    /// so they aren't orphaned (they stay unassigned if no window is left) — except action
+    /// toasts, whose button acts on the window that's closing.
     func unregisterWindow(_ id: UUID) {
         registeredWindowIDs.removeAll { $0 == id }
         if lastActiveWindowID == id { lastActiveWindowID = nil }
+        // Skip untouched mutations: even a no-op write to a @Published property publishes.
+        guard notificationQueue.contains(where: { $0.windowID == id }) else { return }
+        notificationQueue.removeAll { $0.mode == .actionToast && $0.windowID == id }
         let target = targetWindowID
         for index in notificationQueue.indices where notificationQueue[index].windowID == id {
             notificationQueue[index].windowID = target
@@ -57,8 +61,8 @@ class InAppNotificationManager: ObservableObject {
     
     // Show in-app notification
     func showNotification(
-        title: String,
-        message: String,
+        title: String? = nil,
+        message: String? = nil,
         type: NotificationType = .info,
         timing: NotificationTime = .medium,
         autoDismiss: Bool = false
@@ -94,6 +98,39 @@ class InAppNotificationManager: ObservableObject {
         
         // Add to queue
         notificationQueue.append(notification)
+    }
+    
+    /// Shows a toast with an action button. It stays until the user taps the button or
+    /// dismisses it (by swiping, or with VoiceOver), or the caller removes it using the
+    /// returned id.
+    ///
+    /// It appears in the window identified by `windowID` (see
+    /// `EnvironmentValues.notificationWindowID`), as soon as that window has registered.
+    /// Without an ID it goes to the last active window.
+    /// Each window holds at most one: a new one replaces that window's previous one.
+    @discardableResult
+    func showActionToast(
+        title: String,
+        message: String? = nil,
+        systemImage: String,
+        actionTitle: String,
+        in windowID: UUID?,
+        action: @escaping @MainActor () -> Void
+    ) -> UUID {
+        let target = windowID ?? targetWindowID
+        let notification = InAppNotification(
+            title: title,
+            message: message,
+            type: .neutral,
+            mode: .actionToast,
+            windowID: target,
+            systemImage: systemImage,
+            action: NotificationAction(title: actionTitle, perform: action)
+        )
+        
+        notificationQueue.removeAll { $0.mode == .actionToast && $0.windowID == target }
+        notificationQueue.append(notification)
+        return notification.id
     }
     
     // Clear all notifications (current and queued)
@@ -142,6 +179,11 @@ struct InAppNotification: Identifiable, Equatable {
     /// The window whose overlay shows this notification (see `InAppNotificationManager`).
     var windowID: UUID?
     
+    /// Leading icon of an `.actionToast`.
+    var systemImage: String?
+    /// The button of an `.actionToast`.
+    var action: NotificationAction?
+    
     // View properties
     var offsetY: CGFloat = 0
 }
@@ -149,6 +191,19 @@ struct InAppNotification: Identifiable, Equatable {
 enum NotificationMode {
     case notification
     case toast
+    case actionToast
+}
+
+/// A button carried by a notification. Wraps the closure so that
+/// `InAppNotification` can stay `Equatable`.
+struct NotificationAction: Equatable {
+    private let id = UUID()
+    let title: String
+    let perform: @MainActor () -> Void
+    
+    static func == (lhs: NotificationAction, rhs: NotificationAction) -> Bool {
+        lhs.id == rhs.id
+    }
 }
 
 enum NotificationTime: CGFloat {

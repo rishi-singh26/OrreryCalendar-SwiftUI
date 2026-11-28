@@ -23,28 +23,25 @@ struct InAppToastView: View {
                 }
                 
                 Text(notification.message ?? "")
-                    .font(.body)
-                    .foregroundColor(.secondary)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
                     .multilineTextAlignment(.leading)
-                
-                Button {
-                    if let delayTask {
-                        delayTask.cancel()
-                    }
-                    notificationManager.removeNotification(notification.id)
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.gray)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Dismiss notification")
+                    .lineLimit(1)
+            }
+            .accessibilityElement(children: .combine)
+            // Stands in for the swipe, which VoiceOver users can't easily discover.
+            .accessibilityAction(named: "Dismiss") {
+                cancelDelayTask()
+                notificationManager.removeNotification(notification.id)
             }
             .padding(10)
+            .padding(.leading, notification.type == .neutral ? 10 : 0)
+            .padding(.trailing, 10)
             .glassOrSurface(in: Capsule())
             .frame(maxWidth: .infinity)
         }
         .padding(.horizontal, 10)
-        .gesture(gesture)
+        .swipeUpToDismiss(notification.id, onDrag: cancelDelayTask, onSnapBack: createDelayTask)
         .onAppear(perform: createDelayTask)
     }
     
@@ -66,37 +63,19 @@ struct InAppToastView: View {
             self.delayTask = nil
         }
     }
-    
-    private var gesture: some Gesture {
-        // Measure in the global space: the container moves this view (`.offset`) while it's
-        // dragged, so in the default local space the gesture's own coordinates shift under
-        // the finger on every update and the translation zigzags, making the drag flicker.
-        DragGesture(coordinateSpace: .global)
-            .onChanged { value in
-                // Only follow upward drags; downward drags are ignored.
-                let yOffset = value.translation.height < 0 ? value.translation.height : 0
-                notificationManager.setOffset(notification.id, to: yOffset)
-                cancelDelayTask()
-            }.onEnded { value in
-                let yOffset = value.translation.height + (value.velocity.height / 2)
-                
-                if -yOffset > InAppNotificationManager.swipeDismissDistance {
-                    // Remove notification
-                    notificationManager.removeNotification(notification.id)
-                } else {
-                    // Reset notification position
-                    withAnimation(.snappy) {
-                        notificationManager.setOffset(notification.id, to: 0)
-                    }
-                    createDelayTask()
-                }
-            }
-    }
 }
 
 #Preview {
-    InAppToastView(
-        notification: .init(title: nil, message: "This is a toast", type: .info, mode: .toast, autoDismiss: false)
-    )
+    Group {
+        InAppToastView(
+            notification: .init(title: nil, message: "This is a toast with some long message. This message has to be long for test.", type: .info, mode: .toast, autoDismiss: false)
+        )
+        InAppToastView(
+            notification: .init(title: nil, message: "This is a toast", type: .neutral, mode: .toast, autoDismiss: false)
+        )
+        InAppToastView(
+            notification: .init(title: nil, message: "This is a toast", type: .info, mode: .toast, autoDismiss: false)
+        )
+    }
     .environmentObject(InAppNotificationManager.shared)
 }

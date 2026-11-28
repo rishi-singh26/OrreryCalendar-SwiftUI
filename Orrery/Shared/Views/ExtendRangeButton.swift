@@ -3,7 +3,7 @@
 //  Orrery
 //
 //  Surfaced by `SmallScreenView`/`LargeScreenView` once the selected date is within 30
-//  days of the cached range's edge — see `ContentViewModel.isNearRangeEdge`.
+//  days of the cached range's edge — see `ContentViewModel.showsRangeExtensionPrompt`.
 //
 
 import SwiftUI

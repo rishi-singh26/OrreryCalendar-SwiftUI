@@ -65,6 +65,11 @@ struct SmallScreenView: View {
             }
         }
         .contentLifecycle(viewModel: viewModel, observing: .changesOnly)
+        .extendRangeToast(viewModel: viewModel) {
+            withAnimation(effectiveAnimation) {
+                viewModel.controlPresentationState = .settings
+            }
+        }
     }
     
     @ViewBuilder

@@ -14,6 +14,12 @@
 
 import SwiftUI
 
+extension EnvironmentValues {
+    /// Identifies the hosting window's overlay, for notifications that must appear in the
+    /// window that posted them. `nil` outside `inAppNotificationOverlay()`.
+    @Entry var notificationWindowID: UUID?
+}
+
 extension View {
     /// Apply once, near the root of each window's content (the view given to `WindowGroup`).
     /// All windows mirror `InAppNotificationManager.shared`'s queue.
@@ -29,11 +35,13 @@ private struct InAppNotificationOverlayModifier: ViewModifier {
     @State private var controller = OverlayWindowController()
     
     func body(content: Content) -> some View {
-        content.background(
-            WindowSceneFinder { scene in
-                controller.attach(to: scene)
-            }
-        )
+        content
+            .environment(\.notificationWindowID, controller.windowID)
+            .background(
+                WindowSceneFinder { scene in
+                    controller.scheduleAttach(to: scene)
+                }
+            )
     }
 }
 
@@ -74,9 +82,28 @@ private final class OverlayWindowController {
     private var activateObserver: NSObjectProtocol?
     /// Identifies this scene's overlay in `InAppNotificationManager`, which routes each
     /// notification to a single window.
-    private let windowID = UUID()
+    let windowID = UUID()
     
-    func attach(to scene: UIWindowScene) {
+    /// Bumped when the host goes away, to void attaches that are still pending.
+    private var closeCount = 0
+    
+    /// Attaches on the next main-actor turn: callers are inside a view update or layout
+    /// pass, where the manager changes made by attaching can't be published. Does nothing
+    /// if the host closes in the meantime.
+    func scheduleAttach(to scene: UIWindowScene) {
+        let scheduledAt = closeCount
+        Task { @MainActor in
+            guard scheduledAt == closeCount else { return }
+            attach(to: scene)
+        }
+    }
+    
+    private func hostDidClose() {
+        closeCount += 1
+        detach()
+    }
+    
+    private func attach(to scene: UIWindowScene) {
         // Already attached to this scene (body re-evaluated): nothing to do.
         guard attachedScene !== scene || overlayWindow == nil else { return }
         detach()
@@ -110,7 +137,7 @@ private final class OverlayWindowController {
             object: scene,
             queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.detach() }
+            MainActor.assumeIsolated { self?.hostDidClose() }
         }
         activateObserver = NotificationCenter.default.addObserver(
             forName: UIScene.didActivateNotification,
@@ -124,11 +151,15 @@ private final class OverlayWindowController {
         }
     }
     
-    func detach() {
+    private func detach() {
+        // The first attach detaches too; unregistering then would drop a toast that was
+        // posted to this window before it registered.
+        if overlayWindow != nil {
+            InAppNotificationManager.shared.unregisterWindow(windowID)
+        }
         overlayWindow?.isHidden = true
         overlayWindow = nil
         attachedScene = nil
-        InAppNotificationManager.shared.unregisterWindow(windowID)
         for observer in [disconnectObserver, activateObserver] {
             if let observer { NotificationCenter.default.removeObserver(observer) }
         }
@@ -179,11 +210,13 @@ private struct InAppNotificationOverlayModifier: ViewModifier {
     @State private var controller = OverlayWindowController()
     
     func body(content: Content) -> some View {
-        content.background(
-            WindowFinder { window in
-                controller.attach(to: window)
-            }
-        )
+        content
+            .environment(\.notificationWindowID, controller.windowID)
+            .background(
+                WindowFinder { window in
+                    controller.scheduleAttach(to: window)
+                }
+            )
     }
 }
 
@@ -224,9 +257,28 @@ private final class OverlayWindowController {
     private var layoutObservation: NSKeyValueObservation?
     /// Identifies this window's overlay in `InAppNotificationManager`, which routes each
     /// notification to a single window.
-    private let windowID = UUID()
+    let windowID = UUID()
     
-    func attach(to window: NSWindow) {
+    /// Bumped when the host goes away, to void attaches that are still pending.
+    private var closeCount = 0
+    
+    /// Attaches on the next main-actor turn: callers are inside a view update or layout
+    /// pass, where the manager changes made by attaching can't be published. Does nothing
+    /// if the host closes in the meantime.
+    func scheduleAttach(to window: NSWindow) {
+        let scheduledAt = closeCount
+        Task { @MainActor in
+            guard scheduledAt == closeCount else { return }
+            attach(to: window)
+        }
+    }
+    
+    private func hostDidClose() {
+        closeCount += 1
+        detach()
+    }
+    
+    private func attach(to window: NSWindow) {
         // Already attached to this window (body re-evaluated): nothing to do.
         guard hostWindow !== window || panel == nil else { return }
         detach()
@@ -273,7 +325,7 @@ private final class OverlayWindowController {
                 MainActor.assumeIsolated { self?.syncFrame() }
             },
             center.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.detach() }
+                MainActor.assumeIsolated { self?.hostDidClose() }
             },
             center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated {
@@ -294,14 +346,18 @@ private final class OverlayWindowController {
         panel.setFrame(hostWindow.convertToScreen(hostWindow.contentLayoutRect), display: true)
     }
     
-    func detach() {
+    private func detach() {
+        // The first attach detaches too; unregistering then would drop a toast that was
+        // posted to this window before it registered.
+        if panel != nil {
+            InAppNotificationManager.shared.unregisterWindow(windowID)
+        }
         if let hostWindow, let panel {
             hostWindow.removeChildWindow(panel)
         }
         panel?.close()
         panel = nil
         hostWindow = nil
-        InAppNotificationManager.shared.unregisterWindow(windowID)
         layoutObservation = nil
         let center = NotificationCenter.default
         observers.forEach { center.removeObserver($0) }

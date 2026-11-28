@@ -18,7 +18,7 @@ struct LargeScreenBottomPanel: View {
     
     var body: some View {
         VStack {
-            if viewModel.isNearRangeEdge(dataController: dataController) {
+            if viewModel.showsRangeExtensionPrompt(dataController: dataController) {
                 ExtendRangeButton(theme: theme) {
                     presentSettings()
                 }

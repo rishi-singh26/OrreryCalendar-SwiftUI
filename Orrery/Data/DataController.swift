@@ -16,7 +16,7 @@ import Observation
 @Observable
 final class DataController {
     static let minRangeYears = 1
-    static let maxRangeYears = 100
+    nonisolated static let maxRangeYears = 100
     static let defaultRangeYears = 10
     private static let resumeToleranceDays = 14
     
@@ -42,6 +42,15 @@ final class DataController {
     }
     
     var todayDate: Date { UTCDay.todayAsUTCMidnight() }
+    
+    /// Whether the cache already spans the largest range, so it can't be extended.
+    var isAtMaxRange: Bool { Self.isMaxRange(dayCount: dayCount) }
+    
+    /// Judged on the cached span rather than its distance from today, which drifts as time
+    /// passes. 365-day years leave some slack below the true span of ±`maxRangeYears`.
+    nonisolated static func isMaxRange(dayCount: Int) -> Bool {
+        dayCount >= maxRangeYears * 2 * 365
+    }
     
     init(modelContainer: ModelContainer) {
         self.io = DataStoreIO(container: modelContainer)
